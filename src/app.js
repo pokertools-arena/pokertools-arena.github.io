@@ -1746,7 +1746,13 @@ function openSetup({ preserveError = false } = {}) { if (!preserveError) els.set
 function cloneJson(value) { return JSON.parse(JSON.stringify(value)); }
 function sanityAgents() {
   const connections = readConnections();
-  return readSeatPlayers().map(player => ({ ...player, connection: connections.find(c => c.id === player.connectionId) })).filter(row => row.connection);
+  // Seat assignments restored from .env or saved config carry no id, so derive
+  // the same stable id the tournament uses. Without it every agent.id is
+  // undefined, so sanity results from all models collapse into one summary
+  // (e.g. "24/10") and every grid column shows the last model's result.
+  return readSeatPlayers()
+    .map(player => ({ ...player, id: player.id || `player-${player.lobbySeat + 1}`, connection: connections.find(c => c.id === player.connectionId) }))
+    .filter(row => row.connection);
 }
 function sanityProtocolLabel(agent) {
   const protocol = effectiveProtocol(agent, agent.connection);

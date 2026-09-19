@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.4.1.** A maintenance release on top of the 0.4.0 methodology work: modal tooltips now float above overflow, the launcher starts exactly once when its default port is busy, and the real-API diagnostics skip cleanly when repository secrets are absent.
+> **Current release: 0.4.2.** A maintenance release on top of the 0.4.0 methodology work: modal tooltips float above overflow, the launcher starts exactly once when its default port is busy, real-API diagnostics skip cleanly when repository secrets are absent, and the Decision sanity suite attributes results to the correct model.
 
 ---
 

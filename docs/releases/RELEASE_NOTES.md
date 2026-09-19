@@ -1,5 +1,14 @@
 # Release notes
 
+## 0.4.2 — Maintenance
+
+- **Decision sanity suite model attribution.** Seat assignments restored from
+  `.env` or saved configuration had no `id`, so every sanity agent shared an
+  undefined id. Each model summary then counted every model's decisions (for
+  example `24/10` when only 10 spots exist) and every scenario column rendered
+  the last model's result. Sanity agents now derive the same stable
+  `player-<seat>` id the tournament uses, so each model is reported separately.
+
 ## 0.4.1 — Maintenance
 
 A maintenance release on top of the 0.4.0 methodology work.

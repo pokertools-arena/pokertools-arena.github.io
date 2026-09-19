@@ -79,7 +79,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.4.1') throw new Error('Expected release version 0.4.1');
+if (pkg.version !== '0.4.2') throw new Error('Expected release version 0.4.2');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -110,6 +110,7 @@ if (!index.includes('favicon.svg')) throw new Error('Favicon link missing');
 if (!index.includes('id="testsDialog"') || !index.includes('id="testsBtn"')) throw new Error('Decision sanity-suite UI missing');
 if (!index.includes('id="anteValue"') || !index.includes('id="handValue"') || !index.includes('id="levelValue"')) throw new Error('Semantic table HUD missing');
 if (!app.includes('DECISION_SANITY_SCENARIOS') || !app.includes('runDecisionSanitySuite')) throw new Error('Decision sanity-suite runner missing');
+if (!app.includes('id: player.id || `player-${player.lobbySeat + 1}`')) throw new Error('Sanity agents must carry stable unique ids');
 if (!css.includes('.table-hud') || !css.includes('.tests-dialog')) throw new Error('Table HUD/tests UI polish missing');
 if (!css.includes('0.2.8 — viewport-fit table') || !css.includes('grid-template-columns:minmax(0,1fr) clamp(270px,25vw,360px)')) throw new Error('0.2.8 viewport-fit table layout missing');
 if (!app.includes('const renderMemo') || !app.includes('activeInspectorTab') || !app.includes('schedulePersist()') || !app.includes('publicStatsCacheHand')) throw new Error('0.2.8 render/persistence optimization missing');
