@@ -142,6 +142,17 @@ function showActionToast(text, type = '') {
   }, 1550);
 }
 function seatEl(playerId) { return $(`.seat[data-player-id="${CSS.escape(String(playerId))}"]`, els.seatsLayer); }
+// Cancel every effect the table may still have in flight: chip flies, toast,
+// fold/check flashes and their pending timeouts. Called when a run stops so the
+// display freezes instead of finishing queued animations.
+function stopTableEffects() {
+  clearTimeout(showActionToast.timer);
+  els.actionToast?.classList.add('hidden');
+  els.pokerTable?.classList.remove('action-message-visible');
+  els.fxLayer?.replaceChildren();
+  for (const el of $$('.seat.fold-flash, .seat.check-flash'))
+    { el.classList.remove('fold-flash'); el.classList.remove('check-flash'); }
+}
 function animateNewHand(s) {
   if (!animationsAllowed()) return;
   requestAnimationFrame(() => {
@@ -169,6 +180,15 @@ function animateBoardCards(previousCount, currentCount) {
 }
 function processVisualEffects(s) {
   const events = s?.events || [];
+  // Once a run is stopped (or errored) no further effects may be scheduled.
+  // Without this, already-live chip flies, flashes and sounds continued after
+  // Stop, and an in-flight broadcast could replay the last decision's effects.
+  if (['STOPPED', 'ERROR'].includes(s?.status)) {
+    if (events.length) lastProcessedEventId = events.at(-1).id;
+    lastVisualState = s;
+    stopTableEffects();
+    return;
+  }
   if (!animationsAllowed()) {
     if (events.length) lastProcessedEventId = events.at(-1).id;
     lastVisualState = s;
@@ -1569,6 +1589,9 @@ function championBadgeHtml() {
     + '</svg></span>';
 }
 function renderDecision(s) {
+  // A stopped/errored run must not keep a live clock. stop() clears
+  // currentDecision, but the last broadcast can still carry it, so guard here.
+  if (['STOPPED', 'ERROR'].includes(s?.status)) { stopClock(); return; }
   const d = s?.currentDecision;
   const last = latestDecisionEvent(s);
   const shouldShowCard = Boolean(d || last || seatAssignments.filter(Boolean).length);
@@ -2326,7 +2349,11 @@ els.setupBtn.addEventListener('click', openSetup);
 els.closeSetup.addEventListener('click', () => els.setupDialog.close());
 els.addConnectionBtn.addEventListener('click', () => addConnectionRow({ name: `API ${els.connectionsEditor.children.length + 1}`, kind: 'openai', baseUrl: 'https://api.openai.com/v1' }));
 els.pauseBtn.addEventListener('click', () => { if (!director) return; currentState?.status === 'PAUSED' ? director.resume() : director.pause(); });
-els.stopBtn.addEventListener('click', () => director?.stop());
+els.stopBtn.addEventListener('click', () => {
+  if (!director) return;
+  stopClock(); stopTableEffects();
+  director.stop();
+});
 els.exportBtn.addEventListener('click', () => { if (!director?.events?.length) return; downloadText(`${director.config?.id || 'pokertools-arena'}.jsonl`, director.exportJsonl()); });
 els.seatsBtn.addEventListener('click', () => {
   if (director && ['RUNNING', 'PAUSED'].includes(director.status)) return;

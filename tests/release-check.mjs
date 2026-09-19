@@ -79,7 +79,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.4.4') throw new Error('Expected release version 0.4.4');
+if (pkg.version !== '0.4.5') throw new Error('Expected release version 0.4.5');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -114,6 +114,8 @@ if (!app.includes('id: player.id || `player-${player.lobbySeat + 1}`')) throw ne
 if (!app.includes('function syncSeatNameFromModel') || !app.includes('seatNameAuto')) throw new Error('Seat editor must show the model-derived seat name');
 if (!css.includes('.icon-button svg{') || !index.includes('class="icon-glyph"')) throw new Error('Close buttons must use centered SVG glyphs');
 if (app.includes('decision-facts-note') || core.includes('SPECTATOR_NOTE') || css.includes('.decision-facts-note')) throw new Error('Typed-decision spectator note must not be rendered');
+if (!app.includes('function stopTableEffects(')) throw new Error('Stopping a run must cancel in-flight table effects');
+if (!app.includes("if (['STOPPED', 'ERROR'].includes(s?.status)) { stopClock(); return; }")) throw new Error('Stopped runs must not keep the decision clock running');
 if (index.includes('Close settings">×')) throw new Error('Text close glyph still present (off-centre)');
 if (!css.includes('.table-hud') || !css.includes('.tests-dialog')) throw new Error('Table HUD/tests UI polish missing');
 if (!css.includes('0.2.8 — viewport-fit table') || !css.includes('grid-template-columns:minmax(0,1fr) clamp(270px,25vw,360px)')) throw new Error('0.2.8 viewport-fit table layout missing');

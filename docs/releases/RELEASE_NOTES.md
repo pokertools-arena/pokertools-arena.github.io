@@ -1,5 +1,15 @@
 # Release notes
 
+## 0.4.5 — Maintenance
+
+- **Stop now freezes the display.** Stopping a tournament clears the decision
+  clock and cancels every table effect still in flight (chip flies, action
+  toast, fold/check flashes and their pending timers). Previously the turn ring
+  and clock kept counting and queued animations finished after the run had
+  stopped, because the last broadcast still carried `currentDecision` and the
+  effects queue was never drained. `renderDecision` and `processVisualEffects`
+  now hard-stop on `STOPPED`/`ERROR`.
+
 ## 0.4.4 — Maintenance
 
 - **Cleaner decision logs.** Removed the repeated spectator caption ("This
