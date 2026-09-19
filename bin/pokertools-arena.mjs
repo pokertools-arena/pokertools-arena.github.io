@@ -135,7 +135,7 @@ function safePath(urlPath) {
   return resolved.startsWith(root) ? resolved : null;
 }
 
-const server = createServer(async (req, res) => {
+async function handleRequest(req, res) {
   try {
     const urlPath = (req.url || '/').split('?')[0];
     if (urlPath === '/arena-env.js') {
@@ -160,7 +160,7 @@ const server = createServer(async (req, res) => {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Not found');
   }
-});
+}
 
 function openBrowser(url) {
   const platform = process.platform;
@@ -176,6 +176,11 @@ function openBrowser(url) {
 }
 
 function listen(port) {
+  // A fresh Server per attempt. Reusing one Server and calling listen() again
+  // from inside its EADDRINUSE handler makes Node emit 'listening' twice, which
+  // printed the banner twice and opened two browser windows when the port was
+  // already in use.
+  const server = createServer(handleRequest);
   server.once('error', error => {
     if (error.code === 'EADDRINUSE' && port < requestedPort + 20) return listen(port + 1);
     console.error(`pokertools-arena: ${error.message}`);

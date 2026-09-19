@@ -31,6 +31,7 @@ export const REQUIRED_FILES = [
   'tests/unit/paired-architecture-tests.mjs', 'tests/unit/size-bucket-tests.mjs',
   'tests/unit/archive-content.mjs', 'tests/unit/report-consistency.mjs',
   'tests/integration/pokertools-integration.mjs', 'tests/integration/env-bootstrap.mjs',
+  'tests/integration/launcher-port-retry.mjs',
   'tests/real/real-decision-diagnostics.mjs', 'tests/real/real-tournament-ab.mjs',
   'tests/real/real-paired-corpus.mjs',
   'tests/analysis/diagnostics-analyze.mjs', 'tests/analysis/diagnostics-summary.mjs',

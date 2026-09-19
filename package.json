@@ -23,7 +23,7 @@
     "check": "node --check src/app.js && node --check src/benchmark/scenarios.js && node --check build.mjs && node --check bin/pokertools-arena.mjs && node tests/release-check.mjs",
     "test": "npm run build && npm run check && npm run test:unit && npm run test:integration",
     "test:unit": "node tests/unit/decision-scenarios.mjs && node tests/unit/decision-diagnostics.mjs && node tests/unit/hierarchical-decision-tests.mjs && node tests/unit/methodology-tests.mjs && node tests/unit/size-bucket-tests.mjs && node tests/unit/paired-architecture-tests.mjs && node tests/unit/archive-content.mjs && node tests/unit/report-consistency.mjs",
-    "test:integration": "node tests/integration/pokertools-integration.mjs && node tests/integration/env-bootstrap.mjs",
+    "test:integration": "node tests/integration/pokertools-integration.mjs && node tests/integration/env-bootstrap.mjs && node tests/integration/launcher-port-retry.mjs",
     "test:diagnostics": "node tests/real/real-decision-diagnostics.mjs",
     "test:diagnostics:dry": "node tests/real/real-decision-diagnostics.mjs --dry-run",
     "test:real": "node tests/real/real-decision-diagnostics.mjs && node tests/real/real-paired-corpus.mjs",
