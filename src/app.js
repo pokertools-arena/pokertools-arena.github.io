@@ -642,6 +642,10 @@ class TournamentDirector {
   }
   async startHand() {
     await this.waitIfPaused(); this.pruneBustedSeats(); this.handNumber++;
+    // A new hand clears every seat's "last action" so a card never shows what a
+    // player did in the previous hand. Elimination stamps are presentation-only
+    // and are applied in renderTable, so they survive this reset.
+    for (const stat of Object.values(this.stats)) stat.lastAction = null;
     this.handStartStacks = Object.fromEntries((this.engine?.state?.players ?? []).filter(Boolean).map(p => [p.id, playerStack(p)]));
     try { this.engine.deal(); }
     catch {

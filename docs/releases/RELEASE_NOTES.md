@@ -1,5 +1,13 @@
 # Release notes
 
+## 0.4.6 — Maintenance
+
+- **Seat cards clear their last action each hand.** `stats.lastAction` was only
+  ever written, never reset, so every player card kept showing the previous
+  hand's action into the next deal. `startHand` now clears the last action for
+  every seat. Eliminations still display, because they are derived from the
+  elimination list at render time rather than stored as `lastAction`.
+
 ## 0.4.5 — Maintenance
 
 - **Stop now freezes the display.** Stopping a tournament clears the decision
