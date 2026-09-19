@@ -1,5 +1,28 @@
 # Release notes
 
+## 0.4.1 — Maintenance
+
+A maintenance release on top of the 0.4.0 methodology work.
+
+### Tooltips
+
+- Modal tooltips are rendered by a single fixed-position element attached to the
+  topmost open `<dialog>`. They escape the modal's overflow clipping, flip above
+  the trigger when there is no room below, and stay inside the viewport, so every
+  information tooltip is fully visible.
+
+### Launcher
+
+- The local launcher binds a fresh HTTP server per port attempt. When the default
+  port is already in use it now starts exactly once (one banner, one browser
+  window) on the next free port instead of starting twice.
+
+### CI
+
+- Real-API diagnostics have a credential preflight. When the `OPENAI_*`
+  repository secrets are not configured the diagnostics job is skipped with a
+  notice instead of failing a published release.
+
 ## 0.4.0 — Methodology, reproducibility and repository organization
 
 This release does not redesign the 0.3.0 decision foundations. It makes the

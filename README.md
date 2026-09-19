@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.4.0.** This is the methodology and reproducibility release: a paired fixed-state corpus, separated family/sizing correctness, fragmentation-invariance metrics with confidence intervals, standardized counters, and a reorganized repository with one source of truth per report.
+> **Current release: 0.4.1.** A maintenance release on top of the 0.4.0 methodology work: modal tooltips now float above overflow, the launcher starts exactly once when its default port is busy, and the real-API diagnostics skip cleanly when repository secrets are absent.
 
 ---
 
