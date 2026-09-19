@@ -1,7 +1,9 @@
 name: Real-API diagnostics (manual)
 
-# Never runs on pull requests. Requires repository secrets and is triggered
-# manually (or from a release) so ordinary CI stays offline and credential-free.
+# Requires repository secrets and is triggered manually (or from a release) so
+# ordinary CI stays offline and credential-free. When the OPENAI_* secrets are
+# not configured the diagnostics job is skipped with a notice instead of
+# failing, so publishing a release never leaves a red run behind.
 on:
   workflow_dispatch:
     inputs:
@@ -22,8 +24,28 @@ permissions:
   contents: read
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - name: Check for real-API credentials
+        id: check
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_PLAYER1: ${{ secrets.OPENAI_PLAYER1 }}
+        run: |
+          if [ -n "$OPENAI_API_KEY" ] && [ -n "$OPENAI_PLAYER1" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Real-API credentials found; running diagnostics."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Real-API diagnostics skipped::Set the OPENAI_API_KEY and OPENAI_PLAYER1 repository secrets to run the real-API diagnostics."
+          fi
+
   diagnostics:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'release' }}
+    needs: preflight
+    if: needs.preflight.outputs.configured == 'true'
     runs-on: ubuntu-latest
     env:
       OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}

@@ -181,9 +181,11 @@ if (!app.includes('lowTimeMs') || !app.includes('lowTimeFraction')) throw new Er
 if (!index.includes('name="lowTimeSeconds"') || !index.includes('name="lowTimeFraction"')) throw new Error('Low-time timing fields missing from setup UI');
 if (existsSync(join(root,'app.js')) || existsSync(join(root,'index.html')) || existsSync(join(root,'styles.css'))) throw new Error('Duplicate root application sources present');
 
-for (const workflow of ['ci.yml','pages.yml','publish.yml']) {
+for (const workflow of ['ci.yml','pages.yml','publish.yml','real-diagnostics.yml']) {
   if (!statSync(join(root,'.github','workflows',workflow)).isFile()) throw new Error(`Missing workflow ${workflow}`);
 }
+const diagnosticsWorkflow = readFileSync(join(root,'.github','workflows','real-diagnostics.yml'),'utf8');
+if (!diagnosticsWorkflow.includes("needs.preflight.outputs.configured == 'true'")) throw new Error('Real-API diagnostics must skip instead of failing when credentials are absent');
 const pagesWorkflow = readFileSync(join(root,'.github','workflows','pages.yml'),'utf8');
 if (!pagesWorkflow.includes('https://pokertools-arena.github.io/')) throw new Error('Canonical Pages URL missing from workflow');
 const publishWorkflow = readFileSync(join(root,'.github','workflows','publish.yml'),'utf8');
