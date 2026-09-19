@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="color-scheme" content="dark" />
   <meta name="theme-color" content="#07090b" />
   <title>pokertools-arena — AI Poker Benchmark</title>
@@ -106,9 +106,17 @@
         </div>
 
         <div id="tab-log" class="tab-panel" role="tabpanel" aria-labelledby="tabButton-log" hidden>
-          <section class="panel-block grow">
-            <div class="panel-title-row"><div class="panel-title">Tournament events</div><button id="exportBtn" class="button ghost small-button" type="button" disabled title="Download the tournament log as JSONL"><span class="action-icon">↓</span><span class="action-label">Download</span></button></div>
-            <div id="eventLog" class="event-log mono" aria-label="Tournament event log"></div>
+          <section class="panel-block grow event-panel">
+            <div class="panel-title-row log-title-row">
+              <div class="log-title-copy"><div class="panel-title">Full event archive</div><div id="logSummary" class="log-summary mono">0 events</div></div>
+              <button id="exportBtn" class="button ghost small-button" type="button" disabled title="Download the full tournament log as JSONL"><span class="action-icon">↓</span><span class="action-label">Download</span></button>
+            </div>
+            <div class="log-toolbar" aria-label="Event log controls">
+              <label class="log-search"><span class="sr-only">Search events</span><input id="logSearch" type="search" autocomplete="off" placeholder="Search model, action, event…" /></label>
+              <label class="log-filter"><span class="sr-only">Filter event type</span><select id="logFilter"><option value="all">All events</option><option value="decisions">Decisions</option><option value="hands">Hands</option><option value="system">System</option><option value="errors">Errors</option></select></label>
+              <button id="logClear" class="button ghost small-button log-clear" type="button" title="Clear log filters">Clear</button>
+            </div>
+            <div id="eventLog" class="event-log" aria-label="Tournament event log" aria-live="polite"></div>
           </section>
         </div>
         <div id="tab-stats" class="tab-panel" role="tabpanel" aria-labelledby="tabButton-stats" hidden><section class="panel-block grow"><div class="panel-title">Models</div><div id="statsGrid" class="stats-grid"></div></section></div>

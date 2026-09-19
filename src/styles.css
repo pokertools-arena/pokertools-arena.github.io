@@ -2512,3 +2512,252 @@ a.button{text-decoration:none}
   .lobby-seat,.configured-seat,.empty-seat{width:104px!important;min-height:72px!important}
 }
 
+
+/* 0.6.0 — unified responsive poker-room UX ----------------------------------
+   Final override layer: one viewport-fit desktop composition, a table-first
+   mobile layout with fixed game controls, full event archive controls, and a
+   consistent modal/sheet system. */
+:root{
+  --app-pad:12px;
+  --ui-radius:16px;
+  --ui-radius-sm:10px;
+  --inspector-w:clamp(340px,26vw,410px);
+  --control-surface:rgba(255,255,255,.035);
+  --control-border:rgba(255,255,255,.09);
+  --focus:rgba(160,224,181,.82);
+}
+html{min-height:100%;scrollbar-gutter:stable}
+body{min-height:100dvh;overscroll-behavior-y:none}
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+
+.app-shell{min-height:100dvh;padding:var(--app-pad)}
+.workspace{
+  width:100%;max-width:1920px;min-height:calc(100dvh - (var(--app-pad) * 2));
+  grid-template-columns:var(--inspector-w) minmax(0,1fr);gap:12px;align-items:stretch;
+}
+.inspector,.arena-card{height:calc(100dvh - (var(--app-pad) * 2));min-height:0;border-radius:var(--ui-radius)}
+.inspector{overflow:hidden;contain:layout paint}
+.arena-card{overflow:hidden;min-width:0}
+.tabs{flex:0 0 auto;background:rgba(7,10,12,.72)}
+.tab{min-width:0;transition:background .16s ease,color .16s ease,transform .16s ease}
+.tab:active{transform:translateY(1px)}
+.tab-panel{min-height:0}
+.tab-panel.active{overflow:hidden}
+.tab-panel>.panel-block.grow,.event-panel{min-height:0;display:flex;flex-direction:column}
+.panel-block{min-width:0}
+
+/* Poker room: quieter chrome, deeper felt, stronger seat hierarchy. */
+.arena-head{flex:0 0 44px;height:44px;padding-inline:14px;background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.006))}
+.arena-status{display:flex;align-items:center;min-width:76px;font-weight:800;letter-spacing:.05em}
+#tournamentMeta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;flex:1;min-width:0}
+.poker-table{flex:1;min-height:0!important;height:auto!important;max-height:none!important;background:
+  radial-gradient(ellipse at 50% 48%,rgba(34,113,82,.12),transparent 52%),
+  linear-gradient(180deg,rgba(255,255,255,.012),transparent 28%,rgba(0,0,0,.05));
+}
+.felt-ring{
+  left:5.5%;right:5.5%;top:7%;bottom:7%;border-radius:50%;border:10px solid #1b2227;
+  background:
+    radial-gradient(ellipse at 50% 38%,rgba(255,255,255,.055),transparent 40%),
+    radial-gradient(ellipse at 50% 55%,#145640 0%,#0d4534 48%,#082f25 100%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.035),inset 0 0 90px rgba(0,0,0,.32),0 28px 70px rgba(0,0,0,.46),0 0 0 1px rgba(255,255,255,.025);
+}
+.felt-ring::before{content:"";position:absolute;inset:7px;border-radius:inherit;border:1px solid rgba(206,232,217,.055);pointer-events:none}
+.table-brand{opacity:.34!important;margin-bottom:10px!important}
+.table-brand-mark{font-size:24px!important;margin-bottom:2px!important;color:rgba(223,240,230,.42)!important}
+.table-brand-copy strong{font-size:clamp(22px,2.15vw,34px)!important;color:rgba(229,240,233,.34)!important;letter-spacing:-.045em!important}
+.table-brand-copy small{font-size:7px!important;letter-spacing:.22em!important;color:rgba(221,237,227,.22)!important}
+.table-center{width:clamp(230px,31vw,380px)!important}
+.street-label{font-size:clamp(8px,.82vw,11px)!important;letter-spacing:.19em!important;color:rgba(245,249,247,.7)!important}
+.table-hud{max-width:460px!important}
+
+.seat{
+  border-color:rgba(255,255,255,.095);
+  background:linear-gradient(180deg,rgba(24,30,35,.97),rgba(9,13,16,.975));
+  box-shadow:0 12px 30px rgba(0,0,0,.36),inset 0 1px 0 rgba(255,255,255,.025);
+  transition:border-color .18s ease,box-shadow .18s ease,opacity .18s ease,filter .18s ease,transform .18s ease;
+  will-change:transform;
+}
+.seat:hover{border-color:rgba(255,255,255,.16)}
+.seat.active,.seat.turn-active{transform:translate(-50%,-50%) scale(1.015);border-color:rgba(163,225,181,.45);box-shadow:0 14px 34px rgba(0,0,0,.4),0 0 0 1px rgba(163,225,181,.08),0 0 28px rgba(93,197,126,.11)}
+.seat.winner{border-color:rgba(236,202,119,.52);box-shadow:0 14px 36px rgba(0,0,0,.42),0 0 28px rgba(236,202,119,.13)}
+.seat.busted{opacity:.38;filter:saturate(.42) brightness(.8)}
+.seat-name{letter-spacing:-.01em}
+.seat-stack strong{font-variant-numeric:tabular-nums}
+.last-action{font-weight:750;letter-spacing:.01em}
+.card{box-shadow:0 5px 14px rgba(0,0,0,.31);transform-origin:center center;backface-visibility:hidden}
+
+/* Full log archive ---------------------------------------------------------- */
+.event-panel{padding:0!important}
+.log-title-row{padding:12px 12px 9px;margin:0;border-bottom:1px solid rgba(255,255,255,.055)}
+.log-title-copy{min-width:0;display:grid;gap:2px}
+.log-title-copy .panel-title{margin:0}
+.log-summary{font-size:9px;color:var(--muted);white-space:nowrap}
+.log-toolbar{display:grid;grid-template-columns:minmax(0,1fr) 118px auto;gap:6px;padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.055);background:rgba(255,255,255,.012)}
+.log-toolbar input,.log-toolbar select{height:34px;font-size:10px;border-radius:9px;background:#0a0e11}
+.log-clear{height:34px;padding-inline:10px;align-self:stretch}
+.event-log{flex:1;min-height:0;overflow:auto;padding:7px 8px 12px;display:flex;flex-direction:column;gap:5px;font-size:10px;line-height:1.35;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.16) transparent}
+.event-log::-webkit-scrollbar,.tab-panel::-webkit-scrollbar,.dialog-body::-webkit-scrollbar,.tests-body::-webkit-scrollbar{width:8px;height:8px}
+.event-log::-webkit-scrollbar-thumb,.tab-panel::-webkit-scrollbar-thumb,.dialog-body::-webkit-scrollbar-thumb,.tests-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:99px;border:2px solid transparent;background-clip:padding-box}
+.event-row{
+  position:relative;width:100%;display:grid;grid-template-columns:3px minmax(0,1fr) auto;gap:9px;align-items:start;
+  padding:9px 9px 9px 8px;border:1px solid rgba(255,255,255,.055);border-radius:10px;
+  background:rgba(255,255,255,.018);color:var(--text);text-align:left;font:inherit;appearance:none;
+  transition:background .14s ease,border-color .14s ease,transform .14s ease;
+}
+button.event-row{cursor:pointer}
+button.event-row:hover{background:rgba(255,255,255,.038);border-color:rgba(255,255,255,.105);transform:translateY(-1px)}
+.event-rail{width:3px;align-self:stretch;border-radius:999px;background:rgba(152,174,163,.22)}
+.event-decisions .event-rail{background:rgba(163,225,181,.52)}
+.event-hands .event-rail{background:rgba(118,166,222,.45)}
+.event-errors .event-rail,.event-row.has-error .event-rail{background:rgba(255,111,122,.66)}
+.event-system .event-rail{background:rgba(193,174,128,.35)}
+.event-main{min-width:0;display:grid;gap:4px}
+.event-row-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.event-type{font:850 8px/1.2 "SFMono-Regular",Consolas,monospace;letter-spacing:.075em;color:#b4d9bf;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.event-time{flex:0 0 auto;font-size:8px;color:#66747c}
+.event-detail{font-size:10px;line-height:1.35;color:#c7d0d4;overflow-wrap:anywhere}
+.event-meta{font-size:8px;color:#68757d;text-transform:none}
+.event-open{align-self:center;color:#74858d;font-size:12px}
+.log-empty{padding:18px 10px;text-align:center}
+
+/* Common modal system ------------------------------------------------------- */
+.setup-dialog,.seat-dialog,.tests-dialog,.replay-dialog{
+  color:var(--text);background:#0a0d10;border:1px solid rgba(255,255,255,.11);border-radius:16px;
+  box-shadow:0 36px 110px rgba(0,0,0,.68),0 0 0 1px rgba(255,255,255,.018);
+  overscroll-behavior:contain;
+}
+.setup-dialog[open],.seat-dialog[open],.tests-dialog[open],.replay-dialog[open]{animation:dialogEnter .2s cubic-bezier(.2,.82,.2,1) both}
+.setup-dialog::backdrop,.seat-dialog::backdrop,.tests-dialog::backdrop,.replay-dialog::backdrop{background:rgba(1,3,4,.76);backdrop-filter:blur(7px) saturate(.75);animation:backdropEnter .18s ease-out both}
+.dialog-head{min-height:54px;padding:10px 14px;background:rgba(12,16,19,.96);border-bottom-color:rgba(255,255,255,.075)}
+.dialog-head h2{font-size:16px}
+.dialog-footer{min-height:54px;padding:9px 14px;background:rgba(10,13,16,.97);border-top-color:rgba(255,255,255,.075)}
+.dialog-body,.tests-body{overscroll-behavior:contain}
+.settings-section{border-color:rgba(255,255,255,.075);background:rgba(255,255,255,.018)}
+input,select{transition:border-color .14s ease,box-shadow .14s ease,background .14s ease}
+input:focus,select:focus{border-color:rgba(157,220,177,.44)!important;box-shadow:0 0 0 3px rgba(128,203,153,.07);background:#0c1114}
+.button,.icon-button,.arena-icon-button,.field-icon-button{transition:transform .14s ease,border-color .14s ease,background .14s ease,color .14s ease,box-shadow .14s ease}
+.button:active,.icon-button:active,.arena-icon-button:active,.field-icon-button:active{transform:translateY(1px) scale(.985)}
+
+@keyframes dialogEnter{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes backdropEnter{from{opacity:0}to{opacity:1}}
+@keyframes toastEnter{0%{opacity:0;transform:translateY(8px) scale(.97)}100%{opacity:1;transform:translateY(0) scale(1)}}
+.action-toast:not(.hidden){animation:toastEnter .2s cubic-bezier(.2,.82,.2,1) both}
+
+/* Tablet + mobile: table first, controls always reachable. */
+@media(max-width:959px){
+  :root{--app-pad:8px}
+  body{overscroll-behavior-y:auto}
+  .app-shell{padding:calc(54px + env(safe-area-inset-top)) var(--app-pad) calc(10px + env(safe-area-inset-bottom))}
+  .workspace{display:grid!important;grid-template-columns:minmax(0,1fr)!important;min-height:0;gap:9px}
+  .arena-card{order:1!important;height:clamp(560px,72dvh,760px)!important;min-height:520px!important;border-radius:14px}
+  .inspector{order:2!important;height:auto!important;min-height:560px!important;border-radius:14px;contain:none}
+  .inspector .topbar{
+    position:fixed!important;z-index:80;top:0;left:0;right:0;width:auto;margin:0!important;
+    min-height:calc(48px + env(safe-area-inset-top));height:auto;padding:calc(7px + env(safe-area-inset-top)) 10px 7px;
+    border-radius:0;border:0;border-bottom:1px solid rgba(255,255,255,.08);
+    background:rgba(8,11,14,.92);backdrop-filter:blur(18px) saturate(1.15);box-shadow:0 10px 28px rgba(0,0,0,.22)
+  }
+  .site-footer{display:flex}
+  .tab-panel.active{max-height:none;overflow:visible}
+  .event-panel{height:min(72dvh,720px)}
+  .poker-table{min-height:0!important}
+  .felt-ring{left:3%;right:3%;top:8%;bottom:8%;border-width:8px}
+  .table-brand{opacity:.26!important}
+  .table-brand-mark{font-size:18px!important}
+  .table-brand-copy strong{font-size:20px!important}
+  .table-brand-copy small{font-size:6px!important}
+  .table-center{width:clamp(210px,48vw,320px)!important}
+}
+
+@media(max-width:720px){
+  :root{--app-pad:6px}
+  .app-shell{padding-top:calc(50px + env(safe-area-inset-top))}
+  .inspector .topbar{min-height:calc(44px + env(safe-area-inset-top));padding:calc(6px + env(safe-area-inset-top)) 7px 6px;gap:5px}
+  .topbar .brandbar{gap:6px;min-width:0}
+  .topbar .brand-mark{width:24px;height:24px;flex:0 0 24px}
+  .topbar .brand-title{font-size:12px;white-space:nowrap}
+  .repo-link{width:26px;height:26px;margin-left:1px}
+  .topbar-actions{gap:4px;min-width:0}
+  .topbar .top-action{height:32px!important;min-height:32px!important;padding-inline:8px;font-size:9px}
+  .topbar .icon-only-action{width:32px;min-width:32px;padding:0}
+  .arena-card{height:clamp(500px,68dvh,640px)!important;min-height:500px!important}
+  .arena-head{height:38px;flex-basis:38px;padding-inline:8px;gap:6px}
+  .arena-status{min-width:64px;font-size:9px}
+  #tournamentMeta{font-size:8px}
+  .arena-icon-button{width:30px;height:30px}
+  .felt-ring{left:2%;right:2%;top:10%;bottom:10%;border-width:7px}
+  .table-center{width:clamp(190px,58vw,250px)!important}
+  .table-brand{margin-bottom:6px!important}
+  .table-brand-mark{font-size:15px!important}
+  .table-brand-copy strong{font-size:17px!important}
+  .table-brand-copy small{display:none!important}
+  .street-label{font-size:7px!important;margin-bottom:5px!important}
+  .table-hud{max-width:250px!important;width:min(92%,250px)!important}
+  .tabs{position:sticky;top:0;z-index:8;padding:5px}
+  .tab{min-height:38px;font-size:10px}
+  .panel-block{padding:11px}
+  .decision-card{padding:10px}
+  .decision-clock{font-size:24px}
+  .log-toolbar{grid-template-columns:minmax(0,1fr) 104px;gap:5px;padding:7px}
+  .log-clear{grid-column:1/3;height:32px}
+  .event-panel{height:78dvh;min-height:520px}
+  .event-log{padding:6px;gap:4px}
+  .event-row{padding:8px 7px;gap:7px;border-radius:9px}
+  .event-detail{font-size:9px}.event-type,.event-time,.event-meta{font-size:7.5px}
+
+  .setup-dialog,.seat-dialog,.tests-dialog,.replay-dialog{
+    position:fixed;inset:auto 0 0 0!important;margin:0!important;width:100vw!important;max-width:none!important;
+    max-height:92dvh!important;border-radius:18px 18px 0 0!important;border-left:0;border-right:0;border-bottom:0;
+    animation-name:sheetEnter!important;
+  }
+  .setup-dialog form,.seat-dialog form,.tests-shell,.replay-shell{max-height:92dvh!important;height:auto;min-height:0}
+  .tests-dialog,.replay-dialog{height:92dvh!important}
+  .tests-dialog .tests-shell,.replay-dialog .replay-shell{height:100%!important}
+  .dialog-head{min-height:50px;padding:9px 11px;position:sticky;top:0;z-index:5}
+  .dialog-footer{padding:9px 10px calc(9px + env(safe-area-inset-bottom));position:sticky;bottom:0;z-index:5}
+  .setup-body,.seat-editor-body,.tests-body,.replay-body{padding:10px}
+  input,select{font-size:16px!important}
+  .field-help,.setup-note{font-size:9px}
+  .button{min-height:40px}
+}
+@keyframes sheetEnter{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:translateY(0)}}
+
+@media(max-width:430px){
+  .topbar .brand-title{max-width:92px;overflow:hidden;text-overflow:ellipsis}
+  .repo-link{display:none}
+  .topbar .top-action .action-label{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  .topbar .top-action{width:32px;min-width:32px;padding:0;justify-content:center}
+  .topbar .top-action.primary{width:auto;min-width:58px;padding-inline:9px}
+  .topbar .top-action.primary .action-label{position:static;width:auto;height:auto;margin:0;overflow:visible;clip:auto;white-space:normal}
+  .arena-card{height:clamp(470px,66dvh,580px)!important;min-height:470px!important}
+  .arena-head{height:36px;flex-basis:36px}
+  #tournamentMeta{max-width:46vw}
+  .felt-ring{top:11%;bottom:11%}
+  .table-center{width:190px!important}
+  .table-brand-copy strong{font-size:15px!important}
+  .event-panel{min-height:500px}
+  .log-title-row{padding:10px 9px 8px}
+  .log-summary{font-size:8px}
+  .log-toolbar{grid-template-columns:1fr}
+  .log-filter,.log-clear{grid-column:auto}
+  .log-clear{width:100%}
+  .event-row{grid-template-columns:3px minmax(0,1fr) 12px}
+}
+
+@media(min-width:960px) and (max-height:650px){
+  :root{--app-pad:8px}
+  .workspace{min-height:calc(100dvh - 16px)}
+  .inspector,.arena-card{height:calc(100dvh - 16px)}
+  .topbar{padding-block:7px;min-height:40px}
+  .tabs{padding:4px}.tab{padding:6px;font-size:10px}
+  .arena-head{height:36px;flex-basis:36px}
+  .felt-ring{top:6%;bottom:6%}
+  .table-brand{margin-bottom:5px!important}
+  .table-brand-mark{font-size:16px!important}
+  .table-brand-copy strong{font-size:18px!important}
+  .table-brand-copy small{font-size:5px!important}
+}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}

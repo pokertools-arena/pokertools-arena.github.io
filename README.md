@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.5.2.** A fix release: the layout now adapts live when the window is resized instead of requiring a page reload. The density probe freezes the lobby seat transition while it measures, so resize and reload produce identical layouts. Also includes the inspector-first layout, the larger felt typography, and the short-viewport scaling from 0.5.0–0.5.1.
+> **Current release: 0.6.0.** The observability release: a full in-memory tournament event archive with a rebuilt Log tab (search, category filters, counts, error emphasis and replay links for historical decisions), archive-backed decision replay and JSONL export, safer modal backdrop handling, centre-originated dealing motion, safe-area support and reduced-motion respect.
 
 ---
 

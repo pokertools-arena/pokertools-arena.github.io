@@ -79,7 +79,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.5.2') throw new Error('Expected release version 0.5.2');
+if (pkg.version !== '0.6.0') throw new Error('Expected release version 0.6.0');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -153,6 +153,15 @@ if (!app.includes("els.pokerTable.classList.add('lobby-measure')")) throw new Er
 if (!css.includes('.poker-table.lobby-measure .lobby-seat{transition:none!important}')) throw new Error('lobby-measure transition freeze missing');
 if (!app.includes("visualViewport.addEventListener('resize', relayoutForViewport")) throw new Error('visualViewport resize handling missing');
 if (!app.includes('renderLobbyTable();\n        layoutTableSeats({ lobby: true });')) throw new Error('Resize must rebuild and re-layout the lobby seats');
+// 0.6.0 — full event archive + Log tab rework.
+if (!app.includes('function eventArchive(')) throw new Error('Full event archive accessor missing');
+if (app.includes('if (this.events.length > 3000)')) throw new Error('Event archive must not silently drop early events');
+if (!app.includes('events: this.events.slice(-300)')) throw new Error('Broadcast snapshots must stay compact');
+if (!index.includes('id="logSearch"') || !index.includes('id="logFilter"') || !index.includes('id="logClear"')) throw new Error('Log search/filter controls missing');
+if (!index.includes('id="logSummary"')) throw new Error('Log summary missing');
+if (!app.includes('function eventMatchesView(') || !app.includes('function eventCategory(')) throw new Error('Log filtering logic missing');
+if (!index.includes('viewport-fit=cover')) throw new Error('Safe-area viewport meta missing');
+if (!css.includes('.sr-only{')) throw new Error('sr-only utility missing');
 if (!css.includes('order:-1') || !css.includes('#bankClock{order')) throw new Error('Bank clock must lead the clock block');
 if (!app.match(/const previous = lastVisualState;/)) throw new Error('Previous visual state must be snapshotted');
 if (index.includes('Close settings">×')) throw new Error('Text close glyph still present (off-centre)');

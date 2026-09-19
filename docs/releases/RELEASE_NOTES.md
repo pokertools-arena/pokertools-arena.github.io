@@ -1,5 +1,27 @@
 # Release notes
 
+## 0.6.0 — Observability and Log tab
+
+- **Full in-memory event archive.** The director no longer discards events past
+  3,000. Broadcast snapshots stay compact (last 300) and persisted state stays
+  small (last 100), but the Log tab, decision replay and JSONL export now see
+  every event from the current run.
+- **Rebuilt Log tab.** Search, category filtering (decisions / hands / system /
+  errors), a live event count, clearer rows with time, detail and metadata, error
+  emphasis, and replay links for historical decisions.
+- **Archive-backed replay.** Opening a decision from the Log or the feed reads
+  the full archive, so older hands keep their snapshot and spectator text.
+- **Safer modals.** A backdrop click only closes when it lands outside the
+  dialog's border box, so clicks in dialog padding no longer dismiss it.
+- **Dealing motion** now originates from the table centre.
+- **Mobile polish:** `viewport-fit=cover`, safe-area padding, and continued
+  `prefers-reduced-motion` support.
+
+### Notes
+
+- Feed and replay both read explanations from the archive and agree on which
+  spectator explanation wins (the latest for a decision).
+
 ## 0.5.2 — Live resize without a reload
 
 Resizing the window used to settle on the wrong layout until the page was

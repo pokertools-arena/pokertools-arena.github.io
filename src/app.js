@@ -26,7 +26,7 @@ const els = {
   statusDot: $('#statusDot'), statusLabel: $('#statusLabel'), tournamentMeta: $('#tournamentMeta'),
   pokerTable: $('#pokerTable'), seatsLayer: $('#seatsLayer'), fxLayer: $('#fxLayer'), actionToast: $('#actionToast'), board: $('#board'), potValue: $('#potValue'), blindsValue: $('#blindsValue'), anteValue: $('#anteValue'), handValue: $('#handValue'), levelValue: $('#levelValue'), streetLabel: $('#streetLabel'), winnerBanner: $('#winnerBanner'),
   decisionPanelTitle: $('#decisionPanelTitle'), decisionEmpty: $('#decisionEmpty'), decisionCard: $('#decisionCard'), decisionPlayer: $('#decisionPlayer'), decisionModel: $('#decisionModel'), decisionPhase: $('#decisionPhase'), decisionClock: $('#decisionClock'), bankClock: $('#bankClock'), decisionHand: $('#decisionHand'), decisionStreet: $('#decisionStreet'), decisionPosition: $('#decisionPosition'), decisionOptionCount: $('#decisionOptionCount'), decisionActionLabel: $('#decisionActionLabel'), decisionActionHint: $('#decisionActionHint'), legalActions: $('#legalActions'), decisionLabelHand: $('#decisionLabelHand'), decisionLabelStreet: $('#decisionLabelStreet'), decisionLabelPosition: $('#decisionLabelPosition'), decisionLabelOptions: $('#decisionLabelOptions'),
-  decisionFeed: $('#decisionFeed'), eventLog: $('#eventLog'), statsGrid: $('#statsGrid'),
+  decisionFeed: $('#decisionFeed'), eventLog: $('#eventLog'), logSummary: $('#logSummary'), logSearch: $('#logSearch'), logFilter: $('#logFilter'), logClear: $('#logClear'), statsGrid: $('#statsGrid'),
   setupDialog: $('#setupDialog'), setupForm: $('#setupForm'), closeSetup: $('#closeSetup'), setupError: $('#setupError'), saveSettingsBtn: $('#saveSettingsBtn'), seatSummary: $('#seatSummary'),
   connectionsEditor: $('#connectionsEditor'), connectionRowTemplate: $('#connectionRowTemplate'), addConnectionBtn: $('#addConnectionBtn'),
   seatDialog: $('#seatDialog'), seatForm: $('#seatForm'), closeSeat: $('#closeSeat'), seatDialogTitle: $('#seatDialogTitle'), seatLockNotice: $('#seatLockNotice'),
@@ -59,6 +59,7 @@ const OPENROUTER_DECISION_MODELS = Object.freeze([
 let sanityResults = [];
 let sanityRunAbort = null;
 let activeInspectorTab = 'live';
+const logView = { query: '', filter: 'all' };
 let activeDecisionClockId = null;
 let tableRecording = null;
 let currentReplayEvent = null;
@@ -157,11 +158,17 @@ function animateNewHand(s) {
   if (!animationsAllowed()) return;
   requestAnimationFrame(() => {
     const cards = $$('.seat .card:not(.empty)', els.seatsLayer);
+    const tableRect = els.pokerTable?.getBoundingClientRect();
     cards.forEach((card, i) => {
+      const rect = card.getBoundingClientRect();
+      const dx = tableRect ? (tableRect.left + tableRect.width * .5) - (rect.left + rect.width * .5) : 0;
+      const dy = tableRect ? (tableRect.top + tableRect.height * .5) - (rect.top + rect.height * .5) : -80;
+      const rotate = (i % 2 ? -1 : 1) * (8 + (i % 3) * 2);
       card.animate([
-        { transform: `translate(${i % 2 ? -160 : 160}px, ${i % 3 ? -180 : 180}px) rotate(${i % 2 ? -18 : 18}deg) scale(.72)`, opacity: 0 },
-        { transform: 'translate(0,0) rotate(0deg) scale(1)', opacity: 1 }
-      ], { duration: 480, delay: 55 * i, easing: 'cubic-bezier(.2,.85,.25,1)', fill: 'both' });
+        { transform: `translate3d(${dx}px,${dy}px,0) rotate(${rotate}deg) scale(.82)`, opacity: 0 },
+        { opacity: 1, offset: .18 },
+        { transform: 'translate3d(0,0,0) rotate(0deg) scale(1)', opacity: 1 }
+      ], { duration: 520, delay: 34 * i, easing: 'cubic-bezier(.16,.88,.24,1)', fill: 'both' });
     });
     if (cards.length) playTableSound('deal');
   });
@@ -629,7 +636,10 @@ class TournamentDirector {
   broadcast() { this.onUpdate(this.snapshot()); }
   logEvent(type, data = {}) {
     const event = { id: id('event'), at: Date.now(), type, ...jsonSafe(data) };
-    this.events.push(event); if (this.events.length > 3000) this.events.splice(0, this.events.length - 3000);
+    // Keep the full in-memory tournament archive. Broadcast snapshots remain
+    // intentionally compact, but the Log tab and JSONL export can inspect every
+    // event from the current run without silently dropping early hands.
+    this.events.push(event);
     this.schedulePersist(); return event;
   }
   schedulePersist() {
@@ -1750,8 +1760,11 @@ function renderDecision(s) {
 }
 function renderFeed(s) {
 
-  const events = (s?.events || []).filter(e => e.type === 'DECISION').slice(-12).reverse();
-  const explanations = new Map((s?.events || []).filter(e => e.type === 'SPECTATOR_EXPLANATION').map(e => [e.decisionId, e.text]));
+  const feedArchive = eventArchive(s);
+  const events = feedArchive.filter(e => e.type === 'DECISION').slice(-12).reverse();
+  // Read explanations from the full archive too, so a decision older than the
+  // compact 300-event broadcast snapshot still resolves its spectator text.
+  const explanations = new Map(feedArchive.filter(e => e.type === 'SPECTATOR_EXPLANATION').map(e => [e.decisionId, e.text]));
   els.decisionFeed.innerHTML = events.length ? events.map(e => {
     const infra = [];
     if (e.protocolFallback) infra.push(e.protocolFallback);
@@ -1763,21 +1776,76 @@ function renderFeed(s) {
     return `<button type="button" class="decision-item decision-history-item ${e.error ? 'error' : ''}" data-decision-id="${escapeHtml(e.id)}" aria-label="Replay ${escapeHtml(displayModelName(e.configuredModel || e.resolvedModel || ''))} decision"><div class="decision-item-head"><strong title="${escapeHtml(e.configuredModel || e.resolvedModel || '')}">${escapeHtml(displayModelName(e.configuredModel || e.resolvedModel || ''))}</strong><span class="decision-item-action">${escapeHtml(e.action?.description || '—')}</span></div><div class="decision-reason">${escapeHtml(reason)}</div>${telemetry ? `<div class="decision-item-telemetry">${telemetry}</div>` : ''}<div class="decision-meta mono">${escapeHtml(e.connection || '')} · ${escapeHtml(shortModel(e.resolvedModel || e.configuredModel || ''))} · ${e.primaryDecisionLatencyMs || e.latencyMs || 0}ms${infra.length ? ` · ${escapeHtml(infra.join(' · '))}` : ''}${e.error ? ` · ${escapeHtml(e.error)}` : ''}<span class="decision-replay-hint">View hand ↗</span></div></button>`;
   }).join('') : '<div class="empty-state">No decisions yet.</div>';
 }
-function renderEvents(s) {
-  const events = (s?.events || []).slice(-180).reverse();
-  els.eventLog.innerHTML = events.map(e => {
-    let detail = '';
-    if (e.type === 'DECISION') detail = `${displayModelName(e.configuredModel || e.resolvedModel || e.playerName)} → ${e.action?.description}${e.error ? ` (${e.error})` : ''}`;
-    else if (e.type === 'HAND_START') detail = `#${e.handNumber} · ${e.smallBlind}/${e.bigBlind}`;
-    else if (e.type === 'HAND_END') detail = `#${e.handNumber}`;
-    else if (e.type === 'ELIMINATION') detail = `${replayDisplayName(e.playerId, e.playerName)} · place ${e.place}`;
-    else if (e.type === 'BLINDS_UP') detail = `${e.smallBlind}/${e.bigBlind}`;
-    else if (e.type === 'TOURNAMENT_END') detail = e.winner?.model ? displayModelName(e.winner.model) : replayDisplayName(e.winner?.playerId, e.winner?.playerName); 
-    else if (e.error) detail = e.error;
-    const attrs = e.type === 'DECISION' ? ` role="button" tabindex="0" data-decision-id="${escapeHtml(e.id)}" class="event-row replayable-event"` : ` class="event-row"`;
-    return `<div${attrs}><span class="event-type">${escapeHtml(e.type)}</span> <span class="muted">${new Date(e.at).toLocaleTimeString()}</span><br>${escapeHtml(detail)}${e.type === 'DECISION' ? '<span class="event-replay-hint">View hand ↗</span>' : ''}</div>`;
-  }).join('') || '<div class="empty-state">No events yet.</div>';
+function eventArchive(s = currentState) {
+  if (director?.events?.length) return director.events;
+  return s?.events || [];
 }
+function eventCategory(event) {
+  const type = String(event?.type || 'EVENT');
+  if (type.includes('ERROR') || event?.error || event?.errorCategory) return 'errors';
+  if (type === 'DECISION' || type === 'DECISION_START' || type === 'SPECTATOR_EXPLANATION') return 'decisions';
+  if (['HAND_START','HAND_END','BLINDS_UP','ELIMINATION','AUTO_SHOW','AUTO_MUCK'].includes(type)) return 'hands';
+  return 'system';
+}
+function eventDetail(event) {
+  if (!event) return '';
+  if (event.type === 'DECISION') return `${displayModelName(event.configuredModel || event.resolvedModel || event.playerName)} → ${event.action?.description || event.action?.type || 'action'}${event.error ? ` · ${event.error}` : ''}`;
+  if (event.type === 'DECISION_START') return `${displayModelName(event.model || event.playerName || '')} · ${String(event.street || '').toUpperCase()} · ${event.position || '—'}`;
+  if (event.type === 'HAND_START') return `Hand ${event.handNumber} · blinds ${fmt(event.smallBlind)}/${fmt(event.bigBlind)}${event.ante ? ` · ante ${fmt(event.ante)}` : ''}`;
+  if (event.type === 'HAND_END') {
+    const winners = (event.winners || []).map(w => replayDisplayName(w?.playerId ?? w?.id, w?.playerName ?? w?.name)).filter(Boolean);
+    return `Hand ${event.handNumber}${winners.length ? ` · ${winners.join(', ')}` : ''}`;
+  }
+  if (event.type === 'ELIMINATION') return `${replayDisplayName(event.playerId, event.playerName)} · ${ordinal(event.place)} place · hand ${event.handNumber ?? '—'}`;
+  if (event.type === 'BLINDS_UP') return `Level ${Number(event.level || 0) + 1} · ${fmt(event.smallBlind)}/${fmt(event.bigBlind)}${event.ante ? ` · ante ${fmt(event.ante)}` : ''}`;
+  if (event.type === 'TOURNAMENT_START') return `${event.config?.players?.length || currentState?.config?.players?.length || 0} models · starting stack ${fmt(event.config?.startingStack || currentState?.config?.startingStack || 0)}`;
+  if (event.type === 'TOURNAMENT_END') return event.winner?.model ? `${displayModelName(event.winner.model)} · ${event.hands || event.handNumber || '—'} hands` : replayDisplayName(event.winner?.playerId, event.winner?.playerName);
+  if (event.type === 'TOURNAMENT_ERROR') return event.error || 'Tournament error';
+  if (event.type === 'DECISION_BUDGET_REACHED') return `${fmt(event.decisions)} decisions · budget ${fmt(event.budget)}`;
+  if (event.error) return String(event.error);
+  return '';
+}
+function eventMeta(event) {
+  const bits = [];
+  if (event.handNumber != null && !['HAND_START','HAND_END'].includes(event.type)) bits.push(`Hand ${event.handNumber}`);
+  if (event.street) bits.push(String(event.street).toUpperCase());
+  if (event.position) bits.push(String(event.position));
+  const latency = event.primaryDecisionLatencyMs || event.latencyMs;
+  if (latency) bits.push(`${fmt(latency)} ms`);
+  if (event.protocol || event.requestedProtocol) bits.push(protocolDisplay(event.protocol || event.requestedProtocol));
+  if (event.errorCategory) bits.push(String(event.errorCategory).replaceAll('_', ' '));
+  return bits.join(' · ');
+}
+function eventMatchesView(event) {
+  if (logView.filter !== 'all' && eventCategory(event) !== logView.filter) return false;
+  const query = logView.query.trim().toLowerCase();
+  if (!query) return true;
+  const haystack = [event.type, eventDetail(event), eventMeta(event), event.playerName, event.configuredModel, event.resolvedModel, event.connection, event.error].filter(Boolean).join(' ').toLowerCase();
+  return haystack.includes(query);
+}
+function renderEvents(s) {
+  const archive = eventArchive(s);
+  const events = archive.filter(eventMatchesView).reverse();
+  if (els.logSummary) {
+    const suffix = events.length === archive.length ? 'full run' : `${events.length} shown`;
+    els.logSummary.textContent = `${archive.length.toLocaleString()} event${archive.length === 1 ? '' : 's'} · ${suffix}`;
+  }
+  els.eventLog.innerHTML = events.map(e => {
+    const category = eventCategory(e);
+    const detail = eventDetail(e);
+    const meta = eventMeta(e);
+    const time = new Date(e.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const replayable = e.type === 'DECISION';
+    const tag = replayable ? 'button' : 'div';
+    const attrs = replayable ? ` type="button" data-decision-id="${escapeHtml(e.id)}" aria-label="Replay ${escapeHtml(detail || 'decision')}"` : '';
+    return `<${tag}${attrs} class="event-row event-${category}${e.error || e.type?.includes?.('ERROR') ? ' has-error' : ''}">
+      <span class="event-rail" aria-hidden="true"></span>
+      <span class="event-main"><span class="event-row-head"><span class="event-type">${escapeHtml(e.type)}</span><time class="event-time mono" datetime="${new Date(e.at).toISOString()}">${escapeHtml(time)}</time></span>${detail ? `<span class="event-detail">${escapeHtml(detail)}</span>` : ''}${meta ? `<span class="event-meta mono">${escapeHtml(meta)}</span>` : ''}</span>
+      ${replayable ? '<span class="event-open" aria-hidden="true">↗</span>' : ''}
+    </${tag}>`;
+  }).join('') || '<div class="empty-state log-empty">No events match these filters.</div>';
+}
+
 function renderStats(s) {
   if (!s?.config) { els.statsGrid.innerHTML = '<div class="empty-state">Statistics will appear after the tournament starts.</div>'; return; }
   const publicById = new Map((s.publicPlayerStats ?? []).map(row => [row.playerId, row]));
@@ -1817,7 +1885,7 @@ function feedRenderSignature(s) {
     .map(e => `${e.type}:${e.id}`)
     .join('|');
 }
-function eventsRenderSignature(s) { const ev = s?.events || []; return `${ev.length}:${ev.at(-1)?.id || ''}`; }
+function eventsRenderSignature(s) { const ev = eventArchive(s); return `${ev.length}:${ev.at(-1)?.id || ''}:${logView.filter}:${logView.query}`; }
 function statsRenderSignature(s) {
   if (!s?.config) return 'none';
   return JSON.stringify([(s.config.players || []).map(p => p.id), s.stats, s.publicPlayerStats, (s.table?.players || []).filter(Boolean).map(p => [p.id,p.stack])]);
@@ -2119,7 +2187,7 @@ function replayHistoryRow(row) {
   return `<div class="replay-history-row"><span><b>${escapeHtml(label)}</b>${row?.position ? `<small>${escapeHtml(row.position)}</small>` : ''}</span><strong>${escapeHtml(action)}</strong></div>`;
 }
 function openDecisionReplay(eventId) {
-  const event = (currentState?.events || []).find(e => e.id === eventId && e.type === 'DECISION');
+  const event = eventArchive(currentState).find(e => e.id === eventId && e.type === 'DECISION');
   if (!event || !els.replayDialog) return;
   currentReplayEvent = event;
   if (els.replayShareStatus) els.replayShareStatus.textContent = event.replay ? 'Creates a 1080×1350 PNG from this exact replay snapshot.' : 'This older event has limited replay data; the image will include the available decision details.';
@@ -2130,7 +2198,7 @@ function openDecisionReplay(eventId) {
   els.replayBadge.textContent = `HAND ${event.handNumber || replay?.handNumber || '—'} · ${event.street || replay?.street || '—'}`;
   els.replaySubtitle.textContent = replay ? 'Exact decision snapshot captured immediately before the model acted.' : 'This older decision does not contain a replay snapshot.';
   els.replayAction.textContent = event.action?.description || event.action?.type || '—';
-  els.replayReason.textContent = event.publicReason || 'No public rationale was returned.';
+  els.replayReason.textContent = replayReasonText(event);
 
   if (!replay) {
     els.replayOpponents.innerHTML = '';
@@ -2163,7 +2231,7 @@ function openDecisionReplay(eventId) {
   const handLabel = replay.heroHand?.category || deterministicHandLabel(hero.cards, replay.board);
   if (handLabel) els.replaySummary.insertAdjacentHTML('beforeend', `<span>Deterministic hand evaluation <b>${escapeHtml(handLabel)}</b></span>`);
   // Show every action probability in the replay modal, not just the top four.
-  els.replayReason.innerHTML = `<div class="replay-reason-text">${escapeHtml(event.publicReason || 'No public rationale was returned.')}</div>${decisionTelemetryHtml(event, { limit: 99 })}`;
+  els.replayReason.innerHTML = `<div class="replay-reason-text">${escapeHtml(replayReasonText(event))}</div>${decisionTelemetryHtml(event, { limit: 99 })}`;
   els.replayDialog.showModal();
 }
 
@@ -2215,7 +2283,8 @@ function drawShareCard(ctx, code, x, y, w = 90, h = 126) {
   ctx.font = `900 ${suitSize}px system-ui`; ctx.textAlign = 'center'; ctx.fillText(card.suit, x + w/2, y + h/2 + suitSize * .28); ctx.textAlign = 'left';
 }
 function replayReasonText(event) {
-  const explanation = (currentState?.events || []).find(e => e.type === 'SPECTATOR_EXPLANATION' && e.decisionId === event?.decisionId);
+  // Last explanation wins, matching the feed's Map semantics.
+  const explanation = eventArchive(currentState).filter(e => e.type === 'SPECTATOR_EXPLANATION' && e.decisionId === event?.decisionId).at(-1);
   if (explanation?.text) return explanation.text;
   if (event?.publicReason) return event.publicReason;
   const meta = event?.decisionMeta || {};
@@ -2422,6 +2491,25 @@ els.stopBtn.addEventListener('click', () => {
   director.stop();
 });
 els.exportBtn.addEventListener('click', () => { if (!director?.events?.length) return; downloadText(`${director.config?.id || 'pokertools-arena'}.jsonl`, director.exportJsonl()); });
+els.logSearch?.addEventListener('input', () => {
+  logView.query = els.logSearch.value || '';
+  renderMemo.events = '';
+  if (activeInspectorTab === 'log') renderEvents(currentState || { events: [] });
+});
+els.logFilter?.addEventListener('change', () => {
+  logView.filter = els.logFilter.value || 'all';
+  renderMemo.events = '';
+  if (activeInspectorTab === 'log') renderEvents(currentState || { events: [] });
+});
+els.logClear?.addEventListener('click', () => {
+  logView.query = '';
+  logView.filter = 'all';
+  if (els.logSearch) els.logSearch.value = '';
+  if (els.logFilter) els.logFilter.value = 'all';
+  renderMemo.events = '';
+  renderEvents(currentState || { events: [] });
+  els.logSearch?.focus();
+});
 els.seatsBtn.addEventListener('click', () => {
   // This button only appears once a run has stopped or finished, where it
   // restarts the tournament from the current seats.
@@ -2438,7 +2526,12 @@ els.seatsLayer.addEventListener('click', event => {
 els.closeSeat.addEventListener('click', () => els.seatDialog.close());
 els.cancelSeatBtn.addEventListener('click', () => els.seatDialog.close());
 for (const dialog of [els.setupDialog, els.seatDialog, els.testsDialog, els.replayDialog]) {
-  dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+  dialog.addEventListener('click', event => {
+    if (event.target !== dialog) return;
+    const rect = dialog.getBoundingClientRect();
+    const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+    if (!inside) dialog.close();
+  });
   dialog.addEventListener('close', hideTooltip);
 }
 els.seatConnection.addEventListener('change', () => { applySeatProtocolRules(); syncSeatNameFromModel(); void refreshSeatModelCatalog(); });
