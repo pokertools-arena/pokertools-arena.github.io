@@ -1400,7 +1400,9 @@ function renderStatus(s) {
   els.pauseBtn.classList.toggle('hidden', !running);
   els.stopBtn.classList.toggle('hidden', !running);
   els.startTopBtn.classList.toggle('hidden', running);
-  els.seatsBtn.classList.toggle('hidden', running);
+  // Restart is offered only after a run has actually started and stopped or
+  // finished; before the first Start the primary action is Start itself.
+  els.seatsBtn.classList.toggle('hidden', running || !['STOPPED', 'FINISHED', 'ERROR'].includes(status));
   els.setupBtn.disabled = running;
   els.testsBtn.disabled = running;
   const pauseLabel = $('.action-label', els.pauseBtn);
@@ -2372,9 +2374,10 @@ els.stopBtn.addEventListener('click', () => {
 });
 els.exportBtn.addEventListener('click', () => { if (!director?.events?.length) return; downloadText(`${director.config?.id || 'pokertools-arena'}.jsonl`, director.exportJsonl()); });
 els.seatsBtn.addEventListener('click', () => {
+  // This button only appears once a run has stopped or finished, where it
+  // restarts the tournament from the current seats.
   if (director && ['RUNNING', 'PAUSED'].includes(director.status)) return;
-  lobbyVisible = true;
-  render(currentState || { status: 'IDLE', events: [] });
+  void startConfiguredTournament();
 });
 els.seatsLayer.addEventListener('click', event => {
   const seat = event.target.closest('[data-lobby-seat]');

@@ -79,7 +79,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.4.7') throw new Error('Expected release version 0.4.7');
+if (pkg.version !== '0.4.8') throw new Error('Expected release version 0.4.8');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -118,7 +118,16 @@ if (!app.includes('function stopTableEffects(')) throw new Error('Stopping a run
 if (!app.includes("if (['STOPPED', 'ERROR'].includes(s?.status)) { stopClock(); return; }")) throw new Error('Stopped runs must not keep the decision clock running');
 if (!app.includes('for (const stat of Object.values(this.stats)) stat.lastAction = null;')) throw new Error('A new hand must clear each seat\'s last action');
 if (!app.includes('flyChips(pot, seatEl(playerId), 5, true)')) throw new Error('Pot-to-winner payout animation missing');
-if (!app.match(/const previous = lastVisualState;\n\s*\/\/ Once a run is stopped/)) throw new Error('Previous visual state must be snapshotted before helpers run');
+// Header/chrome restructure: overlay actions, icon-only settings, download in Log.
+if (!index.includes('icon-only-action')) throw new Error('Settings must be an icon-only header control');
+if (index.includes('top-action repo-action') || !index.includes('class="repo-link"')) throw new Error('GitHub header link must be backgroundless');
+if (!index.includes('id="soundBtn"') || !index.includes('id="recordBtn"')) throw new Error('Sound and record must remain present');
+if (index.indexOf('arena-head-actions') > index.indexOf('id="soundBtn"')) throw new Error('Sound/record must live inside arena-head');
+if (index.indexOf('tab-log') > index.indexOf('id="exportBtn"')) throw new Error('Log download must live inside the Log tab');
+if (!app.includes("['STOPPED', 'FINISHED', 'ERROR'].includes(status)")) throw new Error('Restart must show only after a run has started and stopped');
+if (index.includes('>♟') || index.includes('>Seats<')) throw new Error('Legacy Seats header button still present');
+if (!css.includes('order:-1') || !css.includes('#bankClock{order')) throw new Error('Bank clock must lead the clock block');
+if (!app.match(/const previous = lastVisualState;/)) throw new Error('Previous visual state must be snapshotted');
 if (index.includes('Close settings">×')) throw new Error('Text close glyph still present (off-centre)');
 if (!css.includes('.table-hud') || !css.includes('.tests-dialog')) throw new Error('Table HUD/tests UI polish missing');
 if (!css.includes('0.2.8 — viewport-fit table') || !css.includes('grid-template-columns:minmax(0,1fr) clamp(270px,25vw,360px)')) throw new Error('0.2.8 viewport-fit table layout missing');

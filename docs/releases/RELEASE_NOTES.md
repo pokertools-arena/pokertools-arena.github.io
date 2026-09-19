@@ -1,5 +1,18 @@
 # Release notes
 
+## 0.4.8 — Maintenance
+
+- **Compact header.** Left: the logo, `pokertools-arena`, and a backgroundless
+  GitHub mark. Right: Start / Restart / Pause / Stop, Tests, and an icon-only
+  Settings control. The `♟ Seats` button became **Restart**, shown only after a
+  run has started and stopped or finished.
+- **Sound and recording** moved into the table header (`arena-head`) beside the
+  status they affect; **log download** moved into the `Log` tab that produces it.
+- **Bank clock** now leads the right-hand clock block instead of trailing it.
+- **Board cards on small screens** use the same rank-plus-center-suit language as
+  the hole cards: the duplicated bottom-right corner and inline suit glyph are
+  dropped at narrow widths and at compact/tight/micro densities.
+
 ## 0.4.7 — Maintenance
 
 - **Pot pays out to the winner.** The pot→winner chip animation never fired.
