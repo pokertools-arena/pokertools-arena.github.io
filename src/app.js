@@ -180,6 +180,11 @@ function animateBoardCards(previousCount, currentCount) {
 }
 function processVisualEffects(s) {
   const events = s?.events || [];
+  // Snapshot the previous state BEFORE any helper runs. animateNewHand and
+  // animateBoardCards advance lastVisualState internally, so reading it later
+  // made the HAND_END winner diff compare a state against itself and the
+  // pot→winner payout animation never fired.
+  const previous = lastVisualState;
   // Once a run is stopped (or errored) no further effects may be scheduled.
   // Without this, already-live chip flies, flashes and sounds continued after
   // Stop, and an in-flight broadcast could replay the last decision's effects.
@@ -194,7 +199,6 @@ function processVisualEffects(s) {
     lastVisualState = s;
     return;
   }
-  const previous = lastVisualState;
   if (s?.table && (!previous?.table || s.table.handNumber !== previous.table.handNumber)) animateNewHand(s);
   const prevBoard = previous?.table?.board?.length || 0, nextBoard = s?.table?.board?.length || 0;
   if (s?.table?.handNumber === previous?.table?.handNumber) animateBoardCards(prevBoard, nextBoard);
@@ -210,11 +214,19 @@ function processVisualEffects(s) {
       if (type === ACTION.CHECK && seat) { seat.classList.add('check-flash'); setTimeout(() => seat.classList.remove('check-flash'), 500); playTableSound('check'); }
       showActionToast(`${displayModelName(e.configuredModel || e.resolvedModel || e.playerName)} · ${e.action?.description || type}`, type);
     }
-    if (e.type === 'HAND_END' && previous?.table) {
-      const before = new Map((previous.table.players || []).filter(Boolean).map(p => [p.id, Number(p.stack || 0)]));
-      const winners = (s?.table?.players || []).filter(p => p && Number(p.stack || 0) > (before.get(p.id) ?? Number(p.stack || 0)));
-      const pot = $('.hud-pot', document); winners.forEach((p, i) => setTimeout(() => flyChips(pot, seatEl(p.id), 5, true), i * 130));
-      if (winners.length) playTableSound('winner');
+    if (e.type === 'HAND_END') {
+      // Prefer the event payload: `previous` can be missing on a resumed or
+      // re-rendered state, so the stack diff is only a fallback. Chips fly back
+      // from the pot to every winner at showdown, and the hand is announced.
+      const before = new Map((previous?.table?.players || []).filter(Boolean).map(p => [p.id, Number(p.stack || 0)]));
+      const payloadIds = (e.winners || []).map(w => w?.playerId ?? w?.id ?? w).filter(Boolean);
+      const fromStacks = (s?.table?.players || [])
+        .filter(p => p && Number(p.stack || 0) > (before.get(p.id) ?? Number(p.stack || 0)))
+        .map(p => p.id);
+      const winnerIds = [...new Set([...payloadIds, ...fromStacks])];
+      const pot = $('.hud-pot', document);
+      winnerIds.forEach((playerId, i) => setTimeout(() => flyChips(pot, seatEl(playerId), 5, true), i * 130));
+      if (winnerIds.length) playTableSound('winner');
     }
     if (e.type === 'TOURNAMENT_END') playTableSound('winner');
   }

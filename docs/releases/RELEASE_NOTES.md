@@ -1,5 +1,15 @@
 # Release notes
 
+## 0.4.7 — Maintenance
+
+- **Pot pays out to the winner.** The pot→winner chip animation never fired.
+  `processVisualEffects` read `lastVisualState` *after* `animateNewHand` and
+  `animateBoardCards` had already advanced it, so at a hand boundary the
+  `HAND_END` stack diff compared a state against itself and matched no winners.
+  The previous state is now snapshotted before any helper runs, and the payout
+  is driven by the `HAND_END` winner payload (with the stack diff as fallback),
+  so chips fly from the pot to every winner and the win sound plays.
+
 ## 0.4.6 — Maintenance
 
 - **Seat cards clear their last action each hand.** `stats.lastAction` was only
