@@ -14,7 +14,7 @@ import {
   BENCHMARK_MODES, DECISION_ARCHITECTURES, DEFAULT_BENCHMARK_MODE, DEFAULT_DECISION_ARCHITECTURE,
   REPRESENTATION_MODES, DEFAULT_REPRESENTATION_MODE, DECISION_ARCHITECTURE_VERSION,
   legalActionFamilies, legalAggressiveSizes, buildHierarchicalDecision, familyCriteria, sizeCriteria,
-  applyBenchmarkMode, renderDecisionState, aggregateActionProbabilitiesByFamily, probabilityStats, SIZE_LABELS, SPECTATOR_NOTE,
+  applyBenchmarkMode, renderDecisionState, aggregateActionProbabilitiesByFamily, probabilityStats, SIZE_LABELS,
   isAggressiveType, familyForActionType, FAMILY_LABELS, decisionClockPhase,
 } from './lib/decision-core.js';
 
@@ -1535,8 +1535,9 @@ function decisionTelemetryHtml(event, { limit = 4 } = {}) {
   const reasoningTokens = event?.usage?.completion_tokens_details?.reasoning_tokens;
   if (reasoningTokens) facts.push(`<span>Reasoning <b>${reasoningTokens} tokens</b></span>`);
   if (facts.length) parts.push(`<div class="decision-facts">${facts.join('')}</div>`);
-  const isTypedDecision = meta.family != null || meta.aggression != null || meta.bluffSpot != null || meta.method === 'openrouter-decisions' || meta.method === 'jev-choice' || String(meta.method || '').includes('hierarchical');
-  if (isTypedDecision) parts.push(`<div class="decision-facts-note">${escapeHtml(SPECTATOR_NOTE)} Bluff opportunity is a property of the spot, not the reason for the chosen action.</div>`);
+  // Typed decisions (hierarchical / Jev / OpenRouter-decisions) have no prose
+  // rationale; the telemetry above already shows family, size and confidence.
+  // A repeated "no text rationale" caption was removed as log noise.
   return parts.join('');
 }
 function setDecisionContext({ hand = '—', street = '—', position = '—', options = '—', label = 'Legal actions', hint = 'Choose one', labels = null } = {}) {

@@ -2269,10 +2269,7 @@ a.button{text-decoration:none}
   .card .card-corner.bottom{display:none!important}
 }
 
-/* 0.2.23 — decision diagnostics + deterministic hand evaluation
-   Spectator-only annotations. The note explicitly separates typed model
-   answers from any fabricated rationale. */
-.decision-facts-note{margin-top:6px;font-size:10px;line-height:1.4;color:var(--muted,#8aa098);border-left:2px solid rgba(184,236,111,.35);padding-left:8px}
+/* 0.2.23 — decision diagnostics + deterministic hand evaluation. */
 .replay-reason-text{margin-bottom:10px;line-height:1.45}
 .replay-summary span b{white-space:nowrap}
 
@@ -2287,7 +2284,6 @@ a.button{text-decoration:none}
 .stage-chip{white-space:nowrap}
 .telemetry-group{margin-top:6px}
 .telemetry-caption{display:block;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted,#8aa098);margin-bottom:3px}
-.decision-facts-note{white-space:normal}
 
 /* 0.4.0 — methodology, reproducibility and repository-organization release.
    Browser application source moved under src/; visual behavior is unchanged. */

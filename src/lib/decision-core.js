@@ -1000,8 +1000,6 @@ export function decide(agent, connection, args) {
 // ===========================================================================
 export const FAMILY_OBJECTIVE = 'Choose exactly one legal action family that best maximizes tournament chip EV from the supplied state. Do not choose an amount; a size is chosen in a separate step.';
 export const SIZE_OBJECTIVE = family => `The action family ${String(family).toUpperCase()} has already been selected. Choose exactly one legal ${family === ACTION_FAMILY.RAISE ? 'raise size' : 'bet size'} that best maximizes tournament chip EV. Do not change the action family.`;
-export const SPECTATOR_NOTE = 'This model returns typed decisions rather than a text rationale.';
-
 export function buildJevFamilyQuestions(families, { instructions = FAMILY_OBJECTIVE, criteria = null } = {}) {
   return { type: 'choice', instructions, criteria: criteria ?? familyCriteria(families) };
 }

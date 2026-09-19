@@ -1,5 +1,14 @@
 # Release notes
 
+## 0.4.4 — Maintenance
+
+- **Cleaner decision logs.** Removed the repeated spectator caption ("This
+  model returns typed decisions rather than a text rationale…") that appeared on
+  every typed decision in the live feed and the replay panel. Typed decisions
+  already show their selected family/size plus confidence telemetry, so logs are
+  concise and no longer restate that a rationale is absent. `SPECTATOR_NOTE` and
+  its CSS were removed; release checks guard against reintroduction.
+
 ## 0.4.3 — Maintenance
 
 - **Seat editor name.** Opening a seat restored from `.env` or saved

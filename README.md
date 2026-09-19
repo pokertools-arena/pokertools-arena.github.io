@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.4.3.** A maintenance release on top of the 0.4.0 methodology work: modal tooltips float above overflow, the launcher starts exactly once when its default port is busy, real-API diagnostics skip cleanly when repository secrets are absent, the Decision sanity suite attributes results to the correct model, seat editors show the model-derived name, and close buttons use centered SVG icons.
+> **Current release: 0.4.4.** A maintenance release on top of the 0.4.0 methodology work: modal tooltips float above overflow, the launcher starts exactly once when its default port is busy, real-API diagnostics skip cleanly when repository secrets are absent, the Decision sanity suite attributes results to the correct model, seat editors show the model-derived name, close buttons use centered SVG icons, and decision logs no longer repeat the typed-decision caption.
 
 ---
 
