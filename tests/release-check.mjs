@@ -79,7 +79,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.6.0') throw new Error('Expected release version 0.6.0');
+if (pkg.version !== '0.6.1') throw new Error('Expected release version 0.6.1');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -140,14 +140,16 @@ if (!index.includes('arena-card') || !/class="arena-card"[\s\S]*id="pokerTable"/
 if (!index.includes('id="testsBtn"') || !index.includes('icon-only-action')) throw new Error('Tests must be an icon-only header control');
 if (!css.includes('grid-template-columns:410px minmax(760px,1fr)') || !css.includes('.inspector{order:1}')) throw new Error('Inspector-first grid missing');
 if (!css.includes('.table-brand-copy strong{font-size:clamp(28px,2.7vw,44px)!important}')) throw new Error('Tablecloth brand must be enlarged');
-if (!app.includes("if (tableRect.width < 520) return ['micro'];")) throw new Error('Narrow tables must step down seat density');
-if (!app.includes('const narrowInset = tableRect.width < 620 ?')) throw new Error('Narrow-table seat inset missing');
+if (!app.includes('function seatPositionOnFelt(') || !app.includes('function visualSeatAngle(')) throw new Error('Rail-based seat positioning missing');
+if (!app.includes('function seatVisualSlot(')) throw new Error('Seat visual slot resolution missing');
+if (!app.includes("if (width < 430 || height < 430) return ['micro'];")) throw new Error('Seat density floor missing');
+if (!app.includes('seatRectsOverlap(a, b, gap = 7)')) throw new Error('Seat overlap gap must stay 7');
 // 0.5.1 — felt typography + short-viewport scaling.
 if (!css.includes('.table-brand-mark{font-size:46px!important')) throw new Error('Felt mark must be 46px');
 if (!css.includes('.table-brand-copy strong{font-size:46px!important')) throw new Error('Felt wordmark must be 46px');
 if (!css.includes('.table-brand-copy small{font-size:12px!important')) throw new Error('Felt subtitle must be 12px');
 if (!css.includes('.lobby-seat{width:140px!important;min-height:100px!important}')) throw new Error('Lobby seats must be 140x100');
-if (!app.includes('const shortWide = tableRect.height < 520 && tableRect.width > 700;')) throw new Error('Short-wide viewports must not collapse to micro');
+if (!app.includes("if (width < 620 || height < 500) return ['tight', 'micro'];")) throw new Error('Short-wide viewports must not collapse to micro');
 // 0.5.2 — live resize must match a reload.
 if (!app.includes("els.pokerTable.classList.add('lobby-measure')")) throw new Error('Resize measurement must freeze seat transitions');
 if (!css.includes('.poker-table.lobby-measure .lobby-seat{transition:none!important}')) throw new Error('lobby-measure transition freeze missing');
@@ -162,6 +164,13 @@ if (!index.includes('id="logSummary"')) throw new Error('Log summary missing');
 if (!app.includes('function eventMatchesView(') || !app.includes('function eventCategory(')) throw new Error('Log filtering logic missing');
 if (!index.includes('viewport-fit=cover')) throw new Error('Safe-area viewport meta missing');
 if (!css.includes('.sr-only{')) throw new Error('sr-only utility missing');
+// 0.6.1 — rail seat layout + build resilience.
+if (!/src="\.\/app\.js\?v=[^"]*"/.test(index) || !/href="\.\/styles\.css\?v=[^"]*"/.test(index)) throw new Error('Asset cache-busting query strings missing');
+if (!readFileSync(join(root,'build.mjs'),'utf8').includes('could not inline')) throw new Error('Single-file build must fail loudly when inlining misses');
+if (!css.includes('@media(min-width:960px){')) throw new Error('Inspector-first grid must be authoritative at >=960px');
+if (!app.includes('const feedArchive = eventArchive(s);')) throw new Error('Feed must read spectator text from the full archive');
+if (!app.includes("eventArchive(currentState).filter(e => e.type === 'SPECTATOR_EXPLANATION'")) throw new Error('Replay must take the latest explanation like the feed');
+if (!app.includes("if (width < 620 || height < 500) return ['tight', 'micro'];")) throw new Error('Short-wide viewports must not collapse to micro');
 if (!css.includes('order:-1') || !css.includes('#bankClock{order')) throw new Error('Bank clock must lead the clock block');
 if (!app.match(/const previous = lastVisualState;/)) throw new Error('Previous visual state must be snapshotted');
 if (index.includes('Close settings">×')) throw new Error('Text close glyph still present (off-centre)');
@@ -259,7 +268,8 @@ if (builtApp.includes('@pokertools/engine/browser')) throw new Error('Bare Poker
 if (/esm\.sh|esm\.unpkg\.com|cdn\.jsdelivr\.net/.test(builtApp + single)) throw new Error('External PokerTools CDN survived build');
 if (!single.includes(css)) throw new Error('Single-file build is missing CSS');
 if (!single.includes('pokertools-arena')) throw new Error('Brand missing from single-file build');
-if (!builtIndex.includes('<script type="module" src="./app.js"></script>')) throw new Error('Built index script reference changed unexpectedly');
+if (!/<script type="module" src="\.\/app\.js(?:\?[^"]*)?"><\/script>/.test(builtIndex)) throw new Error('Built index script reference changed unexpectedly');
+if (!single.includes('<style>') || !/<script type="module">/.test(single)) throw new Error('Single-file build must inline CSS and JS');
 if (!existsSync(join(dist,'favicon.svg'))) throw new Error('Built favicon missing');
 
 const moduleMatch = single.match(/<script type="module">\n([\s\S]*?)\n<\/script>/);

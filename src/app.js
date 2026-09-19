@@ -1254,43 +1254,20 @@ function renderLobbyIfVisible() {
   if (lobbyVisible && (!director || !['RUNNING', 'PAUSED'].includes(director.status))) renderTable(currentState || { status: 'IDLE', events: [] });
 }
 
-const TABLE_RING_POINTS = [
-  'bottom-center', 'bottom-left', 'left-lower', 'left-middle', 'left-upper', 'top-left',
-  'top-center', 'top-right', 'right-upper', 'right-middle', 'right-lower', 'bottom-right'
-];
-const LOBBY_RING_INDICES = [0, 1, 2, 4, 5, 6, 7, 8, 10, 11];
+const TABLE_MIN_PLAYERS = 2;
 
-function ringIndicesForCount(count) {
-  const safeCount = Math.max(1, Math.min(10, Number(count) || 1));
-  if (safeCount === 10) return [...LOBBY_RING_INDICES];
-  return Array.from({ length: safeCount }, (_, index) => Math.round(index * TABLE_RING_POINTS.length / safeCount) % TABLE_RING_POINTS.length);
+function visualSeatAngle(index, count) {
+  const safeCount = Math.max(TABLE_MIN_PLAYERS, Math.min(MAX_LOBBY_SEATS, Math.round(Number(count) || TABLE_MIN_PLAYERS)));
+  const safeIndex = ((Math.round(Number(index) || 0) % safeCount) + safeCount) % safeCount;
+  const step = 360 / safeCount;
+  // Even-handed tables sit between the four cardinal axes. This gives 8/10-max
+  // tables two seats across the top and bottom instead of piling one player in
+  // the exact middle, while heads-up remains the familiar bottom/top layout.
+  const startDeg = safeCount === 2 ? 90 : (safeCount % 2 === 0 ? 90 + step / 2 : 90);
+  return (startDeg + safeIndex * step) * Math.PI / 180;
 }
 
-function ringPointPosition(point, bounds) {
-  const { minX, maxX, minY, maxY } = bounds;
-  const midX = (minX + maxX) / 2;
-  const midY = (minY + maxY) / 2;
-  const upperY = minY + (maxY - minY) * 0.32;
-  const lowerY = minY + (maxY - minY) * 0.68;
-  const points = {
-    'bottom-center': [midX, maxY],
-    'bottom-left': [minX, maxY],
-    'left-lower': [minX, lowerY],
-    'left-middle': [minX, midY],
-    'left-upper': [minX, upperY],
-    'top-left': [minX, minY],
-    'top-center': [midX, minY],
-    'top-right': [maxX, minY],
-    'right-upper': [maxX, upperY],
-    'right-middle': [maxX, midY],
-    'right-lower': [maxX, lowerY],
-    'bottom-right': [maxX, maxY]
-  };
-  const [x, y] = points[point] || [midX, midY];
-  return { x, y };
-}
-
-function seatRectsOverlap(a, b, gap = 4) {
+function seatRectsOverlap(a, b, gap = 7) {
   return !(a.right + gap <= b.left || b.right + gap <= a.left || a.bottom + gap <= b.top || b.bottom + gap <= a.top);
 }
 
@@ -1325,89 +1302,99 @@ function clampSeatIntoTable(seat, tableRect, insetX, insetY) {
 }
 
 function densityOrderForTable(tableRect, seatCount, lobby) {
-  // Start from what the *actual* table rectangle can support, not from viewport
-  // breakpoints. High seat counts also step down a density earlier.
-  const crowded = seatCount >= 8;
-  // Narrow phone widths: a tall felt still cannot fit two 110px seats side by
-  // side plus the centre, so step down before the generic height checks.
-  if (tableRect.width < 520) return ['micro'];
-  // A short felt is not automatically a small felt: 1220x520 yields a wide-but-
-  // shallow table that still fits two seats per side. Prefer tight over micro.
-  const shortWide = tableRect.height < 520 && tableRect.width > 700;
-  if (shortWide) return ['tight', 'micro'];
-  if (tableRect.height < 440 || tableRect.width < 610 || (crowded && tableRect.height < 500)) return ['micro'];
-  if (tableRect.height < 545 || tableRect.width < 760 || (crowded && tableRect.height < 590)) return ['tight', 'micro'];
-  if (tableRect.height < 640 || tableRect.width < 900 || (crowded && tableRect.width < 1000)) return ['compact', 'tight', 'micro'];
+  // Prefer readable player cards. Density is now a last-resort collision
+  // fallback, not the primary way of making the table fit a viewport.
+  const width = tableRect.width, height = tableRect.height;
+  const crowded = seatCount >= 9;
+  if (width < 430 || height < 430) return ['micro'];
+  if (width < 620 || height < 500) return ['tight', 'micro'];
+  if (width < 820 || height < 565 || (crowded && width < 880)) return ['compact', 'tight', 'micro'];
   return lobby ? ['roomy', 'compact', 'tight', 'micro'] : ['roomy', 'compact', 'tight', 'micro'];
+}
+
+function seatVisualSlot(seat, fallbackIndex, lobby, liveCount) {
+  if (lobby) {
+    const slot = Number(seat.dataset.lobbySeat);
+    return { index: Number.isInteger(slot) ? slot : fallbackIndex, count: MAX_LOBBY_SEATS };
+  }
+  const visualIndex = Number(seat.dataset.visualIndex);
+  const visualCount = Number(seat.dataset.visualCount);
+  return {
+    index: Number.isInteger(visualIndex) ? visualIndex : fallbackIndex,
+    count: Number.isInteger(visualCount) && visualCount >= TABLE_MIN_PLAYERS ? visualCount : liveCount,
+  };
+}
+
+function seatPositionOnFelt(seat, slot, tableRect, feltRect, density, lobby) {
+  const angle = visualSeatAngle(slot.index, slot.count);
+  const feltLeft = feltRect.left - tableRect.left;
+  const feltTop = feltRect.top - tableRect.top;
+  const centerX = feltLeft + feltRect.width / 2;
+  const centerY = feltTop + feltRect.height / 2;
+
+  // Seat centres follow the table rail itself instead of the browser edges.
+  // Keeping them slightly inside the outer felt ellipse makes the cards feel
+  // attached to the table and leaves a deliberate room border around players.
+  const scaleByDensity = {
+    roomy: [0.89, 0.88],
+    compact: [0.87, 0.88],
+    tight: [0.885, 0.895],
+    micro: [1.0, 0.95],
+  };
+  let [scaleX, scaleY] = scaleByDensity[density] || scaleByDensity.compact;
+  if (lobby) { scaleX += 0.012; scaleY += 0.012; }
+
+  const radiusX = Math.max(1, feltRect.width * 0.5 * scaleX);
+  const radiusY = Math.max(1, feltRect.height * 0.5 * scaleY);
+  return {
+    x: centerX + Math.cos(angle) * radiusX,
+    y: centerY + Math.sin(angle) * radiusY,
+  };
 }
 
 function layoutTableSeats({ lobby = false } = {}) {
   const seats = [...els.seatsLayer.querySelectorAll('.seat')];
   if (!seats.length) return;
   const tableRect = els.pokerTable.getBoundingClientRect();
-  if (!tableRect.width || !tableRect.height) return;
+  const felt = $('.felt-ring', els.pokerTable);
+  const feltRect = felt?.getBoundingClientRect();
+  if (!tableRect.width || !tableRect.height || !feltRect?.width || !feltRect?.height) return;
 
-  // .lobby-seat transitions left/top over 240ms. On resize the density loop
-  // measured seats mid-transition and settled on micro after every resize until
-  // the page was reloaded. Freeze transitions for the measurement pass and
-  // restore them on the next frame.
   const animated = lobby && els.pokerTable.classList.contains('lobby-mode');
   if (animated) els.pokerTable.classList.add('lobby-measure');
 
-  const compactViewport = globalThis.matchMedia?.('(max-width: 440px)').matches;
-  const ringIndices = lobby ? LOBBY_RING_INDICES : ringIndicesForCount(seats.length);
   const densities = densityOrderForTable(tableRect, seats.length, lobby);
   let chosen = densities.at(-1) || 'micro';
 
   for (const density of densities) {
     els.pokerTable.dataset.density = density;
-    // Reading offsetHeight forces the density CSS to be applied before measuring.
+    els.pokerTable.dataset.seatCount = String(seats.length);
     void els.pokerTable.offsetHeight;
 
-    const sizes = seats.map(seat => {
-      const rect = seat.getBoundingClientRect();
-      return { width: rect.width, height: rect.height };
-    });
-    const maxWidth = Math.max(...sizes.map(size => size.width), 1);
-    const maxHeight = Math.max(...sizes.map(size => size.height), 1);
-    // On narrow tables the ring cannot inset by a full seat half-width without
-    // collapsing the centre, so scale the horizontal margin to what is left.
-    const narrowInset = tableRect.width < 620 ? Math.min(maxWidth / 2, tableRect.width * 0.16) : maxWidth / 2;
-    const marginX = compactViewport ? 3 : (density === 'micro' ? 5 : lobby ? 8 : 10);
-    const marginY = compactViewport ? 4 : (density === 'micro' ? 5 : lobby ? 8 : density === 'roomy' ? 12 : 8);
-    const bounds = {
-      minX: marginX + narrowInset,
-      maxX: Math.max(marginX + narrowInset, tableRect.width - marginX - narrowInset),
-      minY: marginY + maxHeight / 2,
-      maxY: Math.max(marginY + maxHeight / 2, tableRect.height - marginY - maxHeight / 2)
-    };
+    const insetX = density === 'micro' ? 4 : density === 'tight' ? 6 : 10;
+    const insetY = density === 'micro' ? 4 : density === 'tight' ? 6 : 9;
 
     seats.forEach((seat, index) => {
-      const ringIndex = ringIndices[index] ?? 0;
-      const pointName = TABLE_RING_POINTS[ringIndex];
-      const pos = ringPointPosition(pointName, bounds);
+      const slot = seatVisualSlot(seat, index, lobby, seats.length);
+      const pos = seatPositionOnFelt(seat, slot, tableRect, feltRect, density, lobby);
       seat.style.left = `${Math.round(pos.x * 10) / 10}px`;
       seat.style.top = `${Math.round(pos.y * 10) / 10}px`;
-      seat.dataset.ringPoint = pointName;
+      seat.dataset.visualSlot = `${slot.index + 1}/${slot.count}`;
     });
 
-    // A second, real-rectangle clamp is the important part. Seat content can
-    // become taller than its CSS min-height (cards, all-in labels, long model
-    // names). Clamp what the browser actually rendered rather than trusting
-    // the nominal density dimensions.
-    seats.forEach(seat => clampSeatIntoTable(seat, tableRect, marginX, marginY));
-    const diagnostics = seatLayoutDiagnostics(seats, tableRect, marginX, marginY);
+    // Clamp only after positioning on the rail. This is a safety net for very
+    // small devices, not the source of the seat coordinates.
+    seats.forEach(seat => clampSeatIntoTable(seat, tableRect, insetX, insetY));
+    const diagnostics = seatLayoutDiagnostics(seats, tableRect, insetX, insetY);
     chosen = density;
     if (!diagnostics.overflow && diagnostics.overlaps === 0) break;
   }
 
   els.pokerTable.dataset.density = chosen;
-  // Re-clamp on the next frame after fonts/cards have had a chance to settle,
-  // then hand control back to the normal lobby transitions.
   requestAnimationFrame(() => {
     const currentRect = els.pokerTable.getBoundingClientRect();
     if (currentRect.width && currentRect.height) {
-      const inset = chosen === 'micro' ? 4 : 6;
+      const inset = chosen === 'micro' ? 4 : chosen === 'tight' ? 6 : 9;
       seats.forEach(seat => clampSeatIntoTable(seat, currentRect, inset, inset));
     }
     if (animated) requestAnimationFrame(() => els.pokerTable.classList.remove('lobby-measure'));
@@ -1475,14 +1462,18 @@ function renderTable(s) {
   if (!table) { renderLobbyTable(); return; }
   els.pokerTable.classList.remove('lobby-mode');
   const players = table.players.filter(Boolean);
+  const configuredPlayers = Array.isArray(s.config?.players) ? s.config.players : [];
+  const visualCount = Math.max(TABLE_MIN_PLAYERS, Math.min(MAX_LOBBY_SEATS, configuredPlayers.length || players.length));
   const eliminatedIds = new Set((s.eliminations ?? []).map(e => e.playerId));
   els.seatsLayer.innerHTML = players.map((p, i) => {
-    const cfg = s.config?.players.find(x => x.id === p.id) || {}, stat = s.stats?.[p.id] || {};
+    const cfg = configuredPlayers.find(x => x.id === p.id) || {}, stat = s.stats?.[p.id] || {};
+    const configuredIndex = configuredPlayers.findIndex(x => x.id === p.id);
+    const visualIndex = configuredIndex >= 0 ? configuredIndex : i;
     const active = table.actionTo === p.seat || s.currentDecision?.playerId === p.id, isWinner = s.status === 'FINISHED' && s.winner?.playerId === p.id, busted = !isWinner && (eliminatedIds.has(p.id) || p.status === 'BUSTED'), allIn = p.status === 'ALL_IN' && !busted;
     const elimination = (s.eliminations ?? []).find(e => e.playerId === p.id);
     const actionText = s.status === 'FINISHED' ? (isWinner ? 'WINNER · 1ST' : elimination ? `${ordinal(elimination.place)} · ELIMINATED` : (stat.lastAction || '')) : (stat.lastAction || (busted ? 'ELIMINATED' : allIn ? 'ALL IN' : ''));
     const actionKind = isWinner ? 'winner' : /raise/i.test(actionText) ? 'raise' : /bet/i.test(actionText) ? 'bet' : /call/i.test(actionText) ? 'call' : /fold/i.test(actionText) ? 'fold' : /check/i.test(actionText) ? 'check' : '';
-    return `<div class="seat ${active ? 'active' : ''} ${isWinner ? 'winner' : ''} ${busted ? 'busted' : ''} ${allIn ? 'all-in' : ''}" data-player-id="${escapeHtml(p.id)}" data-lobby-seat="${Number(cfg.lobbySeat ?? i)}">
+    return `<div class="seat ${active ? 'active' : ''} ${isWinner ? 'winner' : ''} ${busted ? 'busted' : ''} ${allIn ? 'all-in' : ''}" data-player-id="${escapeHtml(p.id)}" data-lobby-seat="${Number(cfg.lobbySeat ?? i)}" data-visual-index="${visualIndex}" data-visual-count="${visualCount}">
       <i class="seat-turn" aria-hidden="true"></i>
       <div class="seat-head"><div><div class="seat-name">${escapeHtml(visiblePlayerName(p.name, cfg.model))}</div><div class="seat-model mono">${escapeHtml(shortModel(cfg.model))}</div></div><span class="seat-pos">${escapeHtml(p.position || '')}</span></div>
       <div class="seat-stack"><strong><span class="chip-dot"></span>${fmt(p.stack)}</strong><span>${Number(p.stackBB || 0).toFixed(1)} BB</span></div>
@@ -1760,10 +1751,10 @@ function renderDecision(s) {
 }
 function renderFeed(s) {
 
-  const feedArchive = eventArchive(s);
-  const events = feedArchive.filter(e => e.type === 'DECISION').slice(-12).reverse();
   // Read explanations from the full archive too, so a decision older than the
   // compact 300-event broadcast snapshot still resolves its spectator text.
+  const feedArchive = eventArchive(s);
+  const events = feedArchive.filter(e => e.type === 'DECISION').slice(-12).reverse();
   const explanations = new Map(feedArchive.filter(e => e.type === 'SPECTATOR_EXPLANATION').map(e => [e.decisionId, e.text]));
   els.decisionFeed.innerHTML = events.length ? events.map(e => {
     const infra = [];

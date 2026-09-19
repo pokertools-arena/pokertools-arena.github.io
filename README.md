@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.6.0.** The observability release: a full in-memory tournament event archive with a rebuilt Log tab (search, category filters, counts, error emphasis and replay links for historical decisions), archive-backed decision replay and JSONL export, safer modal backdrop handling, centre-originated dealing motion, safe-area support and reduced-motion respect.
+> **Current release: 0.6.1.** The seat-layout release: players are positioned on the table rail itself with an elliptical, evenly-spaced ring (pairs across the top and bottom instead of one seat dead-centre), plus a resilient single-file build that tolerates cache-busted asset URLs, and a corrected inspector-first grid so 960–1180px windows keep the table beside the inspector.
 
 ---
 

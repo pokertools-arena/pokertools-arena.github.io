@@ -50,9 +50,15 @@ const css = await readFile(join(dist, 'styles.css'), 'utf8');
 const js = await readFile(join(dist, 'app.js'), 'utf8');
 const envBootstrap = await readFile(join(dist, 'arena-env.js'), 'utf8');
 let single = html;
-single = single.replace('<link rel="stylesheet" href="./styles.css" />', () => `<style>\n${css}\n</style>`);
-single = single.replace('<script src="./arena-env.js"></script>', () => `<script>\n${envBootstrap}\n</script>`);
-single = single.replace('<script type="module" src="./app.js"></script>', () => `<script type="module">\n${js}\n</script>`);
+// Match the asset references with an optional cache-busting query string
+// (`./app.js?v=0.6.0`), so adding a version never silently breaks inlining.
+const inlineAsset = (source, pattern, replacement) => {
+  if (!pattern.test(source)) throw new Error(`Single-file build could not inline ${pattern}`);
+  return source.replace(pattern, () => replacement);
+};
+single = inlineAsset(single, /<link rel="stylesheet" href="\.\/styles\.css(?:\?[^"]*)?"\s*\/>/, `<style>\n${css}\n</style>`);
+single = inlineAsset(single, /<script src="\.\/arena-env\.js(?:\?[^"]*)?"\s*><\/script>/, `<script>\n${envBootstrap}\n</script>`);
+single = inlineAsset(single, /<script type="module" src="\.\/app\.js(?:\?[^"]*)?"\s*><\/script>/, `<script type="module">\n${js}\n</script>`);
 await writeFile(join(dist, 'pokertools-arena.html'), single);
 // Keep a convenient root copy for repository downloads; it is generated.
 await writeFile(join(root, 'pokertools-arena.html'), single);

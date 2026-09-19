@@ -1,5 +1,30 @@
 # Release notes
 
+## 0.6.1 — Rail seat layout
+
+- **Seats sit on the table rail.** Positions are now computed on an ellipse
+  fitted to the felt rather than to the browser edges, with an even angular step
+  per seat. Even-handed tables start between the cardinal axes, so 8- and 10-max
+  tables place two seats across the top and bottom instead of piling one player
+  in the exact middle. Heads-up keeps the familiar bottom/top layout. Live
+  tables reserve a visual slot per configured player, so seats do not shift as
+  players are eliminated.
+- **Density is a fallback, not the primary fit.** The density ladder now only
+  steps down when seats actually collide, so normal laptop and tablet widths
+  keep comfortably readable player cards.
+- **Single-file build resilience.** `build.mjs` matches asset references with an
+  optional cache-busting query string and fails loudly if inlining ever misses,
+  so `pokertools-arena.html` cannot silently ship with external links.
+- **Inspector-first grid at 960–1180px.** The older stack/order rules no longer
+  reorder the arena card into the wrong grid column on mid-size windows; a
+  1024×768 window now keeps the table beside the inspector at tight density
+  instead of squeezing it to a narrow strip.
+
+### Notes
+
+- The feed and replay again read spectator text from the full event archive and
+  agree on which explanation wins (the latest for a decision).
+
 ## 0.6.0 — Observability and Log tab
 
 - **Full in-memory event archive.** The director no longer discards events past
