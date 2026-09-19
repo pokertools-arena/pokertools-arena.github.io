@@ -1318,6 +1318,9 @@ function densityOrderForTable(tableRect, seatCount, lobby) {
   // Start from what the *actual* table rectangle can support, not from viewport
   // breakpoints. High seat counts also step down a density earlier.
   const crowded = seatCount >= 8;
+  // Narrow phone widths: a tall felt still cannot fit two 110px seats side by
+  // side plus the centre, so step down before the generic height checks.
+  if (tableRect.width < 520) return ['micro'];
   if (tableRect.height < 440 || tableRect.width < 610 || (crowded && tableRect.height < 500)) return ['micro'];
   if (tableRect.height < 545 || tableRect.width < 760 || (crowded && tableRect.height < 590)) return ['tight', 'micro'];
   if (tableRect.height < 640 || tableRect.width < 980 || (crowded && tableRect.width < 1120)) return ['compact', 'tight', 'micro'];
@@ -1346,11 +1349,14 @@ function layoutTableSeats({ lobby = false } = {}) {
     });
     const maxWidth = Math.max(...sizes.map(size => size.width), 1);
     const maxHeight = Math.max(...sizes.map(size => size.height), 1);
-    const marginX = compactViewport ? 4 : (density === 'micro' ? 5 : lobby ? 8 : 10);
+    // On narrow tables the ring cannot inset by a full seat half-width without
+    // collapsing the centre, so scale the horizontal margin to what is left.
+    const narrowInset = tableRect.width < 620 ? Math.min(maxWidth / 2, tableRect.width * 0.16) : maxWidth / 2;
+    const marginX = compactViewport ? 3 : (density === 'micro' ? 5 : lobby ? 8 : 10);
     const marginY = compactViewport ? 4 : (density === 'micro' ? 5 : lobby ? 8 : density === 'roomy' ? 12 : 8);
     const bounds = {
-      minX: marginX + maxWidth / 2,
-      maxX: Math.max(marginX + maxWidth / 2, tableRect.width - marginX - maxWidth / 2),
+      minX: marginX + narrowInset,
+      maxX: Math.max(marginX + narrowInset, tableRect.width - marginX - narrowInset),
       minY: marginY + maxHeight / 2,
       maxY: Math.max(marginY + maxHeight / 2, tableRect.height - marginY - maxHeight / 2)
     };

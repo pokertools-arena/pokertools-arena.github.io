@@ -57,59 +57,26 @@
 </head>
 <body>
   <div class="app-shell">
-    <header class="topbar">
-      <div class="brandbar" aria-label="pokertools-arena">
-        <div class="brand-mark">♠</div>
-        <div class="brand-copy">
-          <div class="brand-title">pokertools-arena</div>
-        </div>
-      </div>
-      <a id="repoLink" class="repo-link" href="https://github.com/pokertools-arena/pokertools-arena.github.io" target="_blank" rel="noopener noreferrer" title="View source on GitHub" aria-label="View source on GitHub"><svg class="repo-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
-      <div class="topbar-actions">
-        <button id="startTopBtn" class="button primary top-action" type="button" title="Start tournament"><span class="action-icon">▶</span><span class="action-label">Start</span></button>
-        <button id="seatsBtn" class="button ghost top-action hidden" type="button" title="Restart with a new tournament"><span class="action-icon">↻</span><span class="action-label">Restart</span></button>
-        <button id="pauseBtn" class="button ghost top-action hidden" type="button"><span class="action-icon">Ⅱ</span><span class="action-label">Pause</span></button>
-        <button id="stopBtn" class="button danger top-action hidden" type="button"><span class="action-icon">■</span><span class="action-label">Stop</span></button>
-        <button id="testsBtn" class="button ghost top-action" type="button" title="Run the 10-spot decision sanity suite"><span class="action-icon">◇</span><span class="action-label">Tests</span></button>
-        <button id="setupBtn" class="button ghost top-action icon-only-action" type="button" title="Connections and tournament settings" aria-label="Settings"><span class="action-icon">⚙</span><span class="action-label">Settings</span></button>
-      </div>
-    </header>
-
     <main class="workspace">
-      <section class="arena-card">
-        <div class="arena-head">
-          <div class="arena-status"><span id="statusDot" class="status-dot"></span><span id="statusLabel">IDLE</span></div>
-          <div id="tournamentMeta" class="mono muted">Seat 2–10 models, then press Start</div>
-          <div class="arena-head-actions">
-            <button id="soundBtn" class="arena-icon-button sound-button" type="button" aria-pressed="false" title="Enable table sounds" aria-label="Enable table sounds"><span class="action-icon">♪</span></button>
-            <button id="recordBtn" class="arena-icon-button record-button" type="button" aria-pressed="false" title="Record only the poker table" aria-label="Record only the poker table"><span class="action-icon">●</span></button>
-          </div>
-        </div>
-
-        <div id="winnerBanner" class="winner-banner hidden" role="status" aria-live="polite"></div>
-        <div id="pokerTable" class="poker-table">
-          <div class="felt-ring"></div>
-          <div id="fxLayer" class="fx-layer" aria-hidden="true"></div>
-          <div id="seatsLayer" class="seats-layer"></div>
-          <div class="table-center">
-            <div class="table-brand-stage">
-              <div class="table-brand" aria-label="pokertools-arena model benchmark table"><span class="table-brand-mark">♠</span><span class="table-brand-copy"><strong>pokertools-arena</strong><small>model benchmark table</small></span></div>
-              <div id="actionToast" class="action-toast hidden" aria-live="polite"></div>
-            </div>
-            <div id="streetLabel" class="street-label">LOBBY</div>
-            <div id="board" class="board"></div>
-            <div class="table-hud" aria-label="Hand information">
-              <div class="hud-pill hud-pot"><span>POT</span><strong id="potValue">0</strong></div>
-              <div class="hud-pill"><span>BLINDS</span><strong id="blindsValue">— / —</strong></div>
-              <div class="hud-pill"><span>ANTE</span><strong id="anteValue">—</strong></div>
-              <div class="hud-pill"><span>HAND</span><strong id="handValue">—</strong></div>
-              <div class="hud-pill"><span>LEVEL</span><strong id="levelValue">—</strong></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <aside class="inspector">
+        <header class="topbar">
+          <div class="brandbar" aria-label="pokertools-arena">
+            <div class="brand-mark">♠</div>
+            <div class="brand-copy">
+              <div class="brand-title">pokertools-arena</div>
+            </div>
+          </div>
+          <a id="repoLink" class="repo-link" href="https://github.com/pokertools-arena/pokertools-arena.github.io" target="_blank" rel="noopener noreferrer" title="View source on GitHub" aria-label="View source on GitHub"><svg class="repo-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg></a>
+          <div class="topbar-actions">
+            <button id="startTopBtn" class="button primary top-action" type="button" title="Start tournament"><span class="action-icon">▶</span><span class="action-label">Start</span></button>
+            <button id="seatsBtn" class="button ghost top-action hidden" type="button" title="Restart with a new tournament"><span class="action-icon">↻</span><span class="action-label">Restart</span></button>
+            <button id="pauseBtn" class="button ghost top-action hidden" type="button"><span class="action-icon">Ⅱ</span><span class="action-label">Pause</span></button>
+            <button id="stopBtn" class="button danger top-action hidden" type="button"><span class="action-icon">■</span><span class="action-label">Stop</span></button>
+            <button id="testsBtn" class="button ghost top-action icon-only-action" type="button" title="Run the 10-spot decision sanity suite" aria-label="Decision sanity suite"><span class="action-icon">◇</span><span class="action-label">Tests</span></button>
+            <button id="setupBtn" class="button ghost top-action icon-only-action" type="button" title="Connections and tournament settings" aria-label="Settings"><span class="action-icon">⚙</span><span class="action-label">Settings</span></button>
+          </div>
+        </header>
+
         <div class="tabs" role="tablist" aria-label="Tournament inspector">
           <button id="tabButton-live" class="tab active" data-tab="live" type="button" role="tab" aria-selected="true" aria-controls="tab-live">Live</button>
           <button id="tabButton-log" class="tab" data-tab="log" type="button" role="tab" aria-selected="false" aria-controls="tab-log" tabindex="-1">Log</button>
@@ -146,6 +113,39 @@
         </div>
         <div id="tab-stats" class="tab-panel" role="tabpanel" aria-labelledby="tabButton-stats" hidden><section class="panel-block grow"><div class="panel-title">Models</div><div id="statsGrid" class="stats-grid"></div></section></div>
       </aside>
+
+      <section class="arena-card">
+        <div class="arena-head">
+          <div class="arena-status"><span id="statusDot" class="status-dot"></span><span id="statusLabel">IDLE</span></div>
+          <div id="tournamentMeta" class="mono muted">Seat 2–10 models, then press Start</div>
+          <div class="arena-head-actions">
+            <button id="soundBtn" class="arena-icon-button sound-button" type="button" aria-pressed="false" title="Enable table sounds" aria-label="Enable table sounds"><span class="action-icon">♪</span></button>
+            <button id="recordBtn" class="arena-icon-button record-button" type="button" aria-pressed="false" title="Record only the poker table" aria-label="Record only the poker table"><span class="action-icon">●</span></button>
+          </div>
+        </div>
+
+        <div id="winnerBanner" class="winner-banner hidden" role="status" aria-live="polite"></div>
+        <div id="pokerTable" class="poker-table">
+          <div class="felt-ring"></div>
+          <div id="fxLayer" class="fx-layer" aria-hidden="true"></div>
+          <div id="seatsLayer" class="seats-layer"></div>
+          <div class="table-center">
+            <div class="table-brand-stage">
+              <div class="table-brand" aria-label="pokertools-arena model benchmark table"><span class="table-brand-mark">♠</span><span class="table-brand-copy"><strong>pokertools-arena</strong><small>model benchmark table</small></span></div>
+              <div id="actionToast" class="action-toast hidden" aria-live="polite"></div>
+            </div>
+            <div id="streetLabel" class="street-label">LOBBY</div>
+            <div id="board" class="board"></div>
+            <div class="table-hud" aria-label="Hand information">
+              <div class="hud-pill hud-pot"><span>POT</span><strong id="potValue">0</strong></div>
+              <div class="hud-pill"><span>BLINDS</span><strong id="blindsValue">— / —</strong></div>
+              <div class="hud-pill"><span>ANTE</span><strong id="anteValue">—</strong></div>
+              <div class="hud-pill"><span>HAND</span><strong id="handValue">—</strong></div>
+              <div class="hud-pill"><span>LEVEL</span><strong id="levelValue">—</strong></div>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
 
     <footer class="site-footer">

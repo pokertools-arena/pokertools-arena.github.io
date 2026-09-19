@@ -79,7 +79,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.4.9') throw new Error('Expected release version 0.4.9');
+if (pkg.version !== '0.5.0') throw new Error('Expected release version 0.5.0');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -132,6 +132,16 @@ if (!app.includes("throw new Error('Big blind must be at least twice the small b
 if (!app.includes('normalizeConfig(raw);')) throw new Error('Setup must validate with normalizeConfig on save');
 if (!app.includes('const dealtHands = new Set(')) throw new Error('VPIP/PFR must sample hands dealt');
 if (!app.includes('AFq')) throw new Error('Aggression must be reported as AFq');
+// 0.5.0 — inspector-first layout.
+if (!index.includes('class="inspector"') || !/class="inspector"[\s\S]*class="topbar"[\s\S]*class="tabs"/.test(index)) throw new Error('Header must live inside the inspector');
+if (index.indexOf('class="inspector"') > index.indexOf('class="arena-card"')) throw new Error('Inspector must be the first workspace column');
+if (!index.includes('class="tabs" role="tablist"')) throw new Error('Inspector must expose the tablist');
+if (!index.includes('arena-card') || !/class="arena-card"[\s\S]*id="pokerTable"/.test(index)) throw new Error('Table must live in the arena card');
+if (!index.includes('id="testsBtn"') || !index.includes('icon-only-action')) throw new Error('Tests must be an icon-only header control');
+if (!css.includes('grid-template-columns:410px minmax(760px,1fr)') || !css.includes('.inspector{order:1}')) throw new Error('Inspector-first grid missing');
+if (!css.includes('.table-brand-copy strong{font-size:clamp(28px,2.7vw,44px)!important}')) throw new Error('Tablecloth brand must be enlarged');
+if (!app.includes("if (tableRect.width < 520) return ['micro'];")) throw new Error('Narrow tables must step down seat density');
+if (!app.includes('const narrowInset = tableRect.width < 620 ?')) throw new Error('Narrow-table seat inset missing');
 if (!css.includes('order:-1') || !css.includes('#bankClock{order')) throw new Error('Bank clock must lead the clock block');
 if (!app.match(/const previous = lastVisualState;/)) throw new Error('Previous visual state must be snapshotted');
 if (index.includes('Close settings">×')) throw new Error('Text close glyph still present (off-centre)');

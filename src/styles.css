@@ -223,6 +223,11 @@ h1{font-size:25px;display:flex;align-items:center;gap:9px;font-weight:850;letter
 
 @media(max-width:420px){
   .poker-table{min-height:540px;height:68vh}.seat{width:101px}.felt-ring{top:16%;bottom:16%}.table-center{width:170px}.board .card{width:28px;height:40px}.topbar-actions #exportBtn{display:none}
+  /* Keep the table first and the inspector second on phones; `display:grid`
+     with explicit order replaces the older `display:block` stacking. */
+  .workspace{display:grid!important;grid-template-columns:1fr!important;gap:8px}
+  .arena-card{order:1!important;min-height:600px}.inspector{order:2!important;margin-top:0}
+  .seat{max-width:96px;padding:5px 6px}
 }
 
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}.seat{transition:none!important}}
@@ -406,9 +411,12 @@ body:has(dialog[open]){overflow:hidden}
 @media(min-width:1181px){
   html,body{height:100%;overflow:hidden}
   .app-shell{height:100dvh;min-height:0;padding:10px 14px;display:flex;flex-direction:column}
-  .topbar{flex:0 0 46px;height:46px;margin:0 auto 8px;width:100%}
+  /* The brand/actions header is now the inspector's own header, not a page bar. */
+  .topbar{flex:0 0 auto;height:auto;min-height:44px;margin:0;width:auto;padding:10px 12px}
   .workspace{flex:1;min-height:0;width:100%;height:auto}
   .arena-card,.inspector{height:100%;min-height:0}
+  .arena-card{min-height:0}
+  .inspector{display:flex;flex-direction:column}
   .poker-table{flex:1;min-height:0}
   .tab-panel{min-height:0}
 }
@@ -2348,7 +2356,61 @@ a.button{text-decoration:none}
 .poker-table[data-density="micro"] .board .card .card-corner.bottom{display:none!important}
 .poker-table[data-density="micro"] .board .card .card-suit{font-size:13px!important}
 
-/* Final accessibility and spectator-density pass. */
+/* 0.5.0 — inspector-first layout: brand and actions live in the inspector
+   header on the left, and the table takes the full-height right column. */
+.workspace{grid-template-columns:410px minmax(760px,1fr)}
+.inspector{order:1}
+.arena-card{order:2;min-height:calc(100vh - 72px)}
+.topbar{
+  flex:0 0 auto;
+  height:auto;
+  min-height:44px;
+  margin:0;
+  padding:10px 12px;
+  gap:8px;
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(255,255,255,.02),transparent);
+}
+.topbar .brandbar{gap:8px}
+.topbar .brand-mark{width:28px;height:28px;border-radius:8px;font-size:15px}
+.topbar .brand-title{font-size:16px}
+.topbar-actions{margin-left:auto;gap:5px}
+.topbar .top-action{height:30px;min-height:30px;padding:0 9px;font-size:10px}
+.topbar .top-action .action-icon{font-size:15px}
+.topbar .icon-only-action{padding:0;width:30px;min-width:30px}
+
+/* Tablecloth brand: readable at a glance from across the felt. These beat the
+   per-density rules above, which intentionally shrink other chrome, not the
+   felt identity. */
+.table-brand{opacity:.72}
+.table-brand-mark{font-size:30px!important;margin-bottom:2px}
+.table-brand-copy strong{font-size:clamp(28px,2.7vw,44px)!important}
+.table-brand-copy small{font-size:9px!important;letter-spacing:.24em!important}
+.poker-table[data-density="compact"] .table-brand-copy strong,
+.poker-table[data-density="tight"] .table-brand-copy strong{font-size:clamp(24px,2.3vw,36px)!important}
+.poker-table[data-density="compact"] .table-brand-mark,
+.poker-table[data-density="tight"] .table-brand-mark{font-size:26px!important}
+.poker-table[data-density="micro"] .table-brand-copy strong{font-size:clamp(18px,4.6vw,26px)!important}
+.poker-table[data-density="micro"] .table-brand-mark{font-size:20px!important}
+
+@media(max-width:1180px){
+  .workspace{grid-template-columns:1fr;display:grid}
+  .arena-card{order:1}
+  .inspector{order:2}
+  .arena-card{min-height:730px;height:auto}
+  .inspector{height:auto}
+}
+@media(max-width:720px){
+  .topbar{padding:8px 10px;min-height:40px;gap:6px}
+  .topbar .brand-mark{width:24px;height:24px;font-size:13px}
+  .topbar .brand-title{font-size:13px}
+  .topbar .top-action{height:28px;min-height:28px}
+  .topbar .top-action .action-icon{font-size:14px}
+  .table-brand-mark{font-size:22px!important}
+  .table-brand-copy strong{font-size:clamp(20px,5.4vw,30px)!important}
+  .table-brand-copy small{font-size:7px!important;letter-spacing:.18em!important}
+}
+
 .tab:focus-visible,.button:focus-visible,.icon-button:focus-visible,.arena-icon-button:focus-visible,.repo-link:focus-visible{outline:2px solid rgba(146,201,164,.7);outline-offset:2px}
 .tab[aria-selected="true"]{background:rgba(255,255,255,.06);color:var(--text)}
 .tab-panel[hidden]{display:none!important}

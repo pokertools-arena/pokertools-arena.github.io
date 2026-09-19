@@ -1,5 +1,20 @@
 # Release notes
 
+## 0.5.0 — Inspector-first layout
+
+- **Header moved into the inspector.** The brand, GitHub link and tournament
+  controls now form the inspector's own header on the left. The table is the
+  full-height right column, so the felt gains the vertical space the page bar
+  used to occupy.
+- **Larger tablecloth brand.** The felt identity (`pokertools-arena` and its
+  spade) is roughly three times larger and readable across the table, scaled per
+  density so it never crowds the seats.
+- **Icon-only Tests.** Both Tests and Settings are now icon-only header buttons.
+- **Bigger action icons.** Glyphs increased without enlarging the buttons.
+- **Seat layout on small screens.** Narrow felts step straight to the micro
+  density and inset the seat ring by what the table can actually spare, so all
+  ten seats stay inside the felt with no overlap at phone widths.
+
 ## 0.4.9 — Maintenance
 
 - **Accessible inspector tabs.** The Live / Log / Stats tabs are a real
