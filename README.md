@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.4.8.** A maintenance release on top of the 0.4.0 methodology work: modal tooltips float above overflow, the launcher starts exactly once when its default port is busy, real-API diagnostics skip cleanly when repository secrets are absent, the Decision sanity suite attributes results to the correct model, seat editors show the model-derived name, close buttons use centered SVG icons, decision logs no longer repeat the typed-decision caption, Stop immediately freezes the clock and table effects, seat cards clear their last action at the start of each hand, pots fly back to winners at showdown, and the header, table chrome and small-screen board cards are more compact.
+> **Current release: 0.4.9.** A maintenance release on top of the 0.4.0 methodology work: modal tooltips float above overflow, the launcher starts exactly once when its default port is busy, real-API diagnostics skip cleanly when repository secrets are absent, the Decision sanity suite attributes results to the correct model, seat editors show the model-derived name, close buttons use centered SVG icons, decision logs no longer repeat the typed-decision caption, Stop immediately freezes the clock and table effects, seat cards clear their last action at the start of each hand, pots fly back to winners at showdown, the header/table chrome and small-screen board cards are more compact, and the inspector is an accessible tablist with corrected poker statistics.
 
 ---
 

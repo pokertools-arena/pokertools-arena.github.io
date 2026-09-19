@@ -2348,3 +2348,27 @@ a.button{text-decoration:none}
 .poker-table[data-density="micro"] .board .card .card-corner.bottom{display:none!important}
 .poker-table[data-density="micro"] .board .card .card-suit{font-size:13px!important}
 
+/* Final accessibility and spectator-density pass. */
+.tab:focus-visible,.button:focus-visible,.icon-button:focus-visible,.arena-icon-button:focus-visible,.repo-link:focus-visible{outline:2px solid rgba(146,201,164,.7);outline-offset:2px}
+.tab[aria-selected="true"]{background:rgba(255,255,255,.06);color:var(--text)}
+.tab-panel[hidden]{display:none!important}
+.event-row{overflow-wrap:anywhere}
+.event-row .muted{font-size:9px}
+.stat-card,.stat-top>div{min-width:0}
+.stat-model{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.replay-dialog{padding:0;border:1px solid var(--modal-border);border-radius:14px;color:var(--text);background:var(--modal-bg)}
+.replay-dialog::backdrop{background:rgba(0,0,0,.72);backdrop-filter:blur(3px)}
+@media(max-width:520px){
+  .stats-grid{grid-template-columns:1fr}
+  .stat-top{flex-direction:row;align-items:start}
+  .stat-name{font-size:12px}.stat-model{font-size:8px}
+  .poker-profile b{font-size:10px}.poker-profile span{font-size:7px}
+  .metric b{font-size:11px}.metric span{font-size:7px}
+  .stat-reliability span{font-size:7px}.stat-reliability b{font-size:8px}
+}
+@media(max-width:720px){.poker-table[data-density="micro"] .last-action{font-size:6px!important}.event-log{font-size:9px;line-height:1.45}}
+@media(pointer:coarse){
+  .tab{min-height:40px}
+  .dialog-footer .button,.replay-share-actions .button{min-height:40px}
+  .icon-button,.field-icon-button{min-width:40px;min-height:40px}
+}

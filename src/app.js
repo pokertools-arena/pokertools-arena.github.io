@@ -423,18 +423,24 @@ function buildPublicPlayerStats(events, players, currentHand) {
   const completedHandNumbers = new Set((events ?? []).filter(e => e.type === 'HAND_END' && Number(e.handNumber) < Number(currentHand)).map(e => Number(e.handNumber)));
   const decisions = (events ?? []).filter(e => e.type === 'DECISION' && completedHandNumbers.has(Number(e.handNumber)));
   const handEnds = (events ?? []).filter(e => e.type === 'HAND_END' && completedHandNumbers.has(Number(e.handNumber)));
+  const handStarts = (events ?? []).filter(e => e.type === 'HAND_START' && completedHandNumbers.has(Number(e.handNumber)));
   return (players ?? []).map(player => {
     const rows = decisions.filter(e => e.playerId === player.id);
     const preflop = rows.filter(e => e.street === 'PREFLOP');
-    const preflopHands = new Set(preflop.map(e => e.handNumber));
+    // Use hands dealt, not only hands in which the player faced a preflop
+    // decision. A big blind can win a walk without ever acting.
+    const dealtHands = new Set(handStarts.filter(e => Array.isArray(e.playerIds) && e.playerIds.includes(player.id)).map(e => Number(e.handNumber)));
+    // Backward compatibility for logs created before HAND_START stored players.
+    if (!dealtHands.size) for (const e of rows) dealtHands.add(Number(e.handNumber));
     const vpipHands = new Set(preflop.filter(e => ['CALL','BET','RAISE'].includes(e.action?.type)).map(e => e.handNumber));
     const pfrHands = new Set(preflop.filter(e => ['BET','RAISE'].includes(e.action?.type)).map(e => e.handNumber));
     const aggressive = rows.filter(e => ['BET','RAISE'].includes(e.action?.type)).length;
     const calls = rows.filter(e => e.action?.type === 'CALL').length;
     const checks = rows.filter(e => e.action?.type === 'CHECK').length;
     const folds = rows.filter(e => e.action?.type === 'FOLD').length;
+    const foldOpportunities = rows.filter(e => (e.legalActions ?? []).some(action => action.type === 'FOLD')).length;
     let wins = 0;
-    const observedHands = new Set(rows.map(e => Number(e.handNumber)));
+    const observedHands = new Set(dealtHands);
     for (const end of handEnds) {
       if ((end.winners ?? []).some(w => (w.playerId ?? w.id ?? w) === player.id)) { wins++; observedHands.add(Number(end.handNumber)); }
     }
@@ -443,12 +449,13 @@ function buildPublicPlayerStats(events, players, currentHand) {
       playerId: player.id,
       playerName: player.name,
       sampleHands: observedHands.size,
-      preflopSamples: preflopHands.size,
+      preflopSamples: dealtHands.size,
       decisions: rows.length,
-      vpipPct: pct(vpipHands.size, preflopHands.size),
-      pfrPct: pct(pfrHands.size, preflopHands.size),
-      aggressionPct: pct(aggressive, aggressive + calls + checks),
-      foldPct: pct(folds, strategicActions),
+      vpipPct: pct(vpipHands.size, dealtHands.size),
+      pfrPct: pct(pfrHands.size, dealtHands.size),
+      // Standard aggression frequency (AFq), not the aggression-factor ratio.
+      aggressionPct: pct(aggressive, aggressive + calls + folds),
+      foldPct: pct(folds, foldOpportunities),
       callPct: pct(calls, strategicActions),
       checkPct: pct(checks, strategicActions),
       wins,
@@ -505,9 +512,12 @@ function normalizeConfig(input = {}) {
     parseHeaders(c.headers);
     return { ...c, baseUrl: normalizeBaseUrl(c.baseUrl) };
   });
+  const smallBlind = Math.max(1, Math.round(Number(input.smallBlind) || 25));
+  const bigBlind = Math.max(2, Math.round(Number(input.bigBlind) || 50));
+  if (bigBlind < smallBlind * 2) throw new Error('Big blind must be at least twice the small blind');
   return {
     id: id('tournament'), name: 'pokertools-arena', startingStack: Math.max(100, Math.round(Number(input.startingStack) || 10_000)),
-    smallBlind: Math.max(1, Math.round(Number(input.smallBlind) || 25)), bigBlind: Math.max(2, Math.round(Number(input.bigBlind) || 50)), ante: Math.max(0, Math.round(Number(input.ante) || 0)),
+    smallBlind, bigBlind, ante: Math.max(0, Math.round(Number(input.ante) || 0)),
     handsPerLevel: Math.max(1, Math.round(Number(input.handsPerLevel) || 8)), blindMultiplier: clamp(Number(input.blindMultiplier) || 1.5, 1.1, 3),
     actionSeconds: clamp(Number(input.actionSeconds) || TIMING_DEFAULTS.actionSeconds, 1, 120), timeBankSeconds: clamp(Number(input.timeBankSeconds) || TIMING_DEFAULTS.timeBankSeconds, 0, 600),
     lowTimeSeconds: clamp(Number.isFinite(Number(input.lowTimeSeconds)) ? Number(input.lowTimeSeconds) : TIMING_DEFAULTS.lowTimeSeconds, 0, 600),
@@ -522,8 +532,9 @@ function normalizeConfig(input = {}) {
     players: players.map((raw, index) => {
       const lobbySeat = clamp(Math.round(Number(raw.lobbySeat ?? index)), 0, MAX_LOBBY_SEATS - 1);
       const name = String(raw.name || `Player ${lobbySeat + 1}`).trim().slice(0, 40);
-      if (names.has(name)) throw new Error(`Duplicate player name: ${name}`);
-      names.add(name);
+      const nameKey = name.toLocaleLowerCase();
+      if (names.has(nameKey)) throw new Error(`Duplicate player name: ${name}`);
+      names.add(nameKey);
       if (!connIds.has(raw.connectionId)) throw new Error(`Connection missing for ${name}`);
       const model = String(raw.model || '').trim();
       if (!model) throw new Error(`Model missing for ${name}`);
@@ -664,7 +675,14 @@ class TournamentDirector {
       for (const p of (this.engine.state.players ?? [])) if (p && playerStack(p) <= 0) { try { this.engine.stand(p.id); } catch {} }
       this.engine.deal();
     }
-    this.logEvent('HAND_START', { handNumber: this.handNumber, buttonSeat: this.engine.state.buttonSeat, smallBlind: this.engine.state.smallBlind, bigBlind: this.engine.state.bigBlind, ante: this.engine.state.ante }); this.broadcast();
+    this.logEvent('HAND_START', {
+      handNumber: this.handNumber,
+      buttonSeat: this.engine.state.buttonSeat,
+      smallBlind: this.engine.state.smallBlind,
+      bigBlind: this.engine.state.bigBlind,
+      ante: this.engine.state.ante,
+      playerIds: (this.engine.state.players ?? []).filter(p => p && playerStack(p) > 0).map(p => p.id),
+    }); this.broadcast();
   }
   handComplete() {
     const s = this.engine.state;
@@ -743,19 +761,21 @@ class TournamentDirector {
       stats.retries += Number(result?.meta?.retryCount || 0);
       if (result?.meta?.protocolFallbackTriggered) stats.protocolFallbacks++;
       if (this.currentDecision?.id !== decisionId) throw new Error('Decision became stale');
-      const elapsedActive = Math.max(0, Date.now() - startedAt - pausedTotal());
-      if (elapsedActive > baseMs) this.timeBanks[agent.id] = Math.max(0, bankBefore - (elapsedActive - baseMs));
     } catch (err) {
       elapsed = Math.max(0, Date.now() - startedAt - pausedTotal()); error = err;
       for (const incident of err?.incidents || []) recordIncident(incident);
       errorCategory = (elapsed >= totalMs - 30 || err?.name === 'AbortError') ? 'timeout' : decisionErrorCategory(err);
-      if (errorCategory === 'timeout') { stats.timeouts++; this.timeBanks[agent.id] = 0; }
+      if (errorCategory === 'timeout') stats.timeouts++;
       else if (errorCategory === 'rate_limit') stats.rateLimits++;
       else if (errorCategory === 'provider') stats.providerErrors++;
       else { stats.modelErrors++; stats.invalid++; }
     }
     if (this.status === 'STOPPED') throw new Error('Tournament stopped');
     await this.waitIfPaused();
+    // Charge active elapsed time consistently. Provider/model failures must not
+    // preserve a seat's bank while successful requests consume theirs.
+    const elapsedActive = Math.max(0, Date.now() - startedAt - pausedTotal());
+    this.timeBanks[agent.id] = Math.max(0, bankBefore - Math.max(0, elapsedActive - baseMs));
     let chosen = result?.action ?? null, forced = false;
     if (chosen && architecture === 'hierarchical') {
       // Final validation after both stages: reconstruct the exact engine action
@@ -1745,7 +1765,7 @@ function renderStats(s) {
     const st = s.stats?.[p.id] || {}, poker = publicById.get(p.id) || {}, tableP = s.table?.players?.find?.(x => x?.id === p.id), avg = st.decisions ? Math.round(st.totalLatencyMs / st.decisions) : 0;
     const pc = value => `${Math.round(Number(value || 0) * 100)}%`;
     return `<div class="stat-card"><div class="stat-top"><div><div class="stat-name">${escapeHtml(visiblePlayerName(p.name, p.model))}</div><div class="stat-model mono">${escapeHtml(p.model)} · ${escapeHtml(effectiveProtocol(p, s.config.connections.find(c => c.id === p.connectionId)))}</div></div><strong>${fmt(tableP?.stack || 0)}</strong></div>
-      <div class="poker-profile"><div><b>${pc(poker.vpipPct)}</b><span>VPIP</span></div><div><b>${pc(poker.pfrPct)}</b><span>PFR</span></div><div><b>${pc(poker.aggressionPct)}</b><span>AGG</span></div><div><b>${pc(poker.foldPct)}</b><span>FOLD</span></div><div><b>${poker.sampleHands || 0}</b><span>SAMPLE</span></div></div>
+      <div class="poker-profile"><div title="Voluntarily put chips in pot"><b>${pc(poker.vpipPct)}</b><span>VPIP</span></div><div title="Preflop raise"><b>${pc(poker.pfrPct)}</b><span>PFR</span></div><div title="Aggression frequency"><b>${pc(poker.aggressionPct)}</b><span>AFq</span></div><div title="Fold when folding was legal"><b>${pc(poker.foldPct)}</b><span>FOLD</span></div><div><b>${poker.sampleHands || 0}</b><span>HANDS</span></div></div>
       <div class="stat-values"><div class="metric"><b>${st.decisions || 0}</b><span>moves</span></div><div class="metric"><b>${avg}ms</b><span>avg</span></div><div class="metric"><b>${st.autoFallbacks || 0}</b><span>auto</span></div></div><div class="stat-reliability"><span><b>${st.modelErrors || 0}</b> model</span><span><b>${st.providerErrors || 0}</b> provider</span><span><b>${st.rateLimits || 0}</b> rate</span><span><b>${st.timeouts || 0}</b> timeout</span><span><b>${st.protocolFallbacks || 0}</b> protocol</span><span><b>${st.retries || 0}</b> retry</span></div></div>`;
   }).join('');
 }
@@ -1770,7 +1790,13 @@ function decisionRenderSignature(s) {
   const last = latestDecisionEvent(s);
   return JSON.stringify([d ? [d.id, d.playerId, d.model, d.protocol, d.provider, d.startedAt, d.baseMs, d.timeBankMs, d.pausedMs || 0, Boolean(d.pausedAt), d.architecture || null, d.stage || null, d.legalActions] : null, last?.id || null, s?.status || 'IDLE', seatAssignments.filter(Boolean).length]);
 }
-function feedRenderSignature(s) { return (s?.events || []).filter(e => e.type === 'DECISION').slice(-12).map(e => e.id).join('|'); }
+function feedRenderSignature(s) {
+  return (s?.events || [])
+    .filter(e => e.type === 'DECISION' || e.type === 'SPECTATOR_EXPLANATION')
+    .slice(-24)
+    .map(e => `${e.type}:${e.id}`)
+    .join('|');
+}
 function eventsRenderSignature(s) { const ev = s?.events || []; return `${ev.length}:${ev.at(-1)?.id || ''}`; }
 function statsRenderSignature(s) {
   if (!s?.config) return 'none';
@@ -1989,6 +2015,7 @@ function setRecordButton(active, label = null) {
   if (icon) icon.textContent = active ? '■' : '●';
   if (text) text.textContent = label || (active ? 'Stop rec' : 'Record');
   els.recordBtn.title = active ? 'Stop table recording and save video' : 'Record only the poker table';
+  els.recordBtn.setAttribute('aria-label', els.recordBtn.title);
 }
 function saveRecordingBlob(blob) {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -2352,6 +2379,8 @@ els.soundBtn.addEventListener('click', async () => {
   if (label) label.textContent = soundEnabled ? 'Sound on' : 'Sound';
   els.soundBtn.setAttribute('aria-pressed', String(soundEnabled));
   els.soundBtn.classList.toggle('active', soundEnabled);
+  els.soundBtn.title = soundEnabled ? 'Disable table sounds' : 'Enable table sounds';
+  els.soundBtn.setAttribute('aria-label', els.soundBtn.title);
   if (soundEnabled) { try { await getAudioContext()?.resume(); } catch {} playTableSound('chip'); }
 });
 
@@ -2429,6 +2458,9 @@ els.setupForm.addEventListener('submit', event => {
   try {
     const raw = collectSetupRaw(true);
     for (const connection of raw.connections) parseHeaders(connection.headers);
+    // Validate the same way the director will, so an invalid blind structure
+    // (or any other config rule) is reported here instead of failing at Start.
+    normalizeConfig(raw);
     saveSetupWithoutSecrets(raw);
     els.setupDialog.close();
     render(currentState || { status: 'IDLE', events: [] });
@@ -2471,15 +2503,36 @@ async function startConfiguredTournament() {
 }
 els.startTopBtn.addEventListener('click', startConfiguredTournament);
 
-$$('.tab').forEach(tab => tab.addEventListener('click', () => {
+function activateInspectorTab(tab, { focus = false } = {}) {
   activeInspectorTab = tab.dataset.tab || 'live';
-  $$('.tab').forEach(t => t.classList.toggle('active', t === tab));
-  $$('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${tab.dataset.tab}`));
+  $$('.tab').forEach(t => {
+    const active = t === tab;
+    t.classList.toggle('active', active);
+    t.setAttribute('aria-selected', String(active));
+    t.tabIndex = active ? 0 : -1;
+  });
+  $$('.tab-panel').forEach(p => {
+    const active = p.id === `tab-${tab.dataset.tab}`;
+    p.classList.toggle('active', active);
+    p.hidden = !active;
+  });
+  if (focus) tab.focus();
   if (!currentState) return;
   if (activeInspectorTab === 'live') { renderMemo.feed = feedRenderSignature(currentState); renderFeed(currentState); }
   else if (activeInspectorTab === 'log') { renderMemo.events = eventsRenderSignature(currentState); renderEvents(currentState); }
   else if (activeInspectorTab === 'stats') { renderMemo.stats = statsRenderSignature(currentState); renderStats(currentState); }
-}));
+}
+$$('.tab').forEach(tab => {
+  tab.addEventListener('click', () => activateInspectorTab(tab));
+  tab.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const tabs = $$('.tab');
+    const current = tabs.indexOf(tab);
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    activateInspectorTab(tabs[next], { focus: true });
+  });
+});
 
 window.addEventListener('beforeunload', event => {
   if (tableRecording) tableRecording.stream?.getTracks?.().forEach(t => t.stop());

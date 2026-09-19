@@ -1,5 +1,28 @@
 # Release notes
 
+## 0.4.9 — Maintenance
+
+- **Accessible inspector tabs.** The Live / Log / Stats tabs are a real
+  `role="tablist"`: `aria-selected`, `aria-controls`, roving `tabindex`, arrow /
+  Home / End keyboard navigation, and `hidden` panels instead of display-only
+  toggling.
+- **Corrected poker statistics.** VPIP/PFR now use hands dealt (from
+  `HAND_START.playerIds`) rather than only hands with a preflop decision, so a
+  big blind walk counts. Aggression is reported as standard aggression frequency
+  (`AFq`, aggressive / aggressive+calls+folds) instead of the aggression-factor
+  ratio, and fold rate is measured against fold opportunities. Labels and
+  tooltips were updated, and old logs without player ids still work.
+- **Consistent time-bank charging.** Active elapsed time is billed once, after
+  the request, for both successful and failed decisions. Provider/model failures
+  no longer preserve a seat's bank while successes consume theirs.
+- **Blind structure validation.** A big blind below twice the small blind is
+  rejected, and the setup form now runs the same `normalizeConfig` validation as
+  tournament start, so configuration errors surface on save instead of at Start.
+- **Case-insensitive player names.** Duplicate-name detection folds case.
+- **Feed and accessibility polish.** New spectator explanations trigger a feed
+  re-render, sound and record buttons keep their `aria-label` in sync, and focus
+  outlines, coarse-pointer hit targets and narrow-screen stat layouts were added.
+
 ## 0.4.8 — Maintenance
 
 - **Compact header.** Left: the logo, `pokertools-arena`, and a backgroundless

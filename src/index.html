@@ -110,13 +110,13 @@
       </section>
 
       <aside class="inspector">
-        <div class="tabs">
-          <button class="tab active" data-tab="live">Live</button>
-          <button class="tab" data-tab="log">Log</button>
-          <button class="tab" data-tab="stats">Stats</button>
+        <div class="tabs" role="tablist" aria-label="Tournament inspector">
+          <button id="tabButton-live" class="tab active" data-tab="live" type="button" role="tab" aria-selected="true" aria-controls="tab-live">Live</button>
+          <button id="tabButton-log" class="tab" data-tab="log" type="button" role="tab" aria-selected="false" aria-controls="tab-log" tabindex="-1">Log</button>
+          <button id="tabButton-stats" class="tab" data-tab="stats" type="button" role="tab" aria-selected="false" aria-controls="tab-stats" tabindex="-1">Stats</button>
         </div>
 
-        <div id="tab-live" class="tab-panel active">
+        <div id="tab-live" class="tab-panel active" role="tabpanel" aria-labelledby="tabButton-live">
           <section class="panel-block decision-panel">
             <div id="decisionPanelTitle" class="panel-title">Current decision</div>
             <div id="decisionEmpty" class="empty-state">Configure seats on the table. During play, the active model, clock, and legal actions appear here.</div>
@@ -138,13 +138,13 @@
           <section class="panel-block"><div class="panel-title">Recent decisions</div><div id="decisionFeed" class="decision-feed"></div></section>
         </div>
 
-        <div id="tab-log" class="tab-panel">
+        <div id="tab-log" class="tab-panel" role="tabpanel" aria-labelledby="tabButton-log" hidden>
           <section class="panel-block grow">
             <div class="panel-title-row"><div class="panel-title">Tournament events</div><button id="exportBtn" class="button ghost small-button" type="button" disabled title="Download the tournament log as JSONL"><span class="action-icon">↓</span><span class="action-label">Download</span></button></div>
-            <div id="eventLog" class="event-log mono"></div>
+            <div id="eventLog" class="event-log mono" aria-label="Tournament event log"></div>
           </section>
         </div>
-        <div id="tab-stats" class="tab-panel"><section class="panel-block grow"><div class="panel-title">Models</div><div id="statsGrid" class="stats-grid"></div></section></div>
+        <div id="tab-stats" class="tab-panel" role="tabpanel" aria-labelledby="tabButton-stats" hidden><section class="panel-block grow"><div class="panel-title">Models</div><div id="statsGrid" class="stats-grid"></div></section></div>
       </aside>
     </main>
 

@@ -79,7 +79,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.4.8') throw new Error('Expected release version 0.4.8');
+if (pkg.version !== '0.4.9') throw new Error('Expected release version 0.4.9');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -126,6 +126,12 @@ if (index.indexOf('arena-head-actions') > index.indexOf('id="soundBtn"')) throw 
 if (index.indexOf('tab-log') > index.indexOf('id="exportBtn"')) throw new Error('Log download must live inside the Log tab');
 if (!app.includes("['STOPPED', 'FINISHED', 'ERROR'].includes(status)")) throw new Error('Restart must show only after a run has started and stopped');
 if (index.includes('>♟') || index.includes('>Seats<')) throw new Error('Legacy Seats header button still present');
+if (!index.includes('role="tablist"') || !index.includes('role="tabpanel"')) throw new Error('Inspector must expose tablist semantics');
+if (!app.includes('function activateInspectorTab(') || !app.includes("'ArrowLeft', 'ArrowRight', 'Home', 'End'")) throw new Error('Inspector tabs must support keyboard navigation');
+if (!app.includes("throw new Error('Big blind must be at least twice the small blind')")) throw new Error('Blind-structure validation missing');
+if (!app.includes('normalizeConfig(raw);')) throw new Error('Setup must validate with normalizeConfig on save');
+if (!app.includes('const dealtHands = new Set(')) throw new Error('VPIP/PFR must sample hands dealt');
+if (!app.includes('AFq')) throw new Error('Aggression must be reported as AFq');
 if (!css.includes('order:-1') || !css.includes('#bankClock{order')) throw new Error('Bank clock must lead the clock block');
 if (!app.match(/const previous = lastVisualState;/)) throw new Error('Previous visual state must be snapshotted');
 if (index.includes('Close settings">×')) throw new Error('Text close glyph still present (off-centre)');
