@@ -2200,6 +2200,73 @@ function downloadText(filename, text) {
   a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/* Floating tooltips ----------------------------------------------------------
+   Every `[data-tip]` element (the small “i” buttons) gets a single floating
+   tooltip instead of a CSS pseudo-element. Modal dialogs clip their contents
+   (`overflow:hidden` plus a scrollable body), so a pseudo-element tooltip near
+   an edge is cut off. This tooltip is `position:fixed` and is attached to the
+   topmost open <dialog>, which both escapes the modal's overflow clip and keeps
+   it in the dialog's top layer. It flips above/below the trigger and is clamped
+   to the viewport so it is always fully visible. */
+const tooltipEl = document.createElement('div');
+tooltipEl.className = 'ui-tooltip';
+tooltipEl.id = 'ui-tooltip';
+tooltipEl.setAttribute('role', 'tooltip');
+let tooltipTarget = null;
+
+function tooltipHost() {
+  const dialogs = $$('dialog[open]');
+  return dialogs.length ? dialogs[dialogs.length - 1] : document.body;
+}
+function positionTooltip(target) {
+  const gap = 9, margin = 8;
+  const rect = target.getBoundingClientRect();
+  const tipRect = tooltipEl.getBoundingClientRect();
+  let placement = 'bottom';
+  let top = rect.bottom + gap;
+  if (top + tipRect.height > window.innerHeight - margin && rect.top - gap - tipRect.height >= margin) {
+    placement = 'top';
+    top = rect.top - gap - tipRect.height;
+  }
+  top = clamp(top, margin, Math.max(margin, window.innerHeight - margin - tipRect.height));
+  let left = rect.left + rect.width / 2 - tipRect.width / 2;
+  left = clamp(left, margin, Math.max(margin, window.innerWidth - margin - tipRect.width));
+  tooltipEl.style.top = `${Math.round(top)}px`;
+  tooltipEl.style.left = `${Math.round(left)}px`;
+  tooltipEl.dataset.placement = placement;
+  tooltipEl.style.setProperty('--tip-arrow', `${Math.round(clamp(rect.left + rect.width / 2 - left, 12, Math.max(12, tipRect.width - 12)))}px`);
+}
+function showTooltip(target) {
+  const text = target.dataset.tip;
+  if (!text || target === tooltipTarget) return;
+  hideTooltip();
+  tooltipTarget = target;
+  tooltipEl.textContent = text;
+  const host = tooltipHost();
+  if (tooltipEl.parentElement !== host) host.append(tooltipEl);
+  tooltipEl.classList.add('is-visible');
+  positionTooltip(target);
+  target.setAttribute('aria-describedby', 'ui-tooltip');
+}
+function hideTooltip() {
+  if (!tooltipTarget) return;
+  tooltipTarget.removeAttribute('aria-describedby');
+  tooltipTarget = null;
+  tooltipEl.classList.remove('is-visible');
+}
+const TIP_SELECTOR = '[data-tip]';
+const tipTargetFrom = event => (event.target instanceof Element ? event.target.closest(TIP_SELECTOR) : null);
+document.addEventListener('pointerover', event => { const target = tipTargetFrom(event); if (target) showTooltip(target); }, true);
+document.addEventListener('pointerout', event => {
+  const target = tipTargetFrom(event);
+  if (target && target === tooltipTarget && !(event.relatedTarget instanceof Element && target.contains(event.relatedTarget))) hideTooltip();
+}, true);
+document.addEventListener('focusin', event => { const target = tipTargetFrom(event); if (target) showTooltip(target); }, true);
+document.addEventListener('focusout', event => { const target = tipTargetFrom(event); if (target && target === tooltipTarget) hideTooltip(); }, true);
+document.addEventListener('keydown', event => { if (event.key === 'Escape') hideTooltip(); }, true);
+window.addEventListener('scroll', () => { if (tooltipTarget) positionTooltip(tooltipTarget); }, true);
+window.addEventListener('resize', hideTooltip, { passive: true });
+
 els.decisionFeed?.addEventListener('click', event => {
   const item = event.target.closest('[data-decision-id]');
   if (item) openDecisionReplay(item.dataset.decisionId);
@@ -2257,6 +2324,7 @@ els.closeSeat.addEventListener('click', () => els.seatDialog.close());
 els.cancelSeatBtn.addEventListener('click', () => els.seatDialog.close());
 for (const dialog of [els.setupDialog, els.seatDialog, els.testsDialog, els.replayDialog]) {
   dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+  dialog.addEventListener('close', hideTooltip);
 }
 els.seatConnection.addEventListener('change', () => { applySeatProtocolRules(); void refreshSeatModelCatalog(); });
 els.seatModel.addEventListener('input', applySeatProtocolRules);

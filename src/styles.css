@@ -847,8 +847,15 @@ label{min-width:0}
 /* Information is opt-in instead of permanently occupying the modal. */
 .info-button{position:relative;display:inline-grid;place-items:center;width:18px;height:18px;min-width:18px;padding:0;border:1px solid rgba(232,238,243,.12);border-radius:50%;background:#12161a;color:#7d8992;font:800 10px/1 system-ui;cursor:help;text-transform:none;letter-spacing:0}
 .info-button:hover,.info-button:focus-visible{color:#d8e0e5;border-color:rgba(146,201,164,.32);outline:none}
-.info-button::after{content:attr(data-tip);position:absolute;z-index:50;left:50%;top:calc(100% + 7px);transform:translateX(-50%);width:max-content;max-width:min(300px,calc(100vw - 36px));padding:8px 10px;border:1px solid #2a3036;border-radius:8px;background:#15191e;color:#b6c0c7;font:500 10px/1.45 system-ui;text-align:left;text-transform:none;letter-spacing:0;box-shadow:0 14px 38px rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .12s ease}
-.info-button:hover::after,.info-button:focus-visible::after{opacity:1}
+/* Tooltips are rendered by app.js as one fixed-position element attached to the
+   topmost open <dialog>. `position:fixed` escapes the modal's overflow clipping
+   and attaching it inside the dialog keeps it in the dialog's top layer, so the
+   whole tooltip is always visible. See showTooltip() in app.js. */
+.ui-tooltip{position:fixed;z-index:2147483646;top:0;left:0;width:max-content;max-width:min(320px,calc(100vw - 16px));padding:8px 10px;border:1px solid #2a3036;border-radius:8px;background:#15191e;color:#b6c0c7;font:500 10px/1.45 system-ui;text-align:left;text-transform:none;letter-spacing:0;box-shadow:0 14px 38px rgba(0,0,0,.5);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .12s ease,visibility .12s ease}
+.ui-tooltip.is-visible{opacity:1;visibility:visible}
+.ui-tooltip::before{content:"";position:absolute;left:var(--tip-arrow,50%);width:8px;height:8px;margin-left:-4px;background:#15191e;border:1px solid #2a3036;transform:rotate(45deg);pointer-events:none}
+.ui-tooltip[data-placement="bottom"]::before{top:-5px;border-right:0;border-bottom:0}
+.ui-tooltip[data-placement="top"]::before{bottom:-5px;border-left:0;border-top:0}
 .inline-info{width:16px;height:16px;min-width:16px;font-size:9px}.field-label-row{justify-content:flex-start}
 
 .settings-section{min-width:0;border:1px solid var(--modal-border);border-radius:var(--radius-md);background:var(--modal-surface);padding:10px}

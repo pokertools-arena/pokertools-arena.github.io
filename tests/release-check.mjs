@@ -167,6 +167,12 @@ if (!existsSync(join(root,'tests','unit','archive-content.mjs'))) throw new Erro
 if (!existsSync(join(root,'docs','architecture','CONTEXT.md'))) throw new Error('Architecture doc missing');
 if (!existsSync(join(root,'docs','diagnostics','SUMMARY.md'))) throw new Error('Diagnostics summary missing');
 if (!css.includes('0.4.0 — methodology')) throw new Error('0.4.0 methodology marker missing');
+// Tooltips must float above modal overflow instead of being clipped by it.
+if (!app.includes("tooltipEl.className = 'ui-tooltip'")) throw new Error('Floating tooltip controller missing');
+if (!app.includes('function positionTooltip(') || !app.includes('function showTooltip(') || !app.includes("dataset.tip")) throw new Error('Tooltip positioning/data-tip wiring missing');
+if (!app.includes("dialog.addEventListener('close', hideTooltip)")) throw new Error('Tooltips must hide when a modal closes');
+if (!css.includes('.ui-tooltip{position:fixed')) throw new Error('Tooltip must be fixed-position to escape modal clipping');
+if (css.includes('.info-button::after')) throw new Error('Clipped pseudo-element tooltip still present');
 // Turn-ring timing must derive from configuration, never a hardcoded budget.
 if (!app.includes('const TIMING_DEFAULTS = Object.freeze(')) throw new Error('Configurable timing defaults missing');
 if (!app.includes('decisionClockPhase(')) throw new Error('Turn ring must use the shared clock phase');
