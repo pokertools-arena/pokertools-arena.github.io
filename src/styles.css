@@ -320,6 +320,9 @@ h1{font-size:25px;display:flex;align-items:center;gap:9px;font-weight:850;letter
    while preserving readable hierarchy and generous hit targets. */
 .seats-layer .seat[data-ring-point]{will-change:left,top}
 .lobby-mode .lobby-seat{transition:left .24s ease,top .24s ease,border-color .18s ease,box-shadow .18s ease,filter .18s ease,opacity .18s ease,transform .18s ease}
+/* Freeze seat transitions while a resize measurement pass runs, so the density
+   probe reads settled geometry instead of a mid-animation box. */
+.poker-table.lobby-measure .lobby-seat{transition:none!important}
 @media(max-width:360px){
   .seat{width:92px;min-height:76px;padding:5px 6px}
   .seat-name{max-width:64px;font-size:9px}

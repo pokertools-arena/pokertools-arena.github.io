@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.5.1.** The felt-polish release: the inspector-first layout with a much larger tablecloth brand, exact felt typography (46px wordmark and spade, 12px subtitle), centre column and HUD that scale with the felt, 140×100 lobby seats, and seat density that keeps a short 1220×520 window readable instead of collapsing to micro.
+> **Current release: 0.5.2.** A fix release: the layout now adapts live when the window is resized instead of requiring a page reload. The density probe freezes the lobby seat transition while it measures, so resize and reload produce identical layouts. Also includes the inspector-first layout, the larger felt typography, and the short-viewport scaling from 0.5.0–0.5.1.
 
 ---
 

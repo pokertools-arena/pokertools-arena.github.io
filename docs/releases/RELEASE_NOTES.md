@@ -1,5 +1,22 @@
 # Release notes
 
+## 0.5.2 — Live resize without a reload
+
+Resizing the window used to settle on the wrong layout until the page was
+reloaded (a short window picked `micro` with 5.5px HUD text instead of `tight`
+with 12px). Two causes, both fixed:
+
+- **Mid-transition measurement.** `.lobby-seat` animates `left`/`top` over 240ms,
+  so the density probe read a half-moved seat and chose a denser layout than the
+  settled geometry warranted. A `lobby-measure` class now disables the seat
+  transition for the measurement pass and restores it on the next frame.
+- **Stale seat DOM on resize.** The resize handler re-positioned existing seats
+  instead of rebuilding them, so media-query content changes never applied.
+  It now re-renders and re-lays-out the seats, and also listens to
+  `visualViewport` for mobile browser chrome changes.
+
+Resize and reload now produce byte-identical layouts.
+
 ## 0.5.1 — Felt typography and short-viewport scaling
 
 - **Exact felt identity sizes.** The tablecloth wordmark and spade are 46px and

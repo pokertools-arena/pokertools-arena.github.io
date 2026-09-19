@@ -1337,6 +1337,13 @@ function layoutTableSeats({ lobby = false } = {}) {
   const tableRect = els.pokerTable.getBoundingClientRect();
   if (!tableRect.width || !tableRect.height) return;
 
+  // .lobby-seat transitions left/top over 240ms. On resize the density loop
+  // measured seats mid-transition and settled on micro after every resize until
+  // the page was reloaded. Freeze transitions for the measurement pass and
+  // restore them on the next frame.
+  const animated = lobby && els.pokerTable.classList.contains('lobby-mode');
+  if (animated) els.pokerTable.classList.add('lobby-measure');
+
   const compactViewport = globalThis.matchMedia?.('(max-width: 440px)').matches;
   const ringIndices = lobby ? LOBBY_RING_INDICES : ringIndicesForCount(seats.length);
   const densities = densityOrderForTable(tableRect, seats.length, lobby);
@@ -1385,12 +1392,15 @@ function layoutTableSeats({ lobby = false } = {}) {
   }
 
   els.pokerTable.dataset.density = chosen;
-  // Re-clamp on the next frame after fonts/cards have had a chance to settle.
+  // Re-clamp on the next frame after fonts/cards have had a chance to settle,
+  // then hand control back to the normal lobby transitions.
   requestAnimationFrame(() => {
     const currentRect = els.pokerTable.getBoundingClientRect();
-    if (!currentRect.width || !currentRect.height) return;
-    const inset = chosen === 'micro' ? 4 : 6;
-    seats.forEach(seat => clampSeatIntoTable(seat, currentRect, inset, inset));
+    if (currentRect.width && currentRect.height) {
+      const inset = chosen === 'micro' ? 4 : 6;
+      seats.forEach(seat => clampSeatIntoTable(seat, currentRect, inset, inset));
+    }
+    if (animated) requestAnimationFrame(() => els.pokerTable.classList.remove('lobby-measure'));
   });
 }
 
@@ -2565,20 +2575,26 @@ if (!storageGet('pokertoolsArenaBrowserSeen')) storageSet('pokertoolsArenaBrowse
 let resizeTimer = null;
 function relayoutForViewport() {
   clearTimeout(resizeTimer);
+  // Two frames: let the new viewport settle and any layout transition finish
+  // before measuring, then rebuild the seat DOM so media-query content (not just
+  // inline geometry) is applied without a page reload.
   resizeTimer = setTimeout(() => {
-    if (currentState && !lobbyVisible) {
-      layoutTableSeats();
-      renderMemo.table = '';
-      render(currentState, { force: true });
-    } else {
-      layoutTableSeats({ lobby: true });
-      renderMemo.table = '';
-      renderLobbyTable();
-    }
-  }, 70);
+    requestAnimationFrame(() => {
+      if (currentState && !lobbyVisible) {
+        renderMemo.table = '';
+        render(currentState, { force: true });
+        layoutTableSeats();
+      } else {
+        renderMemo.table = '';
+        renderLobbyTable();
+        layoutTableSeats({ lobby: true });
+      }
+    });
+  }, 90);
 }
 window.addEventListener('resize', relayoutForViewport, { passive: true });
 window.addEventListener('orientationchange', relayoutForViewport, { passive: true });
+if (globalThis.visualViewport) visualViewport.addEventListener('resize', relayoutForViewport, { passive: true });
 if ('ResizeObserver' in globalThis) {
   const tableResizeObserver = new ResizeObserver(() => {
     clearTimeout(resizeTimer);
