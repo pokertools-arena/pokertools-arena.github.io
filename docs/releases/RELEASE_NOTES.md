@@ -1,5 +1,20 @@
 # Release notes
 
+## 0.5.1 — Felt typography and short-viewport scaling
+
+- **Exact felt identity sizes.** The tablecloth wordmark and spade are 46px and
+  the `model benchmark table` subtitle is 12px, scaled down per density (38px at
+  compact, 34px at tight/micro) so the felt never crowds the seats.
+- **Centre column scales with the felt.** `streetLabel`, the board cards and the
+  HUD now use container-relative sizes instead of fixed pixels, so the centre
+  reads correctly on a wide desktop and a short window alike.
+- **140×100 lobby seats** with a consistent card size for both empty and
+  configured seats.
+- **Short, wide viewports.** A 1220×520 window produces a wide-but-shallow felt;
+  it is now laid out at tight density with readable 12px HUD values and an 11px
+  street label, instead of collapsing to micro with 5.5px text. All ten seats
+  remain inside the felt with no overlap.
+
 ## 0.5.0 — Inspector-first layout
 
 - **Header moved into the inspector.** The brand, GitHub link and tournament

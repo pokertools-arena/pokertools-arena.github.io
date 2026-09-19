@@ -2434,3 +2434,78 @@ a.button{text-decoration:none}
   .dialog-footer .button,.replay-share-actions .button{min-height:40px}
   .icon-button,.field-icon-button{min-width:40px;min-height:40px}
 }
+
+/* 0.5.1 — felt typography, table centre scaling and short-viewport seats.
+
+   The felt-brand sizes are requested exact values, so they carry !important to
+   beat the per-density rules above; the rest scale with the centre column so a
+   wide desktop and a short 1220x520 window both read correctly. */
+.table-brand-mark{font-size:46px!important;margin-bottom:4px}
+.table-brand-copy strong{font-size:46px!important;line-height:1}
+.table-brand-copy small{font-size:12px!important;letter-spacing:.22em!important}
+.poker-table[data-density="compact"] .table-brand-mark{font-size:38px!important}
+.poker-table[data-density="tight"] .table-brand-mark,
+.poker-table[data-density="micro"] .table-brand-mark{font-size:34px!important}
+.poker-table[data-density="compact"] .table-brand-copy strong{font-size:38px!important}
+.poker-table[data-density="tight"] .table-brand-copy strong,
+.poker-table[data-density="micro"] .table-brand-copy strong{font-size:34px!important}
+.poker-table[data-density="compact"] .table-brand-copy small{font-size:11px!important}
+.poker-table[data-density="tight"] .table-brand-copy small,
+.poker-table[data-density="micro"] .table-brand-copy small{font-size:10px!important}
+
+.street-label{font-size:clamp(9px,1.05vw,14px)!important;letter-spacing:.24em}
+.board{gap:clamp(4px,.5vw,9px)!important;min-height:clamp(46px,5.4vw,78px)}
+.board .card{width:clamp(34px,3.6vw,58px)!important;height:clamp(48px,5vw,80px)!important;border-radius:clamp(6px,.65vw,10px)!important}
+.table-hud{width:min(100%,clamp(260px,34vw,470px))!important;gap:clamp(3px,.4vw,6px)!important;margin-top:clamp(6px,.9vw,13px)!important}
+.hud-pill{min-width:clamp(40px,4.4vw,62px)!important;padding:clamp(3px,.45vw,6px) clamp(4px,.55vw,9px)!important}
+.hud-pill span{font-size:clamp(6px,.66vw,8.5px)!important}
+.hud-pill strong{font-size:clamp(9px,1.05vw,14px)!important}
+.hud-pot strong{font-size:clamp(12px,1.5vw,19px)!important}
+.table-center{width:clamp(200px,30vw,360px)}
+.poker-table[data-density="compact"] .street-label,
+.poker-table[data-density="tight"] .street-label{font-size:clamp(8px,.9vw,11px)!important}
+.poker-table[data-density="micro"] .street-label{font-size:8px!important}
+.poker-table[data-density="compact"] .board .card{width:clamp(32px,3.2vw,48px)!important;height:clamp(45px,4.6vw,68px)!important}
+.poker-table[data-density="tight"] .board .card{width:clamp(28px,2.8vw,40px)!important;height:clamp(40px,4vw,56px)!important}
+.poker-table[data-density="micro"] .board .card{width:clamp(24px,2.4vw,32px)!important;height:clamp(34px,3.4vw,46px)!important}
+.poker-table[data-density="micro"] .table-hud{width:min(100%,clamp(210px,30vw,300px))!important}
+
+/* Lobby seats: one consistent 140x100 card with room for the model identity. */
+.lobby-seat{width:140px!important;min-height:100px!important}
+.empty-seat{min-height:100px}
+.configured-seat{width:140px!important;min-height:100px!important}
+.lobby-seat .seat-name{max-width:104px}
+.lobby-seat .configured-seat-meta{margin-top:7px}
+
+/* Short, wide viewports (e.g. 1220x520): the felt is wider than it is tall, so
+   seats must stay inside a shallow band and the centre must shrink to fit. */
+@media(min-width:861px) and (max-height:620px){
+  .arena-head{flex-basis:32px;height:32px}
+  .table-brand-mark{font-size:32px!important;margin-bottom:2px}
+  .table-brand-copy strong{font-size:32px!important}
+  .table-brand-copy small{font-size:9px!important;letter-spacing:.2em!important}
+  .table-center{width:clamp(180px,26vw,280px)}
+  .street-label{font-size:9px!important;margin-bottom:4px}
+  .board{gap:4px!important;min-height:44px}
+  .board .card{width:clamp(30px,2.6vw,42px)!important;height:clamp(42px,3.6vw,58px)!important}
+  .table-hud{width:min(100%,300px)!important;margin-top:5px!important;gap:3px!important}
+  .hud-pill{min-width:0!important;flex:1 1 0;padding:3px 4px!important}
+  .hud-pill span{font-size:6px!important}
+  .hud-pill strong{font-size:9px!important}
+  .hud-pot strong{font-size:12px!important}
+  .lobby-seat,.configured-seat,.empty-seat{width:118px!important;min-height:82px!important}
+  .lobby-seat .seat-name{max-width:86px}
+  .configured-seat-meta{margin-top:4px}.configured-seat-meta span{font-size:5.5px;padding:2px 4px}
+}
+@media(min-width:861px) and (max-height:460px){
+  .table-brand-stage{min-height:0;margin-bottom:2px}
+  .table-brand{margin-bottom:4px}
+  .table-brand-mark{font-size:26px!important}
+  .table-brand-copy strong{font-size:26px!important}
+  .table-brand-copy small{font-size:8px!important}
+  .street-label{font-size:8px!important;margin-bottom:2px}
+  .board .card{width:28px!important;height:40px!important}
+  .table-hud{margin-top:4px!important}
+  .lobby-seat,.configured-seat,.empty-seat{width:104px!important;min-height:72px!important}
+}
+

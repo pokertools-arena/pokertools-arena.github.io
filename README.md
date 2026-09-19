@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.5.0.** The inspector-first layout release: the brand and tournament actions moved into the inspector's own header on the left, the table takes the full-height right column, the tablecloth brand is much larger, Tests is an icon-only control with larger glyphs, and seats fit phone-sized felts without overlap.
+> **Current release: 0.5.1.** The felt-polish release: the inspector-first layout with a much larger tablecloth brand, exact felt typography (46px wordmark and spade, 12px subtitle), centre column and HUD that scale with the felt, 140×100 lobby seats, and seat density that keeps a short 1220×520 window readable instead of collapsing to micro.
 
 ---
 

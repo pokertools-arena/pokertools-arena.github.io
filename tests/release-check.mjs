@@ -79,7 +79,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.5.0') throw new Error('Expected release version 0.5.0');
+if (pkg.version !== '0.5.1') throw new Error('Expected release version 0.5.1');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -142,6 +142,12 @@ if (!css.includes('grid-template-columns:410px minmax(760px,1fr)') || !css.inclu
 if (!css.includes('.table-brand-copy strong{font-size:clamp(28px,2.7vw,44px)!important}')) throw new Error('Tablecloth brand must be enlarged');
 if (!app.includes("if (tableRect.width < 520) return ['micro'];")) throw new Error('Narrow tables must step down seat density');
 if (!app.includes('const narrowInset = tableRect.width < 620 ?')) throw new Error('Narrow-table seat inset missing');
+// 0.5.1 — felt typography + short-viewport scaling.
+if (!css.includes('.table-brand-mark{font-size:46px!important')) throw new Error('Felt mark must be 46px');
+if (!css.includes('.table-brand-copy strong{font-size:46px!important')) throw new Error('Felt wordmark must be 46px');
+if (!css.includes('.table-brand-copy small{font-size:12px!important')) throw new Error('Felt subtitle must be 12px');
+if (!css.includes('.lobby-seat{width:140px!important;min-height:100px!important}')) throw new Error('Lobby seats must be 140x100');
+if (!app.includes('const shortWide = tableRect.height < 520 && tableRect.width > 700;')) throw new Error('Short-wide viewports must not collapse to micro');
 if (!css.includes('order:-1') || !css.includes('#bankClock{order')) throw new Error('Bank clock must lead the clock block');
 if (!app.match(/const previous = lastVisualState;/)) throw new Error('Previous visual state must be snapshotted');
 if (index.includes('Close settings">×')) throw new Error('Text close glyph still present (off-centre)');

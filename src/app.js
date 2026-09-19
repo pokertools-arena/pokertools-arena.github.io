@@ -1321,9 +1321,13 @@ function densityOrderForTable(tableRect, seatCount, lobby) {
   // Narrow phone widths: a tall felt still cannot fit two 110px seats side by
   // side plus the centre, so step down before the generic height checks.
   if (tableRect.width < 520) return ['micro'];
+  // A short felt is not automatically a small felt: 1220x520 yields a wide-but-
+  // shallow table that still fits two seats per side. Prefer tight over micro.
+  const shortWide = tableRect.height < 520 && tableRect.width > 700;
+  if (shortWide) return ['tight', 'micro'];
   if (tableRect.height < 440 || tableRect.width < 610 || (crowded && tableRect.height < 500)) return ['micro'];
   if (tableRect.height < 545 || tableRect.width < 760 || (crowded && tableRect.height < 590)) return ['tight', 'micro'];
-  if (tableRect.height < 640 || tableRect.width < 980 || (crowded && tableRect.width < 1120)) return ['compact', 'tight', 'micro'];
+  if (tableRect.height < 640 || tableRect.width < 900 || (crowded && tableRect.width < 1000)) return ['compact', 'tight', 'micro'];
   return lobby ? ['roomy', 'compact', 'tight', 'micro'] : ['roomy', 'compact', 'tight', 'micro'];
 }
 
