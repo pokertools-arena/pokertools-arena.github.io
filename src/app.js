@@ -47,6 +47,7 @@ let lastProcessedEventId = null;
 const MAX_LOBBY_SEATS = 10;
 let seatAssignments = Array(MAX_LOBBY_SEATS).fill(null);
 let editingSeatIndex = null;
+let seatNameAuto = false;
 let lobbyVisible = true;
 let pendingAutostart = false;
 let arenaMaxDecisions = 0;
@@ -1065,19 +1066,31 @@ function updateSeatSummary() {
   const count = seatAssignments.filter(Boolean).length;
   if (els.seatSummary) els.seatSummary.textContent = `${count} / ${MAX_LOBBY_SEATS} seated`;
 }
+// The seat name follows the chosen model until the user edits it by hand, so
+// seats restored from .env or saved config show "Gemma" instead of the generic
+// "Player 1" the other surfaces already hide via visiblePlayerName().
+function syncSeatNameFromModel() {
+  if (!seatNameAuto || editingSeatIndex == null) return;
+  const model = els.seatModel.value.trim();
+  els.seatName.value = model ? displayModelName(model) : `Player ${editingSeatIndex + 1}`;
+}
 function openSeatEditor(seatIndex) {
   if (!Number.isInteger(seatIndex) || seatIndex < 0 || seatIndex >= MAX_LOBBY_SEATS) return;
   editingSeatIndex = seatIndex;
   const locked = Boolean(director && ['RUNNING', 'PAUSED'].includes(director.status));
   const draft = seatAssignments[seatIndex] ? { ...seatAssignments[seatIndex] } : defaultSeatDraft(seatIndex);
   els.seatDialogTitle.textContent = `Seat ${seatIndex + 1}`;
-  els.seatName.value = draft.name || `Player ${seatIndex + 1}`;
+  const placeholderName = `Player ${seatIndex + 1}`;
+  const storedName = String(draft.name || '').trim();
+  seatNameAuto = !storedName || /^player\s+\d+$/i.test(storedName) || (Boolean(draft.model) && storedName === displayModelName(draft.model));
+  els.seatName.value = seatNameAuto && draft.model ? displayModelName(draft.model) : (storedName || placeholderName);
   refreshSeatConnectionSelect(draft.connectionId || '');
   if (draft.connectionId && [...els.seatConnection.options].some(option => option.value === draft.connectionId)) els.seatConnection.value = draft.connectionId;
   els.seatModel.value = draft.model || '';
   els.seatProtocol.value = draft.protocol || 'tool';
   els.seatProvider.value = draft.provider || '';
   applySeatProtocolRules();
+  syncSeatNameFromModel();
   void refreshSeatModelCatalog();
   els.seatError.classList.add('hidden');
   els.seatLockNotice.classList.toggle('hidden', !locked);
@@ -2332,8 +2345,9 @@ for (const dialog of [els.setupDialog, els.seatDialog, els.testsDialog, els.repl
   dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
   dialog.addEventListener('close', hideTooltip);
 }
-els.seatConnection.addEventListener('change', () => { applySeatProtocolRules(); void refreshSeatModelCatalog(); });
-els.seatModel.addEventListener('input', applySeatProtocolRules);
+els.seatConnection.addEventListener('change', () => { applySeatProtocolRules(); syncSeatNameFromModel(); void refreshSeatModelCatalog(); });
+els.seatModel.addEventListener('input', () => { applySeatProtocolRules(); syncSeatNameFromModel(); });
+els.seatName.addEventListener('input', () => { seatNameAuto = false; });
 els.seatProtocol.addEventListener('change', applySeatProtocolRules);
 els.refreshModelsBtn?.addEventListener('click', () => void refreshSeatModelCatalog({ force: true }));
 els.removeSeatBtn.addEventListener('click', () => {

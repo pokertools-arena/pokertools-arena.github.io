@@ -1,5 +1,15 @@
 # Release notes
 
+## 0.4.3 — Maintenance
+
+- **Seat editor name.** Opening a seat restored from `.env` or saved
+  configuration now shows the model-derived name (for example `Gemma`) instead
+  of the generic `Player 1`, matching the table, lobby and stats surfaces. The
+  name follows the chosen model until it is edited by hand.
+- **Close buttons.** Dialog close buttons and the remove-connection button use a
+  centered inline SVG cross instead of a baseline-aligned text `×`, so the glyph
+  is vertically centered.
+
 ## 0.4.2 — Maintenance
 
 - **Decision sanity suite model attribution.** Seat assignments restored from

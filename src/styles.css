@@ -839,7 +839,11 @@ input::placeholder{color:#4e5862}
 .button,.icon-button,.field-icon-button,input,select{box-sizing:border-box}
 .button{min-height:var(--control-h);padding:0 12px;border-radius:var(--radius-sm);font-size:10px;font-weight:800;line-height:1;white-space:nowrap}
 .small-button{min-height:30px;height:30px;padding-inline:10px;font-size:9px}
-.icon-button{width:30px;height:30px;min-width:30px;border-radius:var(--radius-sm);display:grid;place-items:center;padding:0}
+.icon-button{width:30px;height:30px;min-width:30px;border-radius:var(--radius-sm);display:grid;place-items:center;padding:0;line-height:1}
+/* SVG glyphs center geometrically; a text "×" sits on its baseline and looks
+   vertically off-centre inside these small buttons. */
+.icon-button svg{width:14px;height:14px;display:block;pointer-events:none}
+.dialog-head .icon-button svg{width:13px;height:13px}
 input,select{width:100%;min-width:0;height:var(--control-h);padding:0 9px;border-radius:var(--radius-sm);font-size:11px;background:#0a0d10;border:1px solid var(--modal-border);color:var(--text)}
 input:focus,select:focus{outline:none;border-color:rgba(146,201,164,.34);box-shadow:0 0 0 3px rgba(146,201,164,.05)}
 label{min-width:0}

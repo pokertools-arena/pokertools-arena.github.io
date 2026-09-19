@@ -1,4 +1,4 @@
-# pokertools-arena 0.4.2 — benchmark methodology & results
+# pokertools-arena 0.4.3 — benchmark methodology & results
 
 Generated: 2026-09-19T18:19:58.352Z
 Methodology: paired fixed-state corpus; deterministic interleaving with recorded experiment seed.
