@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#07090b" />
+  <title>pokertools-arena — AI Poker Benchmark</title>
+  <meta name="description" content="A browser-first AI poker benchmark. Put Jev and OpenAI-compatible models at the same no-limit Texas Hold&#39;em table, watch every card and decision, and let the tournament run until one model wins." />
+  <meta name="author" content="pokertools-arena" />
+  <link rel="canonical" href="https://pokertools-arena.github.io/" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+
+  <!-- Open Graph (Facebook, LinkedIn, Discord, Slack, iMessage) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="pokertools-arena" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="pokertools-arena — AI Poker Benchmark" />
+  <meta property="og:description" content="Frontier models play no-limit Texas Hold&#39;em with identical information and legal actions. Watch every card and decision until one model wins." />
+  <meta property="og:url" content="https://pokertools-arena.github.io/" />
+  <meta property="og:image" content="https://pokertools-arena.github.io/og-image.png" />
+  <meta property="og:image:secure_url" content="https://pokertools-arena.github.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="pokertools-arena: a poker table where frontier AI models play Texas Hold&#39;em." />
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="pokertools-arena — AI Poker Benchmark" />
+  <meta name="twitter:description" content="Frontier models play no-limit Texas Hold&#39;em with identical information and legal actions. Watch every card and decision until one model wins." />
+  <meta name="twitter:image" content="https://pokertools-arena.github.io/og-image.png" />
+  <meta name="twitter:image:alt" content="pokertools-arena: a poker table where frontier AI models play Texas Hold&#39;em." />
+
+  <!-- Structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "pokertools-arena",
+    "alternateName": "AI Poker Benchmark",
+    "applicationCategory": "GameApplication",
+    "applicationSubCategory": "AI benchmark",
+    "operatingSystem": "Web browser",
+    "description": "A browser-first AI poker benchmark where Jev and OpenAI-compatible models play no-limit Texas Hold'em with identical canonical information and legal actions.",
+    "url": "https://pokertools-arena.github.io/",
+    "image": "https://pokertools-arena.github.io/og-image.png",
+    "codeRepository": "https://github.com/pokertools-arena/pokertools-arena.github.io",
+    "license": "https://opensource.org/licenses/MIT",
+    "programmingLanguage": "JavaScript",
+    "isAccessibleForFree": true,
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
+
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brandbar" aria-label="pokertools-arena">
+        <div class="brand-mark">♠</div>
+        <div class="brand-copy">
+          <div class="brand-title">pokertools-arena</div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button id="startTopBtn" class="button primary top-action" type="button" title="Start tournament"><span class="action-icon">▶</span><span class="action-label">Start</span></button>
+        <button id="seatsBtn" class="button ghost top-action" type="button" title="Edit seats"><span class="action-icon">♟</span><span class="action-label">Seats</span></button>
+        <button id="setupBtn" class="button ghost top-action" type="button" title="Connections and tournament settings"><span class="action-icon">⚙</span><span class="action-label">Settings</span></button>
+        <button id="testsBtn" class="button ghost top-action" type="button" title="Run the 10-spot decision sanity suite"><span class="action-icon">◇</span><span class="action-label">Tests</span></button>
+        <button id="soundBtn" class="button ghost top-action sound-button" type="button" aria-pressed="false" title="Enable table sounds"><span class="action-icon">♪</span><span class="action-label">Sound</span></button>
+        <button id="recordBtn" class="button ghost top-action record-button" type="button" aria-pressed="false" title="Record only the poker table"><span class="action-icon">●</span><span class="action-label">Record</span></button>
+        <button id="exportBtn" class="button ghost top-action" type="button" disabled title="Export tournament log"><span class="action-icon">↓</span><span class="action-label">Log</span></button>
+        <button id="pauseBtn" class="button ghost top-action hidden" type="button"><span class="action-icon">Ⅱ</span><span class="action-label">Pause</span></button>
+        <button id="stopBtn" class="button danger top-action hidden" type="button"><span class="action-icon">■</span><span class="action-label">Stop</span></button>
+        <a id="repoLink" class="button ghost top-action repo-action" href="https://github.com/pokertools-arena/pokertools-arena.github.io" target="_blank" rel="noopener noreferrer" title="View source on GitHub" aria-label="View source on GitHub"><svg class="action-icon repo-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg><span class="action-label">GitHub</span></a>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="arena-card">
+        <div class="arena-head">
+          <div class="arena-status"><span id="statusDot" class="status-dot"></span><span id="statusLabel">IDLE</span></div>
+          <div id="tournamentMeta" class="mono muted">Seat 2–10 models, then press Start</div>
+        </div>
+
+        <div id="winnerBanner" class="winner-banner hidden" role="status" aria-live="polite"></div>
+        <div id="pokerTable" class="poker-table">
+          <div class="felt-ring"></div>
+          <div id="fxLayer" class="fx-layer" aria-hidden="true"></div>
+          <div id="seatsLayer" class="seats-layer"></div>
+          <div class="table-center">
+            <div class="table-brand-stage">
+              <div class="table-brand" aria-label="pokertools-arena model benchmark table"><span class="table-brand-mark">♠</span><span class="table-brand-copy"><strong>pokertools-arena</strong><small>model benchmark table</small></span></div>
+              <div id="actionToast" class="action-toast hidden" aria-live="polite"></div>
+            </div>
+            <div id="streetLabel" class="street-label">LOBBY</div>
+            <div id="board" class="board"></div>
+            <div class="table-hud" aria-label="Hand information">
+              <div class="hud-pill hud-pot"><span>POT</span><strong id="potValue">0</strong></div>
+              <div class="hud-pill"><span>BLINDS</span><strong id="blindsValue">— / —</strong></div>
+              <div class="hud-pill"><span>ANTE</span><strong id="anteValue">—</strong></div>
+              <div class="hud-pill"><span>HAND</span><strong id="handValue">—</strong></div>
+              <div class="hud-pill"><span>LEVEL</span><strong id="levelValue">—</strong></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="inspector">
+        <div class="tabs">
+          <button class="tab active" data-tab="live">Live</button>
+          <button class="tab" data-tab="log">Log</button>
+          <button class="tab" data-tab="stats">Stats</button>
+        </div>
+
+        <div id="tab-live" class="tab-panel active">
+          <section class="panel-block decision-panel">
+            <div id="decisionPanelTitle" class="panel-title">Current decision</div>
+            <div id="decisionEmpty" class="empty-state">Configure seats on the table. During play, the active model, clock, and legal actions appear here.</div>
+            <div id="decisionCard" class="decision-card hidden">
+              <div class="decision-top">
+                <div class="decision-identity"><div id="decisionPlayer" class="decision-player">—</div><div id="decisionModel" class="decision-model-line mono">—</div></div>
+                <div class="clock-wrap"><span id="decisionPhase" class="decision-phase">IDLE</span><div id="decisionClock" class="decision-clock">—</div><div id="bankClock" class="mono muted tiny">idle</div></div>
+              </div>
+              <div class="decision-context" aria-label="Decision context">
+                <span><small id="decisionLabelHand">Hand</small><b id="decisionHand">—</b></span>
+                <span><small id="decisionLabelStreet">Street</small><b id="decisionStreet">—</b></span>
+                <span><small id="decisionLabelPosition">Position</small><b id="decisionPosition">—</b></span>
+                <span><small id="decisionLabelOptions">Options</small><b id="decisionOptionCount">—</b></span>
+              </div>
+              <div class="decision-actions-head"><span id="decisionActionLabel">Legal actions</span><span class="mono muted" id="decisionActionHint">Choose one</span></div>
+              <div id="legalActions" class="legal-actions"></div>
+            </div>
+          </section>
+          <section class="panel-block"><div class="panel-title">Recent decisions</div><div id="decisionFeed" class="decision-feed"></div></section>
+        </div>
+
+        <div id="tab-log" class="tab-panel"><section class="panel-block grow"><div class="panel-title">Tournament events</div><div id="eventLog" class="event-log mono"></div></section></div>
+        <div id="tab-stats" class="tab-panel"><section class="panel-block grow"><div class="panel-title">Models</div><div id="statsGrid" class="stats-grid"></div></section></div>
+      </aside>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer-brand">
+        <span class="site-footer-mark" aria-hidden="true">&#9824;</span>
+        <span>pokertools-arena <span class="site-footer-sep">·</span> <span class="muted">browser-first AI poker benchmark</span></span>
+      </div>
+      <nav class="site-footer-links" aria-label="Project links">
+        <a href="https://github.com/pokertools-arena/pokertools-arena.github.io" target="_blank" rel="noopener noreferrer">
+          <svg class="site-footer-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          <span>Source code</span>
+        </a>
+        <a href="https://github.com/pokertools-arena/pokertools-arena.github.io/issues" target="_blank" rel="noopener noreferrer">Report an issue</a>
+        <a href="https://www.npmjs.com/package/pokertools-arena" target="_blank" rel="noopener noreferrer">npm package</a>
+      </nav>
+    </footer>
+  </div>
+
+  <dialog id="setupDialog" class="setup-dialog">
+    <form id="setupForm" method="dialog">
+      <div class="dialog-head">
+        <div class="dialog-title-row">
+          <h2>Settings</h2>
+          <button class="info-button" type="button" aria-label="About settings" data-tip="API keys stay in this browser tab and are never written to saved configuration or tournament logs.">i</button>
+        </div>
+        <button id="closeSetup" type="button" class="icon-button" aria-label="Close settings">×</button>
+      </div>
+
+      <div class="dialog-body setup-body">
+        <section class="settings-section">
+          <div class="section-head compact-section-head">
+            <div class="section-title-row"><h3>Connections</h3><button class="info-button" type="button" aria-label="About API connections" data-tip="Use any browser-accessible OpenAI-compatible API. Base URL is always editable. OpenRouter is an optional preset that also enables Jev Decisions routing.">i</button></div>
+            <button id="addConnectionBtn" type="button" class="button ghost small-button">+ Add</button>
+          </div>
+          <div id="connectionsEditor" class="connections-editor"></div>
+        </section>
+
+        <section class="settings-section">
+          <div class="section-head compact-section-head">
+            <div class="section-title-row"><h3>Tournament</h3><button class="info-button" type="button" aria-label="About tournament settings" data-tip="Blind levels advance after the configured number of hands. Action time is the per-move deadline; time bank is extra reserve per player.">i</button></div>
+            <div id="seatSummary" class="seat-summary">0 / 10 seated</div>
+          </div>
+          <div class="field-grid tournament-fields">
+            <label>Starting stack<input name="startingStack" type="number" min="100" value="10000" /></label>
+            <label>Small blind<input name="smallBlind" type="number" min="1" value="25" /></label>
+            <label>Big blind<input name="bigBlind" type="number" min="2" value="50" /></label>
+            <label>Ante<input name="ante" type="number" min="0" value="5" /></label>
+            <label>Hands / level<input name="handsPerLevel" type="number" min="1" value="8" /></label>
+            <label>Blind multiplier<input name="blindMultiplier" type="number" min="1.1" max="3" step="0.1" value="1.5" /></label>
+            <label>Action time (s)<input name="actionSeconds" type="number" min="1" max="120" value="12" /></label>
+            <label>Time bank (s)<input name="timeBankSeconds" type="number" min="0" max="600" value="30" /></label>
+            <label>Low-time warning (s)<input name="lowTimeSeconds" type="number" min="0" max="600" value="5" /></label>
+            <label>Low-time ring fraction<input name="lowTimeFraction" type="number" min="0" max="1" step="0.05" value="0.25" /></label>
+            <label>Action delay (ms)<input name="betweenActionsMs" type="number" min="0" max="5000" value="250" /></label>
+            <label>Hand delay (ms)<input name="betweenHandsMs" type="number" min="0" max="10000" value="700" /></label>
+          </div>
+        </section>
+
+        <section class="settings-section">
+          <div class="section-head compact-section-head">
+            <div class="section-title-row"><h3>Benchmark</h3><button class="info-button" type="button" aria-label="About benchmark mode" data-tip="Strategy: every model receives a deterministic hero hand classification from code, so the benchmark focuses on poker strategy. Raw cognition: every model receives raw cards and must identify its own hand. This option applies to all seats and cannot be changed per player.">i</button></div>
+          </div>
+          <div class="field-grid tournament-fields">
+            <label>Benchmark mode
+              <select name="benchmarkMode">
+                <option value="strategy">Strategy (deterministic hero hand)</option>
+                <option value="raw">Raw cognition (raw cards)</option>
+              </select>
+            </label>
+          </div>
+          <details class="connection-advanced benchmark-advanced">
+            <summary>Diagnostics / developer</summary>
+            <div class="field-grid tournament-fields">
+              <label>Decision architecture
+                <select name="decisionArchitecture">
+                  <option value="hierarchical">Hierarchical (recommended)</option>
+                  <option value="flat">Flat legacy (diagnostics)</option>
+                </select>
+              </label>
+              <label>Representation
+                <select name="representation">
+                  <option value="canonical_json">Canonical JSON</option>
+                  <option value="compact_json">Compact JSON</option>
+                  <option value="markdown">Markdown</option>
+                </select>
+              </label>
+              <label class="checkbox-field"><input name="spectatorExplanations" type="checkbox" /> Spectator explanations (isolated, off the decision clock)</label>
+            </div>
+          </details>
+        </section>
+      </div>
+
+      <div id="setupError" class="setup-error hidden"></div>
+      <div class="dialog-footer compact-footer">
+        <button id="saveSettingsBtn" type="submit" class="button primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="seatDialog" class="seat-dialog">
+    <form id="seatForm" method="dialog">
+      <div class="dialog-head">
+        <div class="dialog-title-row">
+          <h2 id="seatDialogTitle">Seat 1</h2>
+          <button class="info-button" type="button" aria-label="About seat context" data-tip="Each model receives only its own hole cards plus the same canonical public table state, recent public hands, opponent statistics, and legal actions.">i</button>
+        </div>
+        <button id="closeSeat" type="button" class="icon-button" aria-label="Close seat editor">×</button>
+      </div>
+      <div class="dialog-body seat-editor-body">
+        <div id="seatLockNotice" class="seat-lock-notice hidden">Seat assignments are locked during a tournament.</div>
+        <div class="seat-editor-grid">
+          <label>Name<input id="seatName" maxlength="40" placeholder="Claude" /></label>
+          <label>Connection<select id="seatConnection"></select></label>
+          <label class="seat-model-field">
+            <span class="field-label-row">Model <button class="info-button inline-info" type="button" aria-label="About model IDs" data-tip="Enter any model ID accepted by the selected endpoint. The refresh button attempts GET /models. OpenRouter also injects Jev Decisions shortcuts.">i</button></span>
+            <div class="model-input-wrap"><input id="seatModel" list="seatModelOptions" autocomplete="off" placeholder="model-id" /><button id="refreshModelsBtn" type="button" class="field-icon-button" title="Refresh models" aria-label="Refresh models">↻</button></div>
+            <datalist id="seatModelOptions"></datalist>
+            <span id="seatModelStatus" class="field-help"></span>
+          </label>
+          <label>
+            <span class="field-label-row">Protocol <button class="info-button inline-info" type="button" aria-label="About protocols" data-tip="Tool call is preferred when supported. JSON Schema is a strict structured-output fallback. Prompt JSON works with older compatible APIs. Jev Decisions is selected automatically for Jev on OpenRouter.">i</button></span>
+            <select id="seatProtocol"><option value="tool">Tool call</option><option value="json_schema">JSON Schema</option><option value="plain_json">Prompt JSON</option><option value="jev_decisions">Jev Decisions</option><option value="jev_native">Jev native</option></select>
+          </label>
+          <label class="seat-provider-field">
+            <span class="field-label-row">Provider <button class="info-button inline-info" type="button" aria-label="About provider pinning" data-tip="Optional provider pin for APIs that support routing, such as OpenRouter. Leave blank for automatic routing.">i</button></span>
+            <input id="seatProvider" placeholder="auto" />
+          </label>
+        </div>
+      </div>
+      <div id="seatError" class="setup-error hidden"></div>
+      <div class="dialog-footer compact-footer split-footer">
+        <button id="removeSeatBtn" type="button" class="button danger">Clear</button>
+        <div class="seat-footer-actions"><button id="cancelSeatBtn" type="button" class="button ghost">Cancel</button><button id="saveSeatBtn" type="submit" class="button primary">Save</button></div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="testsDialog" class="tests-dialog">
+    <div class="tests-shell">
+      <div class="dialog-head tests-dialog-head">
+        <div>
+          <div class="dialog-title-row"><h2>Decision sanity suite</h2><button class="info-button" type="button" aria-label="About decision tests" data-tip="A small comprehension and reliability check. It is intentionally not a GTO solver, Elo score, or tournament-strength ranking.">i</button></div>
+          <div class="dialog-subtitle">The same 10 fixed poker spots are sent independently to every seated model.</div>
+        </div>
+        <button id="closeTests" type="button" class="icon-button" aria-label="Close tests">×</button>
+      </div>
+      <div class="tests-body">
+        <div class="tests-how" aria-label="How the suite works">
+          <div class="tests-how-step"><b>1</b><span><strong>Fixed state</strong><small>Each model receives the same cards, board, stacks, history and legal actions.</small></span></div>
+          <div class="tests-how-step"><b>2</b><span><strong>One decision</strong><small>Arena calls that seat using its configured protocol: tool, JSON Schema or Jev Decisions.</small></span></div>
+          <div class="tests-how-step"><b>3</b><span><strong>Sanity check</strong><small>PASS only means the chosen action type matches the scenario expectation. It is not a poker-strength score.</small></span></div>
+        </div>
+        <section class="tests-participants-section">
+          <div class="tests-section-title"><span>Models under test</span><small>Every configured seat below is tested.</small></div>
+          <div id="testsParticipants" class="tests-participants"></div>
+        </section>
+        <div class="tests-toolbar">
+          <div class="tests-run-copy"><div id="testsStatus" class="tests-status">Ready.</div><div id="testsProgressLabel" class="tests-progress-label mono">0 / 0 decisions</div></div>
+          <button id="runTestsBtn" class="button primary" type="button">Run all models</button>
+        </div>
+        <div class="tests-progress" aria-hidden="true"><i id="testsProgressFill"></i></div>
+        <div id="testsResults" class="tests-results"></div>
+      </div>
+      <div class="dialog-footer compact-footer split-footer tests-footer">
+        <span class="muted tiny">Tests use real API calls and may incur provider cost.</span><button id="clearTestsBtn" class="button ghost" type="button">Clear results</button>
+      </div>
+    </div>
+  </dialog>
+
+
+  <dialog id="replayDialog" class="replay-dialog">
+    <div class="replay-shell">
+      <div class="dialog-head">
+        <div>
+          <div class="dialog-title-row"><h2 id="replayTitle">Decision replay</h2><span id="replayBadge" class="replay-badge">HAND —</span></div>
+          <div id="replaySubtitle" class="dialog-subtitle">Snapshot captured immediately before the model acted.</div>
+        </div>
+        <button id="closeReplay" type="button" class="icon-button" aria-label="Close decision replay">×</button>
+      </div>
+      <div class="dialog-body replay-body">
+        <section class="replay-table-wrap">
+          <div class="replay-table">
+            <div id="replayOpponents" class="replay-opponents"></div>
+            <div class="replay-center">
+              <div id="replayStreet" class="replay-street">—</div>
+              <div id="replayBoard" class="board replay-board"></div>
+              <div id="replayPot" class="replay-pot">POT —</div>
+            </div>
+            <div id="replayHero" class="replay-hero"></div>
+          </div>
+        </section>
+        <section class="replay-details">
+          <div id="replaySummary" class="replay-summary"></div>
+          <div class="replay-action-block"><span>Chosen action</span><strong id="replayAction">—</strong></div>
+          <div id="replayReason" class="replay-reason"></div>
+          <details class="replay-history" open><summary>Actions before this decision</summary><div id="replayHistory"></div></details>
+          <details class="replay-legal"><summary>Legal actions offered to the model</summary><div id="replayLegal"></div></details>
+        </section>
+      </div>
+      <div class="dialog-footer replay-footer">
+        <div class="replay-share-copy">
+          <strong>Share this decision</strong>
+          <span id="replayShareStatus">Creates a 1080×1350 PNG from this exact replay snapshot.</span>
+        </div>
+        <div class="replay-share-actions">
+          <button id="copyReplayImage" class="button ghost" type="button">Copy image</button>
+          <button id="shareReplayImage" class="button ghost hidden" type="button">Share</button>
+          <button id="saveReplayImage" class="button primary" type="button">Save PNG</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <template id="connectionRowTemplate">
+    <article class="connection-row">
+      <div class="connection-card-head">
+        <label class="connection-name">Name<input data-field="name" maxlength="32" placeholder="My API" /></label>
+        <label class="connection-kind">
+          <span class="field-label-row">Preset <button class="info-button inline-info" type="button" aria-label="About connection presets" data-tip="OpenAI-compatible keeps Base URL fully editable. OpenRouter only fills its standard URL and enables OpenRouter-specific routing. TypeSafe uses the native System One endpoint.">i</button></span>
+          <select data-field="kind"><option value="openai">OpenAI-compatible</option><option value="openrouter">OpenRouter</option><option value="typesafe">TypeSafe System One</option></select>
+        </label>
+        <button type="button" class="remove-connection icon-button" title="Remove connection" aria-label="Remove connection">×</button>
+      </div>
+      <div class="connection-main-grid">
+        <label class="connection-url">Base URL<input data-field="baseUrl" spellcheck="false" placeholder="https://api.example.com/v1" /></label>
+        <label><span class="field-label-row">API key <button class="info-button inline-info" type="button" aria-label="About API keys" data-tip="Optional for local or unauthenticated OpenAI-compatible endpoints. Required by OpenRouter, OpenAI, and most hosted providers.">i</button></span><input data-field="apiKey" type="password" autocomplete="off" placeholder="optional" /></label>
+        <button type="button" class="test-connection button ghost small-button">Test</button>
+      </div>
+      <div class="connection-status muted tiny" aria-live="polite"></div>
+      <details class="connection-advanced">
+        <summary>Advanced</summary>
+        <label class="connection-headers">Extra headers JSON<input data-field="headers" spellcheck="false" placeholder='{"X-Custom":"value"}' /></label>
+      </details>
+    </article>
+  </template>
+
+  <script src="./arena-env.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

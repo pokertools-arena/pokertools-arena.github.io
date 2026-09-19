@@ -1,0 +1,11 @@
+node_modules/
+*.tgz
+.DS_Store
+.release-inline-check.mjs
+dist/
+pokertools-arena.html
+
+logs/
+
+.env
+.env.local

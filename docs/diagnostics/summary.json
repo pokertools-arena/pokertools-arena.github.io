@@ -1,0 +1,337 @@
+{
+  "schemaVersion": 1,
+  "version": "0.4.0",
+  "generatedAt": "2026-09-19T18:19:58.352Z",
+  "experiments": [
+    "paired"
+  ],
+  "counters": {
+    "pokerDecisions": 79,
+    "familyModelCalls": 79,
+    "sizingModelCalls": 18,
+    "spectatorModelCalls": 0,
+    "totalModelCalls": 97,
+    "httpRequests": 97,
+    "httpRetries": 0,
+    "rateLimitResponses": 0,
+    "decisionErrors": 0,
+    "fallbackActions": 0,
+    "protocolFallbacks": 2
+  },
+  "sections": {
+    "methodology": "Fixed-state paired corpus is the primary architecture comparison; every state is identical across flat and hierarchical, execution is deterministically interleaved with a recorded seed, family and sizing correctness are reported separately, and behavioral proportions carry Wilson 95% intervals. Real tournaments are end-to-end validation only.",
+    "strict": [
+      {
+        "architecture": "flat",
+        "family": {
+          "successes": 23,
+          "trials": 24,
+          "rate": 0.9583333333333334,
+          "ci95": {
+            "low": 0.7975777375115778,
+            "high": 0.992606734645195
+          }
+        },
+        "sizingGivenCorrectFamily": {
+          "successes": 4,
+          "trials": 4,
+          "rate": 1,
+          "ci95": {
+            "low": 0.5100999795960008,
+            "high": 1
+          }
+        },
+        "final": {
+          "successes": 23,
+          "trials": 24,
+          "rate": 0.9583333333333334,
+          "ci95": {
+            "low": 0.7975777375115778,
+            "high": 0.992606734645195
+          }
+        }
+      },
+      {
+        "architecture": "hierarchical",
+        "family": {
+          "successes": 24,
+          "trials": 24,
+          "rate": 1,
+          "ci95": {
+            "low": 0.8620194241710247,
+            "high": 1
+          }
+        },
+        "sizingGivenCorrectFamily": {
+          "successes": 3,
+          "trials": 4,
+          "rate": 0.75,
+          "ci95": {
+            "low": 0.3006360524426366,
+            "high": 0.9544139373553637
+          }
+        },
+        "final": {
+          "successes": 23,
+          "trials": 24,
+          "rate": 0.9583333333333334,
+          "ci95": {
+            "low": 0.7975777375115778,
+            "high": 0.992606734645195
+          }
+        }
+      }
+    ],
+    "family": [
+      {
+        "model": "Gemma",
+        "architecture": "flat",
+        "successes": 14,
+        "trials": 14,
+        "rate": 1,
+        "ci95": {
+          "low": 0.7846829880728186,
+          "high": 1
+        }
+      },
+      {
+        "model": "Gemma",
+        "architecture": "hierarchical",
+        "successes": 14,
+        "trials": 14,
+        "rate": 1,
+        "ci95": {
+          "low": 0.7846829880728186,
+          "high": 1
+        }
+      },
+      {
+        "model": "Qwen",
+        "architecture": "flat",
+        "successes": 5,
+        "trials": 6,
+        "rate": 0.8333333333333334,
+        "ci95": {
+          "low": 0.43649056343635395,
+          "high": 0.9699474141282697
+        }
+      },
+      {
+        "model": "Qwen",
+        "architecture": "hierarchical",
+        "successes": 6,
+        "trials": 6,
+        "rate": 1,
+        "ci95": {
+          "low": 0.6096569663469354,
+          "high": 0.9999999999999999
+        }
+      },
+      {
+        "model": "Jev",
+        "architecture": "flat",
+        "successes": 6,
+        "trials": 6,
+        "rate": 1,
+        "ci95": {
+          "low": 0.6096569663469354,
+          "high": 0.9999999999999999
+        }
+      },
+      {
+        "model": "Jev",
+        "architecture": "hierarchical",
+        "successes": 6,
+        "trials": 6,
+        "rate": 1,
+        "ci95": {
+          "low": 0.6096569663469354,
+          "high": 0.9999999999999999
+        }
+      }
+    ],
+    "sizing": [
+      {
+        "model": "Gemma",
+        "architecture": "flat",
+        "successes": 2,
+        "trials": 2,
+        "rate": 1,
+        "ci95": {
+          "low": 0.34237195288961925,
+          "high": 1
+        }
+      },
+      {
+        "model": "Gemma",
+        "architecture": "hierarchical",
+        "successes": 2,
+        "trials": 2,
+        "rate": 1,
+        "ci95": {
+          "low": 0.34237195288961925,
+          "high": 1
+        }
+      },
+      {
+        "model": "Qwen",
+        "architecture": "flat",
+        "successes": 1,
+        "trials": 1,
+        "rate": 1,
+        "ci95": {
+          "low": 0.20654329147389294,
+          "high": 1
+        }
+      },
+      {
+        "model": "Qwen",
+        "architecture": "hierarchical",
+        "successes": 0,
+        "trials": 1,
+        "rate": 0,
+        "ci95": {
+          "low": 0,
+          "high": 0.7934567085261071
+        }
+      },
+      {
+        "model": "Jev",
+        "architecture": "flat",
+        "successes": 1,
+        "trials": 1,
+        "rate": 1,
+        "ci95": {
+          "low": 0.20654329147389294,
+          "high": 1
+        }
+      },
+      {
+        "model": "Jev",
+        "architecture": "hierarchical",
+        "successes": 1,
+        "trials": 1,
+        "rate": 1,
+        "ci95": {
+          "low": 0.20654329147389294,
+          "high": 1
+        }
+      }
+    ],
+    "fragmentation": null,
+    "paired": [
+      {
+        "model": "Gemma",
+        "flatFamily": "14/14 (100%)",
+        "hierarchicalFamily": "14/14 (100%)",
+        "familyAgreement": 0.9629629629629629,
+        "ci95": {
+          "low": 0.8171614606584348,
+          "high": 0.9934320234669025
+        },
+        "familyFlips": 1,
+        "n": 27
+      },
+      {
+        "model": "Qwen",
+        "flatFamily": "5/6 (83%)",
+        "hierarchicalFamily": "6/6 (100%)",
+        "familyAgreement": 0.8333333333333334,
+        "ci95": {
+          "low": 0.43649056343635395,
+          "high": 0.9699474141282697
+        },
+        "familyFlips": 1,
+        "n": 6
+      },
+      {
+        "model": "Jev",
+        "flatFamily": "6/6 (100%)",
+        "hierarchicalFamily": "6/6 (100%)",
+        "familyAgreement": 1,
+        "ci95": {
+          "low": 0.6096569663469354,
+          "high": 0.9999999999999999
+        },
+        "familyFlips": 0,
+        "n": 6
+      }
+    ],
+    "strategyVsRaw": "Strategy (deterministic heroHand for every model) and Raw cognition (models infer hand strength) are separate benchmark tracks and are never aggregated into one model score.",
+    "representations": [],
+    "performance": [
+      {
+        "model": "Gemma",
+        "modelId": "google/gemma-4-26b-a4b-it",
+        "architecture": "paired",
+        "pokerDecisions": 55,
+        "modelCalls": 69,
+        "httpRequests": null,
+        "latencyMean": 1856.7818181818182,
+        "latencyP95": 2237,
+        "tokens": 63031,
+        "cost": null
+      },
+      {
+        "model": "Qwen",
+        "modelId": "qwen/qwen3.8-flash",
+        "architecture": "paired",
+        "pokerDecisions": 12,
+        "modelCalls": 14,
+        "httpRequests": null,
+        "latencyMean": 6797,
+        "latencyP95": 9262,
+        "tokens": 15062,
+        "cost": null
+      },
+      {
+        "model": "Jev",
+        "modelId": "typesafe/jev-1.13",
+        "architecture": "paired",
+        "pokerDecisions": 12,
+        "modelCalls": 14,
+        "httpRequests": null,
+        "latencyMean": 580.75,
+        "latencyP95": 1314,
+        "tokens": 16609,
+        "cost": null
+      }
+    ],
+    "tournament": "No real tournament A/B run was attached to this release.",
+    "jevTelemetry": [
+      {
+        "architecture": "flat",
+        "aggressiveFamilyMass": null,
+        "selectedFamilyProbability": 0,
+        "familyTopSecondGap": 0.8233333333333333,
+        "familyEntropyBits": 0.40138271077233806,
+        "sizingEntropyBits": null
+      },
+      {
+        "architecture": "hierarchical",
+        "aggressiveFamilyMass": 0.37166666666666665,
+        "selectedFamilyProbability": 0.8649999999999999,
+        "familyTopSecondGap": 0.73,
+        "familyEntropyBits": 0.4692699804388758,
+        "sizingEntropyBits": 0.42444237994881645
+      }
+    ],
+    "fairness": [
+      "Fixed corpus states are byte-identical across architecture variants except for the action contract.",
+      "Paired flat/hierarchical runs use the same hero cards, board, stacks, history, memory and public stats.",
+      "Representation variants carry identical semantic state (offline assertion).",
+      "Strategy mode supplies a deterministic heroHand to every model; Raw mode supplies it to none.",
+      "Jev and chat adapters receive exactly the same family and size enums (offline assertion).",
+      "The total action clock is shared across both hierarchical stages.",
+      "Spectator explanations are disabled in rigorous runs; when enabled they are isolated and counter-separated.",
+      "No per-model production prompt tuning exists and no provider-specific poker facts are injected.",
+      "Diagnostic-only hidden information is structurally impossible in tournament mode."
+    ]
+  },
+  "caveats": [
+    "Behavioral proportion estimates are only as strong as the cell sample size; small cells carry wide Wilson intervals.",
+    "Paired architecture agreement measures decision-policy stability on fixed states, not win-rate superiority.",
+    "Tournament win rate is not a conclusion at these sample sizes, and tournament trajectories diverge after the first different action.",
+    "Provider rate limits and model version drift can affect reproducibility even for identical fixed states."
+  ]
+}

@@ -1,0 +1,57 @@
+name: Real-API diagnostics (manual)
+
+# Never runs on pull requests. Requires repository secrets and is triggered
+# manually (or from a release) so ordinary CI stays offline and credential-free.
+on:
+  workflow_dispatch:
+    inputs:
+      reps:
+        description: Repetitions per cell
+        default: '10'
+      cap:
+        description: Hard cap on decisions
+        default: '600'
+      fragmentation:
+        description: Run the A/B/C/D fragmentation experiment
+        type: boolean
+        default: true
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostics:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'release' }}
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_PLAYER1: ${{ secrets.OPENAI_PLAYER1 }}
+      OPENAI_PLAYER2: ${{ secrets.OPENAI_PLAYER2 }}
+      OPENAI_PLAYER3: ${{ secrets.OPENAI_PLAYER3 }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install dependencies
+        run: npm install
+      - name: Paired fixed-state corpus
+        run: |
+          EXTRA=""
+          if [ "${{ github.event.inputs.fragmentation }}" != "false" ]; then EXTRA="--fragmentation"; fi
+          node tests/real/real-paired-corpus.mjs \
+            --reps ${{ github.event.inputs.reps || 10 }} \
+            --cap ${{ github.event.inputs.cap || 600 }} \
+            $EXTRA
+      - name: Decision diagnostics
+        run: node tests/real/real-decision-diagnostics.mjs --reps ${{ github.event.inputs.reps || 10 }} --cap 400
+      - name: Build release report
+        run: node tests/analysis/release-report.mjs --docs
+      - name: Upload reports
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-diagnostics
+          path: logs/release-*/

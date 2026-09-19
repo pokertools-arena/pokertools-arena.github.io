@@ -1,0 +1,48 @@
+name: Publish npm package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+
+      - name: Ensure modern npm
+        run: npm install --global npm@^12.0.0
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Sync npm repository metadata
+        run: |
+          npm pkg set "repository.type=git"
+          npm pkg set "repository.url=git+https://github.com/pokertools-arena/pokertools-arena.github.io.git"
+          npm pkg set "homepage=https://pokertools-arena.github.io/"
+          npm pkg set "bugs.url=https://github.com/pokertools-arena/pokertools-arena.github.io/issues"
+
+      - name: Validate release
+        run: npm test
+
+      - name: Verify package contents
+        run: npm pack --dry-run
+
+      - name: Publish
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

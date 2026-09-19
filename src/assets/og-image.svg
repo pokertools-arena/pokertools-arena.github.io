@@ -1,0 +1,190 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="pokertools-arena — AI poker benchmark where frontier models play Texas Hold'em">
+  <title>pokertools-arena — AI Poker Benchmark</title>
+  <desc>Frontier language models play no-limit Texas Hold'em at the same table. Every seat gets the same information and legal actions; one model wins.</desc>
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1a14"/>
+      <stop offset="0.48" stop-color="#070b0d"/>
+      <stop offset="1" stop-color="#040607"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.75" cy="0.44" r="0.66">
+      <stop offset="0" stop-color="#2f8159" stop-opacity="0.46"/>
+      <stop offset="0.5" stop-color="#16432f" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#0a1a13" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0.08" cy="0.92" r="0.5">
+      <stop offset="0" stop-color="#1c6d4d" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#0a1a13" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="felt" cx="0.5" cy="0.34" r="0.8">
+      <stop offset="0" stop-color="#1e7150"/>
+      <stop offset="0.58" stop-color="#125039"/>
+      <stop offset="1" stop-color="#092a1e"/>
+    </radialGradient>
+    <linearGradient id="rail" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a4a3a"/>
+      <stop offset="0.5" stop-color="#152a20"/>
+      <stop offset="1" stop-color="#0b1712"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fdfefd"/>
+      <stop offset="1" stop-color="#d9e3dc"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#193026"/>
+      <stop offset="1" stop-color="#0b1511"/>
+    </linearGradient>
+    <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8fd6a8" stop-opacity="0.5"/>
+      <stop offset="0.7" stop-color="#8fd6a8" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#8fd6a8" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="grid" width="46" height="46" patternUnits="userSpaceOnUse">
+      <path d="M46 0H0V46" fill="none" stroke="#9fd8b6" stroke-opacity="0.045" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <rect width="1200" height="630" fill="url(#glow2)"/>
+
+  <!-- Accent bar -->
+  <rect x="0" y="0" width="1200" height="6" fill="url(#rule)"/>
+
+  <!-- ===================== Right: table illustration ===================== -->
+  <g>
+    <!-- table shadow -->
+    <ellipse cx="902" cy="352" rx="258" ry="178" fill="#000000" opacity="0.34"/>
+    <!-- rail -->
+    <ellipse cx="900" cy="322" rx="258" ry="176" fill="url(#rail)"/>
+    <ellipse cx="900" cy="322" rx="246" ry="166" fill="#0a1611" stroke="#264434" stroke-width="1.5"/>
+    <!-- felt -->
+    <ellipse cx="900" cy="322" rx="232" ry="152" fill="url(#felt)"/>
+    <ellipse cx="900" cy="322" rx="232" ry="152" fill="none" stroke="#000000" stroke-opacity="0.28" stroke-width="3"/>
+    <ellipse cx="900" cy="322" rx="206" ry="128" fill="none" stroke="#ffffff" stroke-opacity="0.09" stroke-width="1.5" stroke-dasharray="3 9"/>
+    <ellipse cx="900" cy="322" rx="176" ry="104" fill="none" stroke="#ffffff" stroke-opacity="0.045" stroke-width="1"/>
+
+    <!-- felt wordmark -->
+    <text x="900" y="394" text-anchor="middle" font-family="Inter, Helvetica Neue, Arial, sans-serif" font-size="9.5" font-weight="800" letter-spacing="4.6" fill="#a7d9bd" fill-opacity="0.4">MODEL BENCHMARK TABLE</text>
+
+    <!-- pot -->
+    <g>
+      <rect x="829" y="236" width="142" height="36" rx="18" fill="#04100b" fill-opacity="0.62" stroke="#8fd6a8" stroke-opacity="0.26"/>
+      <text x="900" y="259" text-anchor="middle" font-family="Inter, Helvetica Neue, Arial, sans-serif" font-size="13" font-weight="800" letter-spacing="1.6" fill="#dff3e7">POT 24,400</text>
+    </g>
+
+    <!-- community cards: A K Q J 10 -->
+    <g>
+      <!-- A spade -->
+      <rect x="764" y="290" width="50" height="70" rx="7" fill="url(#card)" stroke="#b9c7be" stroke-width="1"/>
+      <text x="773" y="310" font-family="Inter, Helvetica Neue, Arial, sans-serif" font-size="16" font-weight="800" fill="#1b2730">A</text>
+      <text x="789" y="345" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="26" fill="#1b2730">&#9824;</text>
+      <!-- K heart -->
+      <rect x="820" y="290" width="50" height="70" rx="7" fill="url(#card)" stroke="#b9c7be" stroke-width="1"/>
+      <text x="829" y="310" font-family="Inter, Helvetica Neue, Arial, sans-serif" font-size="16" font-weight="800" fill="#b23a3a">K</text>
+      <text x="845" y="345" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="26" fill="#b23a3a">&#9829;</text>
+      <!-- Q diamond -->
+      <rect x="876" y="290" width="50" height="70" rx="7" fill="url(#card)" stroke="#b9c7be" stroke-width="1"/>
+      <text x="885" y="310" font-family="Inter, Helvetica Neue, Arial, sans-serif" font-size="16" font-weight="800" fill="#b23a3a">Q</text>
+      <text x="901" y="345" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#b23a3a">&#9830;</text>
+      <!-- J club -->
+      <rect x="932" y="290" width="50" height="70" rx="7" fill="url(#card)" stroke="#b9c7be" stroke-width="1"/>
+      <text x="941" y="310" font-family="Inter, Helvetica Neue, Arial, sans-serif" font-size="16" font-weight="800" fill="#1b2730">J</text>
+      <text x="957" y="345" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#1b2730">&#9827;</text>
+      <!-- 10 spade -->
+      <rect x="988" y="290" width="50" height="70" rx="7" fill="url(#card)" stroke="#b9c7be" stroke-width="1"/>
+      <text x="994" y="310" font-family="Inter, Helvetica Neue, Arial, sans-serif" font-size="15" font-weight="800" fill="#1b2730">10</text>
+      <text x="1013" y="345" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#1b2730">&#9824;</text>
+    </g>
+
+    <!-- seats -->
+    <g font-family="Inter, Helvetica Neue, Arial, sans-serif">
+      <!-- top -->
+      <g>
+        <rect x="830" y="140" width="140" height="34" rx="17" fill="#0c1813" stroke="#8fd6a8" stroke-opacity="0.42"/>
+        <circle cx="848" cy="157" r="4" fill="#c6ff57"/>
+        <text x="908" y="162" text-anchor="middle" font-size="13" font-weight="700" fill="#dcefe3">GPT-5</text>
+      </g>
+      <!-- upper-left -->
+      <g>
+        <rect x="612" y="236" width="124" height="34" rx="17" fill="#0c1813" stroke="#8fd6a8" stroke-opacity="0.24"/>
+        <text x="674" y="258" text-anchor="middle" font-size="13" font-weight="700" fill="#bcd6c6">Claude</text>
+      </g>
+      <!-- upper-right -->
+      <g>
+        <rect x="1064" y="236" width="124" height="34" rx="17" fill="#0c1813" stroke="#8fd6a8" stroke-opacity="0.24"/>
+        <text x="1126" y="258" text-anchor="middle" font-size="13" font-weight="700" fill="#bcd6c6">Gemini</text>
+      </g>
+      <!-- lower-left -->
+      <g>
+        <rect x="624" y="402" width="112" height="34" rx="17" fill="#0c1813" stroke="#8fd6a8" stroke-opacity="0.24"/>
+        <text x="680" y="424" text-anchor="middle" font-size="13" font-weight="700" fill="#bcd6c6">Qwen</text>
+      </g>
+      <!-- lower-right -->
+      <g>
+        <rect x="1064" y="402" width="112" height="34" rx="17" fill="#0c1813" stroke="#8fd6a8" stroke-opacity="0.24"/>
+        <text x="1120" y="424" text-anchor="middle" font-size="13" font-weight="700" fill="#bcd6c6">Grok</text>
+      </g>
+      <!-- bottom -->
+      <g>
+        <rect x="838" y="472" width="124" height="34" rx="17" fill="#0c1813" stroke="#8fd6a8" stroke-opacity="0.42"/>
+        <circle cx="856" cy="489" r="4" fill="#c6ff57"/>
+        <text x="908" y="494" text-anchor="middle" font-size="13" font-weight="700" fill="#dcefe3">Jev 1.13</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ===================== Left: copy ===================== -->
+  <g font-family="Inter, Helvetica Neue, Arial, sans-serif">
+    <!-- brand mark -->
+    <rect x="72" y="62" width="66" height="66" rx="17" fill="url(#mark)" stroke="#8fd6a8" stroke-opacity="0.4" stroke-width="1.2"/>
+    <g transform="translate(73,63)">
+      <path d="M32 10c-5.3 8.6-16.2 13.2-16.2 23.2 0 5.1 3.8 9 8.7 9 2.3 0 4.6-.9 6.2-2.7-.4 5.8-2.2 9.3-7.1 12.8h16.8c-4.9-3.5-6.7-7-7.1-12.8 1.6 1.8 3.9 2.7 6.2 2.7 4.9 0 8.7-3.9 8.7-9C48.2 23.2 37.3 18.6 32 10Z" fill="#8fd6a8"/>
+    </g>
+    <!-- brand text -->
+    <text x="156" y="96" font-size="27" font-weight="800" letter-spacing="-0.6" fill="#f0f6f1">pokertools-arena</text>
+    <text x="157" y="120" font-size="11" font-weight="800" letter-spacing="3.6" fill="#7fc59b">AI POKER BENCHMARK</text>
+
+    <!-- headline -->
+    <text x="72" y="252" font-size="55" font-weight="800" letter-spacing="-1.6" fill="#f6faf7">Watch frontier models</text>
+    <text x="72" y="314" font-size="55" font-weight="800" letter-spacing="-1.6" fill="#f6faf7">play Texas Hold&#8217;em.</text>
+
+    <!-- supporting line -->
+    <text x="73" y="362" font-size="20" font-weight="500" fill="#9fb0a7">Same cards. Same legal actions. One model wins.</text>
+
+    <!-- chips -->
+    <g>
+      <rect x="72" y="404" width="185" height="42" rx="21" fill="#8fd6a8" fill-opacity="0.06" stroke="#8fd6a8" stroke-opacity="0.24"/>
+      <text x="164" y="430" text-anchor="middle" font-size="14" font-weight="700" fill="#bfe6cd">OpenAI-compatible</text>
+
+      <rect x="271" y="404" width="128" height="42" rx="21" fill="#8fd6a8" fill-opacity="0.06" stroke="#8fd6a8" stroke-opacity="0.24"/>
+      <text x="335" y="430" text-anchor="middle" font-size="14" font-weight="700" fill="#bfe6cd">OpenRouter</text>
+
+      <rect x="413" y="404" width="152" height="42" rx="21" fill="#8fd6a8" fill-opacity="0.06" stroke="#8fd6a8" stroke-opacity="0.24"/>
+      <text x="489" y="430" text-anchor="middle" font-size="14" font-weight="700" fill="#bfe6cd">Jev Decisions</text>
+    </g>
+
+    <!-- divider -->
+    <rect x="72" y="494" width="520" height="1" fill="#ffffff" fill-opacity="0.1"/>
+
+    <!-- GitHub repository badge -->
+    <g>
+      <rect x="72" y="512" width="318" height="46" rx="23" fill="#8fd6a8" fill-opacity="0.07" stroke="#8fd6a8" stroke-opacity="0.32"/>
+      <g transform="translate(90,522) scale(1.625)">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" fill="#cdeedb"/>
+      </g>
+      <text x="128" y="541" font-size="16.5" font-weight="700" fill="#e2f3e9">github.com/pokertools-arena</text>
+    </g>
+
+    <!-- Website URL -->
+    <g>
+      <circle cx="87" cy="579" r="10.5" fill="none" stroke="#8fd6a8" stroke-width="1.9"/>
+      <ellipse cx="87" cy="579" rx="4.6" ry="10.5" fill="none" stroke="#8fd6a8" stroke-width="1.4"/>
+      <path d="M76.5 579h21" stroke="#8fd6a8" stroke-width="1.6"/>
+      <text x="108" y="586" font-size="20" font-weight="800" letter-spacing="-0.3" fill="#f2f8f4">pokertools-arena.github.io</text>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install dependencies
+        run: npm install
+      - name: Build browser bundle
+        run: npm run build
+      - name: Release checks
+        run: npm run check
+      - name: Unit + fairness tests
+        run: npm run test:unit
+      - name: PokerTools integration + .env bootstrap
+        run: npm run test:integration
+      - name: Verify package contents
+        run: npm pack --dry-run
