@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.6.8.** The reasoning-reliability release: DeepSeek v4 (like GLM 4.5–5.3 before it) is now detected as a reasoning model and gets a 2048-token budget, and any stage truncated by that limit is retried once with a larger budget and lower reasoning effort — so a stochastic reasoner no longer forces an automatic fallback.
+> **Current release: 0.6.9.** The recording-refactor release: table recording now paints from an independent 30 FPS `requestAnimationFrame` scheduler with manual canvas frame submission (`captureStream(0)` + `requestFrame()`), a VP8-first WebM codec preference for reliable real-time encoding, output scaled to a 1920×1080 cap, and a 6–16 Mbps adaptive bitrate.
 
 ---
 

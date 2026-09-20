@@ -67,10 +67,6 @@ let tableRecording = null;
 let currentReplayEvent = null;
 const renderMemo = { status: '', table: '', decision: '', feed: '', events: '', stats: '' };
 
-// Single source of truth for timing defaults. Every value here is overridable
-// from the setup form (and therefore from saved config / launcher injection), so
-// the seat ring, the decision clock and the request timeout can never disagree
-// about how much time a player actually has.
 const TIMING_DEFAULTS = Object.freeze({
   actionSeconds: 12,
   timeBankSeconds: 30,
@@ -145,9 +141,6 @@ function showActionToast(text, type = '') {
   }, 1550);
 }
 function seatEl(playerId) { return $(`.seat[data-player-id="${CSS.escape(String(playerId))}"]`, els.seatsLayer); }
-// Cancel every effect the table may still have in flight: chip flies, toast,
-// fold/check flashes and their pending timeouts. Called when a run stops so the
-// display freezes instead of finishing queued animations.
 function stopTableEffects() {
   clearTimeout(showActionToast.timer);
   els.actionToast?.classList.add('hidden');
@@ -189,14 +182,7 @@ function animateBoardCards(previousCount, currentCount) {
 }
 function processVisualEffects(s) {
   const events = s?.events || [];
-  // Snapshot the previous state BEFORE any helper runs. animateNewHand and
-  // animateBoardCards advance lastVisualState internally, so reading it later
-  // made the HAND_END winner diff compare a state against itself and the
-  // pot→winner payout animation never fired.
   const previous = lastVisualState;
-  // Once a run is stopped (or errored) no further effects may be scheduled.
-  // Without this, already-live chip flies, flashes and sounds continued after
-  // Stop, and an in-flight broadcast could replay the last decision's effects.
   if (['STOPPED', 'ERROR'].includes(s?.status)) {
     if (events.length) lastProcessedEventId = events.at(-1).id;
     lastVisualState = s;
@@ -224,9 +210,6 @@ function processVisualEffects(s) {
       showActionToast(`${displayModelName(e.configuredModel || e.resolvedModel || e.playerName)} · ${e.action?.description || type}`, type);
     }
     if (e.type === 'HAND_END') {
-      // Prefer the event payload: `previous` can be missing on a resumed or
-      // re-rendered state, so the stack diff is only a fallback. Chips fly back
-      // from the pot to every winner at showdown, and the hand is announced.
       const before = new Map((previous?.table?.players || []).filter(Boolean).map(p => [p.id, Number(p.stack || 0)]));
       const payloadIds = (e.winners || []).map(w => w?.playerId ?? w?.id ?? w).filter(Boolean);
       const fromStacks = (s?.table?.players || [])
@@ -436,10 +419,7 @@ function buildPublicPlayerStats(events, players, currentHand) {
   return (players ?? []).map(player => {
     const rows = decisions.filter(e => e.playerId === player.id);
     const preflop = rows.filter(e => e.street === 'PREFLOP');
-    // Use hands dealt, not only hands in which the player faced a preflop
-    // decision. A big blind can win a walk without ever acting.
     const dealtHands = new Set(handStarts.filter(e => Array.isArray(e.playerIds) && e.playerIds.includes(player.id)).map(e => Number(e.handNumber)));
-    // Backward compatibility for logs created before HAND_START stored players.
     if (!dealtHands.size) for (const e of rows) dealtHands.add(Number(e.handNumber));
     const vpipHands = new Set(preflop.filter(e => ['CALL','BET','RAISE'].includes(e.action?.type)).map(e => e.handNumber));
     const pfrHands = new Set(preflop.filter(e => ['BET','RAISE'].includes(e.action?.type)).map(e => e.handNumber));
@@ -462,7 +442,6 @@ function buildPublicPlayerStats(events, players, currentHand) {
       decisions: rows.length,
       vpipPct: pct(vpipHands.size, dealtHands.size),
       pfrPct: pct(pfrHands.size, dealtHands.size),
-      // Standard aggression frequency (AFq), not the aggression-factor ratio.
       aggressionPct: pct(aggressive, aggressive + calls + folds),
       foldPct: pct(folds, foldOpportunities),
       callPct: pct(calls, strategicActions),
@@ -638,9 +617,6 @@ class TournamentDirector {
   broadcast() { this.onUpdate(this.snapshot()); }
   logEvent(type, data = {}) {
     const event = { id: id('event'), at: Date.now(), type, ...jsonSafe(data) };
-    // Keep the full in-memory tournament archive. Broadcast snapshots remain
-    // intentionally compact, but the Log tab and JSONL export can inspect every
-    // event from the current run without silently dropping early hands.
     this.events.push(event);
     this.schedulePersist(); return event;
   }
@@ -677,9 +653,6 @@ class TournamentDirector {
   }
   async startHand() {
     await this.waitIfPaused(); this.pruneBustedSeats(); this.handNumber++;
-    // A new hand clears every seat's "last action" so a card never shows what a
-    // player did in the previous hand. Elimination stamps are presentation-only
-    // and are applied in renderTable, so they survive this reset.
     for (const stat of Object.values(this.stats)) stat.lastAction = null;
     this.handStartStacks = Object.fromEntries((this.engine?.state?.players ?? []).filter(Boolean).map(p => [p.id, playerStack(p)]));
     try { this.engine.deal(); }
@@ -730,8 +703,6 @@ class TournamentDirector {
     const stateForAgent = assertDecisionState(applyBenchmarkMode(baseState, this.config.benchmarkMode)), startedAt = Date.now();
     const connection = this.config.connections.find(c => c.id === agent.connectionId);
     const architecture = this.config.decisionArchitecture === DECISION_ARCHITECTURES.FLAT ? 'flat' : 'hierarchical';
-    // Engine-validated, deterministic size set shared by every model. Built once
-    // per decision so both the request and the UI show the same values.
     const sizesForFamily = family => legalAggressiveSizes(this.engine, seat, family);
     let hierarchy = null;
     if (architecture === 'hierarchical') {
@@ -750,7 +721,6 @@ class TournamentDirector {
     };
     this.logEvent('DECISION_START', this.currentDecision); this.broadcast();
     const stats = this.stats[agent.id]; let result = null, error = null, errorCategory = null, elapsed = 0;
-    // Paused time is billed to the pause button, not to the model.
     const pausedTotal = () => (this.currentDecision?.pausedMs || 0) + (this.currentDecision?.pausedAt ? Math.max(0, Date.now() - this.currentDecision.pausedAt) : 0);
     const recordIncident = (incident) => {
       if (incident?.category === 'rate_limit') stats.rateLimits++;
@@ -784,14 +754,10 @@ class TournamentDirector {
     }
     if (this.status === 'STOPPED') throw new Error('Tournament stopped');
     await this.waitIfPaused();
-    // Charge active elapsed time consistently. Provider/model failures must not
-    // preserve a seat's bank while successful requests consume theirs.
     const elapsedActive = Math.max(0, Date.now() - startedAt - pausedTotal());
     this.timeBanks[agent.id] = Math.max(0, bankBefore - Math.max(0, elapsedActive - baseMs));
     let chosen = result?.action ?? null, forced = false;
     if (chosen && architecture === 'hierarchical') {
-      // Final validation after both stages: reconstruct the exact engine action
-      // and let PokerTools validate it before it is applied.
       const engineAction = isAggressiveType(chosen.type)
         ? { type: chosen.type, playerId: agent.id, amount: Math.max(1, Math.round(asNumber(chosen.amount))) }
         : { type: chosen.type, playerId: agent.id };
@@ -854,9 +820,6 @@ class TournamentDirector {
       errorCategory, error: error ? summarizeError(error) : null,
     });
     if (this.config.spectatorExplanations) this.enqueueSpectatorExplanation({ decisionId, agent, connection, stateForAgent, chosen });
-    // Promote a proven OpenRouter tool incompatibility to the seat configuration.
-    // Future hands/tournaments in this browser can go straight to JSON Schema
-    // instead of repeating the same expected capability-probe 404.
     if (result?.meta?.protocolFallbackTriggered && result?.meta?.method === 'json_schema') {
       agent.protocol = 'json_schema';
       const lobbySeat = Number(agent.lobbySeat);
@@ -867,17 +830,10 @@ class TournamentDirector {
     }
     this.currentDecision = null;
   }
-  // Spectator explanation is explicitly NOT part of the decision contract. It
-  // runs after the move has been applied, in an isolated serial chain, is never
-  // fed back into any future model context, and never counts toward primary
-  // decision latency. Jev returns typed telemetry instead; prose is never
-  // fabricated for it.
   enqueueSpectatorExplanation({ decisionId, agent, connection, stateForAgent, chosen }) {
     if (!connection || !['openai', 'openrouter'].includes(connection.kind) || isJevModel(agent.model)) return this.explanationChain;
     this.explanationChain = this.explanationChain.then(async () => {
       if (this.status === 'STOPPED' || this.status === 'ERROR') return;
-      // A short isolated budget so a slow explanation can never contend with the
-      // next decision; failures are silently dropped.
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 8000);
       try {
@@ -1136,9 +1092,6 @@ function updateSeatSummary() {
   const count = seatAssignments.filter(Boolean).length;
   if (els.seatSummary) els.seatSummary.textContent = `${count} / ${MAX_LOBBY_SEATS} seated`;
 }
-// The seat name follows the chosen model until the user edits it by hand, so
-// seats restored from .env or saved config show "Gemma" instead of the generic
-// "Player 1" the other surfaces already hide via visiblePlayerName().
 function syncSeatNameFromModel() {
   if (!seatNameAuto || editingSeatIndex == null) return;
   const model = els.seatModel.value.trim();
@@ -1233,11 +1186,6 @@ function saveSetupWithoutSecrets(raw) {
     storageSet('pokertoolsArenaBrowserConfig', JSON.stringify(safe));
   } catch {}
 }
-// Seed the decision core's parameter-capability registry from the configured
-// OpenRouter catalogues so optional sampling parameters (temperature) are only
-// sent to models whose endpoints accept them. Best-effort: a failure leaves the
-// historical default. The seat editor primes this too, but a start from a
-// saved/.env setup never opens it.
 async function primeModelCapabilities() {
   const targets = (() => { try { return readConnections(); } catch { return []; } })()
     .filter(connection => connection?.baseUrl && ['openai', 'openrouter'].includes(connection.kind));
@@ -1282,9 +1230,6 @@ function visualSeatAngle(index, count) {
   const safeCount = Math.max(TABLE_MIN_PLAYERS, Math.min(MAX_LOBBY_SEATS, Math.round(Number(count) || TABLE_MIN_PLAYERS)));
   const safeIndex = ((Math.round(Number(index) || 0) % safeCount) + safeCount) % safeCount;
   const step = 360 / safeCount;
-  // Even-handed tables sit between the four cardinal axes. This gives 8/10-max
-  // tables two seats across the top and bottom instead of piling one player in
-  // the exact middle, while heads-up remains the familiar bottom/top layout.
   const startDeg = safeCount === 2 ? 90 : (safeCount % 2 === 0 ? 90 + step / 2 : 90);
   return (startDeg + safeIndex * step) * Math.PI / 180;
 }
@@ -1324,8 +1269,6 @@ function clampSeatIntoTable(seat, tableRect, insetX, insetY) {
 }
 
 function densityOrderForTable(tableRect, seatCount, lobby) {
-  // Prefer readable player cards. Density is now a last-resort collision
-  // fallback, not the primary way of making the table fit a viewport.
   const width = tableRect.width, height = tableRect.height;
   const crowded = seatCount >= 9;
   if (width < 430 || height < 430) return ['micro'];
@@ -1354,9 +1297,6 @@ function seatPositionOnFelt(seat, slot, tableRect, feltRect, density, lobby) {
   const centerX = feltLeft + feltRect.width / 2;
   const centerY = feltTop + feltRect.height / 2;
 
-  // Seat centres follow the table rail itself instead of the browser edges.
-  // Keeping them slightly inside the outer felt ellipse makes the cards feel
-  // attached to the table and leaves a deliberate room border around players.
   const scaleByDensity = {
     roomy: [0.89, 0.88],
     compact: [0.87, 0.88],
@@ -1404,8 +1344,6 @@ function layoutTableSeats({ lobby = false } = {}) {
       seat.dataset.visualSlot = `${slot.index + 1}/${slot.count}`;
     });
 
-    // Clamp only after positioning on the rail. This is a safety net for very
-    // small devices, not the source of the seat coordinates.
     seats.forEach(seat => clampSeatIntoTable(seat, tableRect, insetX, insetY));
     const diagnostics = seatLayoutDiagnostics(seats, tableRect, insetX, insetY);
     chosen = density;
@@ -1459,8 +1397,6 @@ function renderStatus(s) {
   els.pauseBtn.classList.toggle('hidden', !running);
   els.stopBtn.classList.toggle('hidden', !running);
   els.startTopBtn.classList.toggle('hidden', running);
-  // Restart is offered only after a run has actually started and stopped or
-  // finished; before the first Start the primary action is Start itself.
   els.seatsBtn.classList.toggle('hidden', running || !['STOPPED', 'FINISHED', 'ERROR'].includes(status));
   els.setupBtn.disabled = running;
   els.testsBtn.disabled = running;
@@ -1518,8 +1454,6 @@ function renderTable(s) {
   els.streetLabel.classList.toggle('winner-street', s.status === 'FINISHED' && Boolean(s.winner));
   els.winnerBanner.classList.add('hidden');
 }
-// The active seat gets a depleting border ring (no numbers) so spectators can
-// see whose turn it is and how much of their clock remains.
 function clearTurnRings(keep = null) {
   for (const el of $$('.seat.turn-active')) if (el !== keep) el.classList.remove('turn-active');
 }
@@ -1533,12 +1467,8 @@ function startClock(decision) {
   if (activeDecisionClockId === decision.id && clockTimer) return;
   stopClock(); activeDecisionClockId = decision.id;
   const frame = () => {
-    // Freeze the clock at the moment of the pause. `pausedMs` already accounts
-    // for every completed pause and `pausedAt` is the frozen "now"; subtracting
-    // the in-flight pause a second time made the clock count upward on pause.
     const now = decision.pausedAt || Date.now();
     const elapsed = Math.max(0, now - decision.startedAt - (decision.pausedMs || 0));
-    // One canonical phase for the number AND the ring. Thresholds are config.
     const phase = decisionClockPhase({
       baseMs: decision.baseMs,
       timeBankMs: decision.timeBankMs,
@@ -1569,8 +1499,6 @@ function latestDecisionEvent(s) {
   return null;
 }
 function compactPercent(value) { return `${Math.round(Math.max(0, Math.min(1, Number(value) || 0)) * 100)}%`; }
-// Spectator-only, deterministic hand label. This is generated by code and must
-// never be presented as model reasoning.
 function deterministicHandLabel(heroCards, board) {
   const hand = heroHandSummary(heroCards, board);
   return hand ? hand.category : null;
@@ -1600,8 +1528,6 @@ function probabilityStrip(entries, labelFor, limit = 4) {
     return `<span class="probability-item" title="${escapeHtml(label)} — ${pct}%"><b>${escapeHtml(label)}</b><i><u style="width:${Math.max(2, pct)}%"></u></i><em>${pct}%</em></span>`;
   }).join('')}</div>`;
 }
-// Translate internal identifiers (A0/A1, bet/check) into human labels. Raw
-// identifiers are never shown unless they are the only available label.
 function decisionTelemetryHtml(event, { limit = 4 } = {}) {
   const meta = event?.decisionMeta || {};
   const labelFor = id => (event?.legalActions || []).find(a => a.id === id)?.description || id;
@@ -1614,9 +1540,6 @@ function decisionTelemetryHtml(event, { limit = 4 } = {}) {
       parts.push('<div class="telemetry-group"><span class="telemetry-caption">Sizing</span>' + probabilityStrip(meta.sizing.probabilities, sizeLabel, limit) + '</div>');
     }
   } else if (meta.probabilities && typeof meta.probabilities === 'object') {
-    // Legacy flat event: aggregate sizes into families so CHECK, CALL, FOLD,
-    // BET and RAISE stay comparable. The historical selected action is never
-    // changed.
     const familyMass = aggregateActionProbabilitiesByFamily(meta.probabilities, event?.legalActions, { labelResolver: id => ({ description: labelFor(id) }) });
     const ordered = {};
     for (const key of ['check', 'bet', 'call', 'raise', 'fold', 'other']) if (Number.isFinite(Number(familyMass[key]))) ordered[key] = familyMass[key];
@@ -1631,14 +1554,10 @@ function decisionTelemetryHtml(event, { limit = 4 } = {}) {
   }
   if (Number.isFinite(Number(meta.sizing?.confidence))) facts.push(`<span>Size confidence <b>${compactPercent(meta.sizing.confidence)}</b></span>`);
   if (Number.isFinite(Number(meta.aggression))) facts.push(`<span>Aggression tendency <b>${escapeHtml(aggressionTendency(meta.aggression))}</b></span>`);
-  // bluff_spot is a property of the spot, not a rationale for the chosen action.
   if (Number.isFinite(Number(meta.bluffSpot))) facts.push(`<span>Bluff opportunity (spot) <b>${compactPercent(meta.bluffSpot)}</b></span>`);
   const reasoningTokens = event?.usage?.completion_tokens_details?.reasoning_tokens;
   if (reasoningTokens) facts.push(`<span>Reasoning <b>${reasoningTokens} tokens</b></span>`);
   if (facts.length) parts.push(`<div class="decision-facts">${facts.join('')}</div>`);
-  // Typed decisions (hierarchical / Jev / OpenRouter-decisions) have no prose
-  // rationale; the telemetry above already shows family, size and confidence.
-  // A repeated "no text rationale" caption was removed as log noise.
   return parts.join('');
 }
 function setDecisionContext({ hand = '—', street = '—', position = '—', options = '—', label = 'Legal actions', hint = 'Choose one', labels = null } = {}) {
@@ -1654,12 +1573,8 @@ function setDecisionContext({ hand = '—', street = '—', position = '—', op
   els.decisionLabelPosition.textContent = names[2];
   els.decisionLabelOptions.textContent = names[3];
 }
-// Status text is single-line and truncated in CSS; the title keeps the full text
-// available on hover without letting it reflow the panel.
 function setBankClock(text) { els.bankClock.textContent = text; els.bankClock.title = text; }
 function setActionHint(text) { els.decisionActionHint.textContent = text; els.decisionActionHint.title = text; }
-// Champion badge: an SVG trophy in a gold medal so the winner mark renders the
-// same everywhere (no emoji font differences) and carries a subtle sheen.
 function championBadgeHtml() {
   return '<span class="champion-badge" role="img" aria-label="Tournament champion">'
     + '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
@@ -1670,8 +1585,6 @@ function championBadgeHtml() {
     + '</svg></span>';
 }
 function renderDecision(s) {
-  // A stopped/errored run must not keep a live clock. stop() clears
-  // currentDecision, but the last broadcast can still carry it, so guard here.
   if (['STOPPED', 'ERROR'].includes(s?.status)) { stopClock(); return; }
   const d = s?.currentDecision;
   const last = latestDecisionEvent(s);
@@ -1773,8 +1686,6 @@ function renderDecision(s) {
 }
 function renderFeed(s) {
 
-  // Read explanations from the full archive too, so a decision older than the
-  // compact 300-event broadcast snapshot still resolves its spectator text.
   const feedArchive = eventArchive(s);
   const events = feedArchive.filter(e => e.type === 'DECISION').slice(-12).reverse();
   const explanations = new Map(feedArchive.filter(e => e.type === 'SPECTATOR_EXPLANATION').map(e => [e.decisionId, e.text]));
@@ -1928,10 +1839,6 @@ function openSetup({ preserveError = false } = {}) { if (!preserveError) els.set
 function cloneJson(value) { return JSON.parse(JSON.stringify(value)); }
 function sanityAgents() {
   const connections = readConnections();
-  // Seat assignments restored from .env or saved config carry no id, so derive
-  // the same stable id the tournament uses. Without it every agent.id is
-  // undefined, so sanity results from all models collapse into one summary
-  // (e.g. "24/10") and every grid column shows the last model's result.
   return readSeatPlayers()
     .map(player => ({ ...player, id: player.id || `player-${player.lobbySeat + 1}`, connection: connections.find(c => c.id === player.connectionId) }))
     .filter(row => row.connection);
@@ -2094,61 +2001,124 @@ function openTests() {
   if (!els.testsDialog.open) els.testsDialog.showModal();
 }
 
+const TABLE_RECORDING_CONFIG = Object.freeze({
+  frameRate: 30,
+  maxWidth: 1920,
+  maxHeight: 1080,
+  minBitrate: 6_000_000,
+  maxBitrate: 16_000_000,
+  bitsPerPixelPerFrame: 0.14,
+  background: '#07090b',
+});
+
 function recorderMimeType() {
   if (!globalThis.MediaRecorder) return '';
-  for (const type of ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']) {
+  for (const type of ['video/webm;codecs=vp8', 'video/webm;codecs=vp9', 'video/webm']) {
     if (MediaRecorder.isTypeSupported?.(type)) return type;
   }
   return '';
 }
-function recordingVideoBitrate(trackOrSize) {
-  const settings = typeof trackOrSize?.getSettings === 'function' ? (trackOrSize.getSettings() || {}) : (trackOrSize || {});
-  const width = Math.max(640, Number(settings.width) || els.pokerTable?.clientWidth || 1280);
-  const height = Math.max(360, Number(settings.height) || els.pokerTable?.clientHeight || 720);
-  const fps = Math.min(60, Math.max(24, Number(settings.frameRate) || 60));
-  return Math.round(clamp(width * height * fps * 0.10, 10_000_000, 32_000_000));
+
+function recordingVideoBitrate({ width, height, frameRate = TABLE_RECORDING_CONFIG.frameRate }) {
+  const pixelsPerSecond = Math.max(1, width) * Math.max(1, height) * Math.max(1, frameRate);
+  return Math.round(clamp(
+    pixelsPerSecond * TABLE_RECORDING_CONFIG.bitsPerPixelPerFrame,
+    TABLE_RECORDING_CONFIG.minBitrate,
+    TABLE_RECORDING_CONFIG.maxBitrate,
+  ));
 }
+
 function setRecordButton(active, label = null) {
   if (!els.recordBtn) return;
   els.recordBtn.classList.toggle('active', active);
   els.recordBtn.setAttribute('aria-pressed', String(active));
-  const icon = $('.action-icon', els.recordBtn), text = $('.action-label', els.recordBtn);
+  const icon = $('.action-icon', els.recordBtn);
+  const text = $('.action-label', els.recordBtn);
   if (icon) icon.textContent = active ? '■' : '●';
   if (text) text.textContent = label || (active ? 'Stop rec' : 'Record');
   els.recordBtn.title = active ? 'Stop table recording and save video' : 'Record only the poker table';
   els.recordBtn.setAttribute('aria-label', els.recordBtn.title);
 }
+
 function saveRecordingBlob(blob) {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const url = URL.createObjectURL(blob), a = document.createElement('a');
-  a.href = url; a.download = `pokertools-arena-${stamp}.webm`; document.body.append(a); a.click(); a.remove();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `pokertools-arena-${stamp}.webm`;
+  document.body.append(link);
+  link.click();
+  link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
+
 function evenRecordingDimension(value) {
-  const n = Math.max(2, Math.round(Number(value) || 2));
-  return n % 2 ? n - 1 : n;
+  const rounded = Math.max(2, Math.round(Number(value) || 2));
+  return rounded % 2 ? rounded - 1 : rounded;
 }
+
+function fitRecordingSize(sourceWidth, sourceHeight) {
+  const width = Math.max(2, Number(sourceWidth) || 2);
+  const height = Math.max(2, Number(sourceHeight) || 2);
+  const scale = Math.min(
+    1,
+    TABLE_RECORDING_CONFIG.maxWidth / width,
+    TABLE_RECORDING_CONFIG.maxHeight / height,
+  );
+  return {
+    width: evenRecordingDimension(width * scale),
+    height: evenRecordingDimension(height * scale),
+  };
+}
+
 function waitForCaptureVideo(video, track) {
   return new Promise((resolve, reject) => {
     let settled = false;
-    const finish = (fn, value) => {
+    const finish = (callback, value) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      clearTimeout(timeoutId);
       track?.removeEventListener?.('ended', onEnded);
-      fn(value);
+      video.removeEventListener('loadedmetadata', onReady);
+      video.removeEventListener('resize', onReady);
+      callback(value);
     };
-    const ready = () => {
+    const onReady = () => {
       if (video.videoWidth > 0 && video.videoHeight > 0) finish(resolve);
     };
     const onEnded = () => finish(reject, new Error('Screen sharing ended before recording started'));
-    const timer = setTimeout(() => finish(reject, new Error('Timed out waiting for the shared tab video')), 8000);
+    const timeoutId = setTimeout(
+      () => finish(reject, new Error('Timed out waiting for the shared tab video')),
+      8000,
+    );
     track?.addEventListener?.('ended', onEnded, { once: true });
-    video.addEventListener('loadedmetadata', ready, { once: true });
-    video.addEventListener('resize', ready, { once: true });
-    ready();
+    video.addEventListener('loadedmetadata', onReady);
+    video.addEventListener('resize', onReady);
+    onReady();
   });
 }
+
+function createCaptureVideo(stream) {
+  const video = document.createElement('video');
+  video.muted = true;
+  video.playsInline = true;
+  video.autoplay = true;
+  video.setAttribute('aria-hidden', 'true');
+  Object.assign(video.style, {
+    position: 'fixed',
+    left: '0',
+    top: '0',
+    width: '2px',
+    height: '2px',
+    opacity: '0.001',
+    pointerEvents: 'none',
+    zIndex: '2147483647',
+  });
+  video.srcObject = stream;
+  document.body.append(video);
+  return video;
+}
+
 function captureViewportMetrics(video) {
   const viewport = globalThis.visualViewport;
   const cssWidth = Math.max(1, viewport?.width || document.documentElement.clientWidth || innerWidth || 1);
@@ -2166,45 +2136,52 @@ function captureViewportMetrics(video) {
     offsetY: viewport?.offsetTop || 0,
   };
 }
+
 function tableCropSourceRect(video) {
   const rect = els.pokerTable.getBoundingClientRect();
-  const m = captureViewportMetrics(video);
-  const leftCss = rect.left - m.offsetX;
-  const topCss = rect.top - m.offsetY;
-  let sx = Math.round(leftCss * m.scaleX);
-  let sy = Math.round(topCss * m.scaleY);
-  let sw = Math.round(rect.width * m.scaleX);
-  let sh = Math.round(rect.height * m.scaleY);
-  sx = clamp(sx, 0, Math.max(0, m.sourceWidth - 2));
-  sy = clamp(sy, 0, Math.max(0, m.sourceHeight - 2));
-  sw = clamp(sw, 2, m.sourceWidth - sx);
-  sh = clamp(sh, 2, m.sourceHeight - sy);
-  return { sx, sy, sw, sh, rect, metrics: m };
+  const metrics = captureViewportMetrics(video);
+  const leftCss = rect.left - metrics.offsetX;
+  const topCss = rect.top - metrics.offsetY;
+  const sx = clamp(Math.round(leftCss * metrics.scaleX), 0, Math.max(0, metrics.sourceWidth - 2));
+  const sy = clamp(Math.round(topCss * metrics.scaleY), 0, Math.max(0, metrics.sourceHeight - 2));
+  const sw = clamp(Math.round(rect.width * metrics.scaleX), 2, metrics.sourceWidth - sx);
+  const sh = clamp(Math.round(rect.height * metrics.scaleY), 2, metrics.sourceHeight - sy);
+  return { sx, sy, sw, sh };
 }
+
 function createTableRecordingCanvas(video) {
   const source = tableCropSourceRect(video);
-  // Keep the actual source-pixel density. This avoids the tiny/soft cards that
-  // result when a high-DPI tab is downscaled to CSS pixels before encoding.
+  const output = fitRecordingSize(source.sw, source.sh);
   const canvas = document.createElement('canvas');
-  canvas.width = evenRecordingDimension(source.sw);
-  canvas.height = evenRecordingDimension(source.sh);
+  canvas.width = output.width;
+  canvas.height = output.height;
   const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
   if (!ctx) throw new Error('Canvas video recording is not available in this browser');
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  return { canvas, ctx, initialSource: source };
+  return { canvas, ctx };
 }
+
+function createCanvasRecordingStream(canvas) {
+  let stream = canvas.captureStream(0);
+  let track = stream.getVideoTracks()[0];
+  if (track && typeof track.requestFrame === 'function') {
+    return { stream, track, manualFrames: true };
+  }
+  stream.getTracks().forEach(item => item.stop());
+  stream = canvas.captureStream(TABLE_RECORDING_CONFIG.frameRate);
+  track = stream.getVideoTracks()[0];
+  if (!track) throw new Error('Could not create the table recording video track');
+  return { stream, track, manualFrames: false };
+}
+
 function paintTableRecordingFrame(recording) {
   const { ctx, canvas, captureVideo } = recording;
-  if (!ctx || !canvas || !captureVideo || captureVideo.readyState < 2) return;
+  if (!ctx || !canvas || !captureVideo || captureVideo.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return false;
   const source = tableCropSourceRect(captureVideo);
-  // A full opaque repaint on every frame is intentional. Element/Region
-  // Capture can leave stale compositor tiles at the crop boundary; copying a
-  // complete shared-tab frame into an opaque canvas removes those ghost/white
-  // artifacts before MediaRecorder sees the frame.
   ctx.save();
   ctx.globalCompositeOperation = 'copy';
-  ctx.fillStyle = '#07090b';
+  ctx.fillStyle = TABLE_RECORDING_CONFIG.background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   try {
     ctx.drawImage(
@@ -2213,38 +2190,35 @@ function paintTableRecordingFrame(recording) {
       0, 0, canvas.width, canvas.height,
     );
   } catch {
-    // A transient resize can make source coordinates invalid for one frame.
-    // The already-painted dark frame is preferable to retaining stale pixels.
+    ctx.restore();
+    return false;
   }
   ctx.restore();
+  if (recording.manualFrames) recording.canvasTrack.requestFrame();
+  return true;
 }
+
 function startTableRecordingPainter(recording) {
-  const draw = () => paintTableRecordingFrame(recording);
-  draw();
-  // requestVideoFrameCallback follows the captured tab's real frame cadence
-  // without doing redundant 120-fps canvas work on high-resolution displays.
-  if (typeof recording.captureVideo.requestVideoFrameCallback === 'function') {
-    const loop = () => {
-      if (recording.stopping || tableRecording !== recording) return;
-      draw();
-      recording.videoFrameCallbackId = recording.captureVideo.requestVideoFrameCallback(loop);
-    };
-    recording.videoFrameCallbackId = recording.captureVideo.requestVideoFrameCallback(loop);
-  } else {
-    recording.paintTimer = setInterval(() => {
-      if (!recording.stopping && tableRecording === recording) draw();
-    }, 1000 / 60);
-  }
+  const frameInterval = 1000 / TABLE_RECORDING_CONFIG.frameRate;
+  let previousPaint = -frameInterval;
+  const loop = timestamp => {
+    if (recording.stopping || tableRecording !== recording) return;
+    if (timestamp - previousPaint >= frameInterval - 1) {
+      paintTableRecordingFrame(recording);
+      previousPaint = timestamp;
+    }
+    recording.animationFrameId = requestAnimationFrame(loop);
+  };
+  paintTableRecordingFrame(recording);
+  recording.animationFrameId = requestAnimationFrame(loop);
 }
+
 function stopTableRecordingPainter(recording) {
   if (!recording) return;
-  if (recording.paintTimer) clearInterval(recording.paintTimer);
-  recording.paintTimer = null;
-  if (recording.videoFrameCallbackId != null && typeof recording.captureVideo?.cancelVideoFrameCallback === 'function') {
-    try { recording.captureVideo.cancelVideoFrameCallback(recording.videoFrameCallbackId); } catch {}
-  }
-  recording.videoFrameCallbackId = null;
+  if (recording.animationFrameId != null) cancelAnimationFrame(recording.animationFrameId);
+  recording.animationFrameId = null;
 }
+
 function disposeTableRecording(recording, { stopCapture = true, stopCanvas = true } = {}) {
   if (!recording) return;
   stopTableRecordingPainter(recording);
@@ -2257,57 +2231,61 @@ function disposeTableRecording(recording, { stopCapture = true, stopCanvas = tru
   if (stopCapture) recording.captureStream?.getTracks?.().forEach(track => track.stop());
   recording.canvas?.remove?.();
 }
+
+function finalizeTableRecording(recording, mimeType) {
+  const blob = new Blob(recording.chunks, { type: recording.recorder.mimeType || mimeType || 'video/webm' });
+  disposeTableRecording(recording);
+  if (tableRecording === recording) tableRecording = null;
+  setRecordButton(false);
+  if (blob.size) saveRecordingBlob(blob);
+}
+
 async function startTableRecording() {
   if (tableRecording || !els.pokerTable) return;
   if (!navigator.mediaDevices?.getDisplayMedia || !globalThis.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) {
     showActionToast('Table recording is not supported in this browser', 'fold');
     return;
   }
+
   let captureStream = null;
   let captureVideo = null;
-  let pending = null;
+  let recording = null;
+
   try {
-    // Capture the full current tab first. Do NOT use CropTarget/restrictTo here:
-    // Chromium's compositor can leave stale/white tiles on an element-capture
-    // boundary when transformed seats, shadows and filtered layers intersect it.
     captureStream = await navigator.mediaDevices.getDisplayMedia({
-      video: { displaySurface: 'browser', frameRate: { ideal: 60, max: 60 } },
+      video: {
+        displaySurface: 'browser',
+        frameRate: { ideal: TABLE_RECORDING_CONFIG.frameRate, max: TABLE_RECORDING_CONFIG.frameRate },
+      },
       audio: false,
       preferCurrentTab: true,
       selfBrowserSurface: 'include',
       surfaceSwitching: 'exclude',
     });
+
     const captureTrack = captureStream.getVideoTracks()[0];
     if (!captureTrack) throw new Error('No video track was shared');
     const displaySurface = captureTrack.getSettings?.().displaySurface;
     if (displaySurface && displaySurface !== 'browser') {
       throw new Error('Please share this browser tab, not a window or the entire screen.');
     }
-    try { await captureTrack.applyConstraints?.({ frameRate: { ideal: 60, max: 60 } }); } catch {}
+    try {
+      await captureTrack.applyConstraints?.({
+        frameRate: { ideal: TABLE_RECORDING_CONFIG.frameRate, max: TABLE_RECORDING_CONFIG.frameRate },
+      });
+    } catch {}
 
-    captureVideo = document.createElement('video');
-    captureVideo.muted = true;
-    captureVideo.playsInline = true;
-    captureVideo.autoplay = true;
-    captureVideo.setAttribute('aria-hidden', 'true');
-    captureVideo.style.cssText = 'position:fixed;left:-10000px;top:-10000px;width:1px;height:1px;opacity:0;pointer-events:none;';
-    document.body.append(captureVideo);
-    captureVideo.srcObject = captureStream;
+    captureVideo = createCaptureVideo(captureStream);
     await captureVideo.play().catch(() => {});
     await waitForCaptureVideo(captureVideo, captureTrack);
 
-    const { canvas, ctx, initialSource } = createTableRecordingCanvas(captureVideo);
-    const canvasStream = canvas.captureStream(60);
-    const canvasTrack = canvasStream.getVideoTracks()[0];
-    if (!canvasTrack) throw new Error('Could not create the table recording video track');
+    const { canvas, ctx } = createTableRecordingCanvas(captureVideo);
+    const canvasCapture = createCanvasRecordingStream(canvas);
+    const { stream: canvasStream, track: canvasTrack, manualFrames } = canvasCapture;
     try { canvasTrack.contentHint = 'detail'; } catch {}
 
-    const chunks = [], mimeType = recorderMimeType();
-    const videoBitsPerSecond = recordingVideoBitrate({ width: canvas.width, height: canvas.height, frameRate: 60 });
-    const recorderOptions = mimeType ? { mimeType, videoBitsPerSecond } : { videoBitsPerSecond };
-    const recorder = new MediaRecorder(canvasStream, recorderOptions);
-    pending = {
-      recorder,
+    recording = {
+      recorder: null,
       captureStream,
       captureTrack,
       captureVideo,
@@ -2315,58 +2293,81 @@ async function startTableRecording() {
       ctx,
       canvasStream,
       canvasTrack,
-      chunks,
+      manualFrames,
+      chunks: [],
       stopping: false,
-      paintTimer: null,
-      videoFrameCallbackId: null,
-      videoBitsPerSecond,
-      initialSource,
+      animationFrameId: null,
     };
-    tableRecording = pending;
-    startTableRecordingPainter(pending);
 
-    recorder.addEventListener('dataavailable', event => { if (event.data?.size) chunks.push(event.data); });
-    recorder.addEventListener('stop', () => {
-      const active = pending;
-      const type = recorder.mimeType || mimeType || 'video/webm';
-      const blob = new Blob(chunks, { type });
-      disposeTableRecording(active);
-      if (tableRecording === active) tableRecording = null;
-      setRecordButton(false);
-      if (blob.size) saveRecordingBlob(blob);
-    }, { once: true });
+    const mimeType = recorderMimeType();
+    const videoBitsPerSecond = recordingVideoBitrate({
+      width: canvas.width,
+      height: canvas.height,
+      frameRate: TABLE_RECORDING_CONFIG.frameRate,
+    });
+    const options = mimeType ? { mimeType, videoBitsPerSecond } : { videoBitsPerSecond };
+    const recorder = new MediaRecorder(canvasStream, options);
+    recording.recorder = recorder;
+    tableRecording = recording;
+
+    recorder.addEventListener('dataavailable', event => {
+      if (event.data?.size) recording.chunks.push(event.data);
+    });
+    recorder.addEventListener('stop', () => finalizeTableRecording(recording, mimeType), { once: true });
+    recorder.addEventListener('error', event => {
+      if (tableRecording !== recording) return;
+      recording.stopping = true;
+      stopTableRecordingPainter(recording);
+      showActionToast(summarizeError(event.error || new Error('Recording failed')), 'fold');
+      if (recorder.state !== 'inactive') recorder.stop();
+      else {
+        disposeTableRecording(recording);
+        tableRecording = null;
+        setRecordButton(false);
+      }
+    });
     captureTrack.addEventListener('ended', () => {
-      if (tableRecording === pending && recorder.state !== 'inactive') {
-        pending.stopping = true;
+      if (tableRecording === recording && recorder.state !== 'inactive') {
+        recording.stopping = true;
+        stopTableRecordingPainter(recording);
         recorder.stop();
       }
     }, { once: true });
 
+    startTableRecordingPainter(recording);
     recorder.start(1000);
     setRecordButton(true);
-    showActionToast(`Recording table · ${canvas.width}×${canvas.height}`, 'check');
+    showActionToast(
+      `Recording · ${canvas.width}×${canvas.height} · ${TABLE_RECORDING_CONFIG.frameRate} fps`,
+      'check',
+    );
   } catch (err) {
-    if (pending) disposeTableRecording(pending);
+    if (recording) disposeTableRecording(recording);
     else {
       captureStream?.getTracks?.().forEach(track => track.stop());
-      if (captureVideo) { captureVideo.srcObject = null; captureVideo.remove(); }
+      if (captureVideo) {
+        captureVideo.srcObject = null;
+        captureVideo.remove();
+      }
     }
     tableRecording = null;
     setRecordButton(false);
     showActionToast(summarizeError(err), 'fold');
   }
 }
+
 function stopTableRecording() {
-  const active = tableRecording;
-  if (!active || active.stopping) return;
-  active.stopping = true;
-  stopTableRecordingPainter(active);
-  if (active.recorder.state !== 'inactive') active.recorder.stop();
-  else {
-    disposeTableRecording(active);
-    if (tableRecording === active) tableRecording = null;
-    setRecordButton(false);
+  const recording = tableRecording;
+  if (!recording || recording.stopping) return;
+  recording.stopping = true;
+  stopTableRecordingPainter(recording);
+  if (recording.recorder.state !== 'inactive') {
+    recording.recorder.stop();
+    return;
   }
+  disposeTableRecording(recording);
+  if (tableRecording === recording) tableRecording = null;
+  setRecordButton(false);
 }
 
 function modelForPlayerId(playerId) {
@@ -2422,10 +2423,8 @@ function openDecisionReplay(eventId) {
   ].map(([k,v]) => `<span>${escapeHtml(k)} <b>${escapeHtml(v)}</b></span>`).join('');
   els.replayHistory.innerHTML = (replay.actionHistory || []).length ? replay.actionHistory.map(replayHistoryRow).join('') : '<div class="empty-state">No actions before this decision.</div>';
   els.replayLegal.innerHTML = (replay.legalActions || []).map(a => `<span class="action-chip ${a.id === event.action?.id ? 'selected' : ''}" title="${escapeHtml(a.id)}">${escapeHtml(a.description || a.type)}</span>`).join('') || '<div class="empty-state">No legal actions stored.</div>';
-  // Spectator-only deterministic hand evaluation, clearly labelled as not model reasoning.
   const handLabel = replay.heroHand?.category || deterministicHandLabel(hero.cards, replay.board);
   if (handLabel) els.replaySummary.insertAdjacentHTML('beforeend', `<span>Deterministic hand evaluation <b>${escapeHtml(handLabel)}</b></span>`);
-  // Show every action probability in the replay modal, not just the top four.
   els.replayReason.innerHTML = `<div class="replay-reason-text">${escapeHtml(replayReasonText(event))}</div>${decisionTelemetryHtml(event, { limit: 99 })}`;
   els.replayDialog.showModal();
 }
@@ -2478,7 +2477,6 @@ function drawShareCard(ctx, code, x, y, w = 90, h = 126) {
   ctx.font = `900 ${suitSize}px system-ui`; ctx.textAlign = 'center'; ctx.fillText(card.suit, x + w/2, y + h/2 + suitSize * .28); ctx.textAlign = 'left';
 }
 function replayReasonText(event) {
-  // Last explanation wins, matching the feed's Map semantics.
   const explanation = eventArchive(currentState).filter(e => e.type === 'SPECTATOR_EXPLANATION' && e.decisionId === event?.decisionId).at(-1);
   if (explanation?.text) return explanation.text;
   if (event?.publicReason) return event.publicReason;
@@ -2504,7 +2502,6 @@ function makeReplayShareCanvas(event) {
   const canvas = document.createElement('canvas'); canvas.width = 1080; canvas.height = 1350;
   const ctx = canvas.getContext('2d');
   const bg = ctx.createLinearGradient(0, 0, 1080, 1350); bg.addColorStop(0, '#090c0e'); bg.addColorStop(1, '#101614'); ctx.fillStyle = bg; ctx.fillRect(0,0,1080,1350);
-  // subtle felt glow
   const glow = ctx.createRadialGradient(540, 565, 30, 540, 565, 520); glow.addColorStop(0,'rgba(22,102,68,.36)'); glow.addColorStop(1,'rgba(4,20,14,0)'); ctx.fillStyle=glow; ctx.fillRect(0,190,1080,780);
   ctx.fillStyle='rgba(235,243,238,.55)'; ctx.font='800 23px system-ui'; ctx.fillText('♠  pokertools-arena',72,74);
   ctx.fillStyle='rgba(210,220,214,.34)'; ctx.font='700 14px ui-monospace,monospace'; ctx.fillText('MODEL BENCHMARK TABLE  ·  DECISION REPLAY',72,104);
@@ -2512,7 +2509,6 @@ function makeReplayShareCanvas(event) {
   ctx.fillStyle='rgba(211,221,215,.56)'; ctx.font='700 20px ui-monospace,monospace'; ctx.fillText(`HAND ${event?.handNumber || replay.handNumber || '—'}  ·  ${(event?.street || replay.street || '—').toUpperCase()}  ·  ${event?.latencyMs || 0} ms`,72,228);
   roundedRect(ctx,72,260,936,82,24,'rgba(184,236,111,.08)','rgba(184,236,111,.28)',2);
   ctx.fillStyle='#dff5b9'; ctx.font='900 30px system-ui'; ctx.fillText(action,100,312);
-  // table
   roundedRect(ctx,72,382,936,470,210,'#0b4d32','#1e2a25',16);
   const felt = ctx.createRadialGradient(540,595,40,540,595,430); felt.addColorStop(0,'#126342'); felt.addColorStop(1,'#093b28'); ctx.fillStyle=felt; ctx.beginPath(); ctx.ellipse(540,617,442,209,0,0,Math.PI*2); ctx.fill();
   ctx.fillStyle='rgba(231,242,235,.18)'; ctx.font='900 38px system-ui'; ctx.textAlign='center'; ctx.fillText('pokertools-arena',540,490); ctx.font='700 12px system-ui'; ctx.fillText('model benchmark table',540,516); ctx.textAlign='left';
@@ -2520,16 +2516,13 @@ function makeReplayShareCanvas(event) {
   const bw=86,bh=120,gap=12,total=5*bw+4*gap,start=(1080-total)/2;
   for(let i=0;i<5;i++) drawShareCard(ctx,board[i],start+i*(bw+gap),545,bw,bh);
   ctx.fillStyle='rgba(236,243,239,.60)'; ctx.font='800 18px ui-monospace,monospace'; ctx.textAlign='center'; ctx.fillText(`POT ${fmt(replay.pot ?? event?.potBefore ?? 0)}   ·   BLINDS ${fmt(replay.blinds?.smallBlind ?? 0)}/${fmt(replay.blinds?.bigBlind ?? 0)}`,540,700); ctx.textAlign='left';
-  // hero
   roundedRect(ctx,350,727,380,105,18,'rgba(8,14,16,.82)','rgba(184,236,111,.23)',2);
   ctx.fillStyle='#f2f5f3'; ctx.font='850 23px system-ui'; ctx.fillText(modelName,375,762);
   ctx.fillStyle='rgba(213,224,217,.50)'; ctx.font='700 15px ui-monospace,monospace'; ctx.fillText(`${hero.position || event?.position || '—'}  ·  ${fmt(hero.stack ?? 0)} chips`,375,789);
   drawShareCard(ctx,hero.cards?.[0],613,739,46,64); drawShareCard(ctx,hero.cards?.[1],668,739,46,64);
-  // metrics
   const b=replay.betting||{};
   const metrics=[['STACK',fmt(hero.stack ?? 0)],['TO CALL',fmt(b.toCall ?? 0)],['POSITION',hero.position||event?.position||'—'],['LATENCY',`${event?.latencyMs||0} ms`]];
   metrics.forEach((m,i)=>{const x=72+i*234;roundedRect(ctx,x,892,216,78,15,'rgba(255,255,255,.028)','rgba(255,255,255,.06)',1);ctx.fillStyle='rgba(210,220,214,.38)';ctx.font='800 12px ui-monospace,monospace';ctx.fillText(m[0],x+16,918);ctx.fillStyle='#e8eeea';ctx.font='900 22px system-ui';ctx.fillText(m[1],x+16,950)});
-  // rationale / typed telemetry
   roundedRect(ctx,72,1004,936,226,22,'rgba(255,255,255,.026)','rgba(255,255,255,.065)',1);
   const telemetryHeading = event?.decisionMeta?.family ? 'TYPED DECISION TELEMETRY' : 'PUBLIC RATIONALE';
   ctx.fillStyle='rgba(211,221,215,.42)'; ctx.font='800 13px ui-monospace,monospace'; ctx.fillText(telemetryHeading,98,1036);
@@ -2572,14 +2565,6 @@ function downloadText(filename, text) {
   a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/* Floating tooltips ----------------------------------------------------------
-   Every `[data-tip]` element (the small “i” buttons) gets a single floating
-   tooltip instead of a CSS pseudo-element. Modal dialogs clip their contents
-   (`overflow:hidden` plus a scrollable body), so a pseudo-element tooltip near
-   an edge is cut off. This tooltip is `position:fixed` and is attached to the
-   topmost open <dialog>, which both escapes the modal's overflow clip and keeps
-   it in the dialog's top layer. It flips above/below the trigger and is clamped
-   to the viewport so it is always fully visible. */
 const tooltipEl = document.createElement('div');
 tooltipEl.className = 'ui-tooltip';
 tooltipEl.id = 'ui-tooltip';
@@ -2706,8 +2691,6 @@ els.logClear?.addEventListener('click', () => {
   els.logSearch?.focus();
 });
 els.seatsBtn.addEventListener('click', () => {
-  // This button only appears once a run has stopped or finished, where it
-  // restarts the tournament from the current seats.
   if (director && ['RUNNING', 'PAUSED'].includes(director.status)) return;
   void startConfiguredTournament();
 });
@@ -2766,8 +2749,6 @@ els.setupForm.addEventListener('submit', event => {
   try {
     const raw = collectSetupRaw(true);
     for (const connection of raw.connections) parseHeaders(connection.headers);
-    // Validate the same way the director will, so an invalid blind structure
-    // (or any other config rule) is reported here instead of failing at Start.
     normalizeConfig(raw);
     saveSetupWithoutSecrets(raw);
     els.setupDialog.close();
@@ -2787,8 +2768,6 @@ async function startConfiguredTournament() {
     showActionToast('Seat at least 2 models', 'fold');
     return;
   }
-  // Ensure model capability metadata is available before the first request so
-  // optional sampling parameters are gated correctly from decision one.
   if (capabilityPrime) { try { await capabilityPrime; } catch {} }
   els.startTopBtn.disabled = true;
   const startLabel = $('.action-label', els.startTopBtn);
@@ -2852,8 +2831,6 @@ window.addEventListener('beforeunload', event => {
 
 restoreSetup(); render({ status: 'IDLE', events: [] });
 if (pendingAutostart) {
-  // Opt-in launcher demo: seats and connections were injected from .env, so the
-  // tournament can start without a click. A decision budget still hard-stops it.
   pendingAutostart = false;
   setTimeout(() => { void startConfiguredTournament(); }, 600);
 }
@@ -2866,9 +2843,6 @@ if (!storageGet('pokertoolsArenaBrowserSeen')) storageSet('pokertoolsArenaBrowse
 let resizeTimer = null;
 function relayoutForViewport() {
   clearTimeout(resizeTimer);
-  // Two frames: let the new viewport settle and any layout transition finish
-  // before measuring, then rebuild the seat DOM so media-query content (not just
-  // inline geometry) is applied without a page reload.
   resizeTimer = setTimeout(() => {
     requestAnimationFrame(() => {
       if (currentState && !lobbyVisible) {

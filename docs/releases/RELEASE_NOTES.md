@@ -1,5 +1,41 @@
 # Release notes
 
+## 0.6.9 — recording refactor
+
+- **Independent 30 FPS painter.** Table recording no longer follows
+  `requestVideoFrameCallback()` from the shared-tab capture. A dedicated
+  `requestAnimationFrame()` scheduler paints at most 30 FPS, so a high-refresh
+  display cannot trigger redundant canvas work and the encoder never receives
+  more frames than it is configured for.
+- **Manual canvas frame submission.** When supported, the canvas is captured
+  with `captureStream(0)` and each painted frame is pushed explicitly with
+  `requestFrame()`. One encoded frame now corresponds to exactly one painted
+  frame instead of relying on the browser's implicit canvas capture cadence. A
+  30 FPS `captureStream()` fallback covers browsers without `requestFrame()`.
+- **Capture request lowered to 30 FPS** (with a matching `applyConstraints`
+  request) so the shared tab is not decoded at 60 FPS for frames that are
+  discarded before encoding.
+- **Output scaling capped at 1920×1080.** Frames keep their source-pixel density
+  but are downscaled when the crop exceeds the cap, and never upscaled.
+- **VP8 preferred for WebM.** The codec order is now VP8, then VP9, then generic
+  WebM, favouring the encoder that sustains real-time canvas encoding most
+  reliably.
+- **Adaptive 6–16 Mbps bitrate.** The constant is replaced by a
+  pixels-per-second calculation clamped to a 6–16 Mbps range.
+- **Explicit lifecycle.** Recorder cleanup and finalization are centralized in
+  `finalizeTableRecording`, with consistent handling of stop, capture-ended and
+  recorder-error paths. The opaque full-frame repaint that avoids stale/white
+  compositor artifacts is retained.
+- Removed standalone historical/debug comments from `app.js`.
+
+### Notes
+
+- The `0.6.4` recording invariants in the release check were updated: the
+  legacy `requestVideoFrameCallback` painter is gone, replaced by assertions for
+  the 30 FPS scheduler, manual frame submission, the 1920×1080 cap, the
+  VP8-first codec order, the adaptive bitrate and centralized finalization.
+- Asset cache-busting moved to `0.6.5-recording-refactor`.
+
 ## 0.6.8 — DeepSeek reasoning budget
 
 - **DeepSeek v4 is detected as a reasoning model.** The name heuristic only
