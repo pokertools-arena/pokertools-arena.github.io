@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.6.6.** The GLM-reasoning release: GLM 4.5–5.3 are correctly detected as reasoning models, so the two-stage hierarchical family/size calls get a large enough completion budget instead of returning empty tool calls and forcing an automatic fallback. The primary Start control is now icon-only (▶) like every other header action, with its tooltip and hint text updated to match.
+> **Current release: 0.6.7.** The launcher/dev-UX release: `npm run start` (and `start:chrome`) now build `dist/` before serving it, so the local launcher can no longer run a stale bundle. The browser primes each OpenRouter model's supported-parameter metadata at startup, extending the 0.6.5 capability gating to seats started from `.env` or saved setup. The inspector's Recent decisions now scroll inside a fixed panel instead of being clipped.
 
 ---
 

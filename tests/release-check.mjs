@@ -79,7 +79,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.6.6') throw new Error('Expected release version 0.6.6');
+if (pkg.version !== '0.6.7') throw new Error('Expected release version 0.6.7');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -190,6 +190,10 @@ if (!has('require_parameters: true')) throw new Error('Strict OpenRouter paramet
 // 0.6.6 — GLM reasoning detection and icon-only Start control.
 if (!has('glm-(?:\\d+[a-z]*|latest|flash-latest)')) throw new Error('GLM reasoning-model detection missing');
 if (!index.includes('id="startTopBtn" class="button primary top-action icon-only-action')) throw new Error('Start must be an icon-only header control');
+// 0.6.7 — build-before-start, browser capability priming, scrollable decision feed.
+if (!index.includes('class="panel-block decision-feed-panel"') || !css.includes('.decision-feed{flex:1 1 auto;min-height:0;overflow-y:auto')) throw new Error('Scrollable Recent decisions panel missing');
+if (!app.includes('function primeModelCapabilities') || !app.includes('capabilityPrime = primeModelCapabilities()')) throw new Error('Browser capability priming missing');
+if (!String(pkg.scripts?.prestart || '').includes('build')) throw new Error('npm start must build before serving dist');
 if (!css.includes('.table-hud') || !css.includes('.tests-dialog')) throw new Error('Table HUD/tests UI polish missing');
 if (!css.includes('0.2.8 — viewport-fit table') || !css.includes('grid-template-columns:minmax(0,1fr) clamp(270px,25vw,360px)')) throw new Error('0.2.8 viewport-fit table layout missing');
 if (!app.includes('const renderMemo') || !app.includes('activeInspectorTab') || !app.includes('schedulePersist()') || !app.includes('publicStatsCacheHand')) throw new Error('0.2.8 render/persistence optimization missing');

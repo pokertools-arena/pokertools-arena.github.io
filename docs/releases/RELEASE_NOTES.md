@@ -1,5 +1,31 @@
 # Release notes
 
+## 0.6.7 — Launcher builds, browser capability priming, scrollable decisions
+
+- **`npm run start` builds first.** The launcher serves the prebuilt `dist/`
+  bundle, but the `start` and `start:chrome` scripts did not rebuild it, so
+  running the app from source could silently serve an older version. Both now
+  run `npm run build` via `prestart` / `prestart:chrome` before starting the
+  local server.
+- **The browser primes model capabilities at startup.** 0.6.5 taught the
+  decision core to omit `temperature` for models that do not support it, but the
+  browser only loaded that metadata when the seat editor was opened. A start from
+  `.env` or a saved setup never opened it, so a model such as `gpt-5.6-luna`
+  still failed with "No endpoints found that can handle the requested
+  parameters". Startup now fetches the configured OpenRouter catalogues and the
+  tournament awaits that priming before its first request. The seat editor and
+  connection test still prime it as before, and a failed fetch leaves the
+  existing default behaviour.
+- **Recent decisions scroll.** The inspector's decision stream is now a flex
+  scroll region beneath the fixed-height current-decision panel, so it scrolls
+  instead of being clipped once a tournament produces more entries than fit.
+  Narrow/tablet layouts keep page-level scrolling.
+
+### Notes
+
+- `npm test` covers the new invariants: the scrollable panel, browser capability
+  priming, and the `prestart` build hook.
+
 ## 0.6.6 — GLM reasoning budget and icon-only Start
 
 - **GLM 4.5–5.3 are detected as reasoning models.** The name heuristic only

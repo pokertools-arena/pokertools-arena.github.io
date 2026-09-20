@@ -53,6 +53,7 @@ let lobbyVisible = true;
 let pendingAutostart = false;
 let arenaMaxDecisions = 0;
 const modelCatalogCache = new Map();
+let capabilityPrime = null;
 const OPENROUTER_DECISION_MODELS = Object.freeze([
   { id: 'typesafe/jev-1.13', name: 'TypeSafe · Jev 1.13 · Decisions API' },
   { id: '~typesafe/jev-latest', name: 'TypeSafe · Jev Latest · Decisions API' },
@@ -1232,12 +1233,30 @@ function saveSetupWithoutSecrets(raw) {
     storageSet('pokertoolsArenaBrowserConfig', JSON.stringify(safe));
   } catch {}
 }
+// Seed the decision core's parameter-capability registry from the configured
+// OpenRouter catalogues so optional sampling parameters (temperature) are only
+// sent to models whose endpoints accept them. Best-effort: a failure leaves the
+// historical default. The seat editor primes this too, but a start from a
+// saved/.env setup never opens it.
+async function primeModelCapabilities() {
+  const targets = (() => { try { return readConnections(); } catch { return []; } })()
+    .filter(connection => connection?.baseUrl && ['openai', 'openrouter'].includes(connection.kind));
+  await Promise.all(targets.map(async connection => {
+    try {
+      const response = await fetch(modelsUrl(connection.baseUrl), { method: 'GET', headers: makeHeaders(connection) });
+      if (!response.ok) return;
+      const payload = await response.json().catch(() => ({}));
+      registerModelCapabilities(Array.isArray(payload?.data) ? payload.data : []);
+    } catch {}
+  }));
+}
 function restoreSetup() {
   let saved = null; try { saved = JSON.parse(storageGet('pokertoolsArenaBrowserConfig')); } catch {}
   const injected = injectedEnvironmentConfig();
   const conns = injected?.connections?.length ? injected.connections : (saved?.connections?.length ? saved.connections : defaultConnections);
   conns.forEach(addConnectionRow);
   restoreSeatAssignments(injected?.players?.length ? injected.players : (saved?.players?.length ? saved.players : []));
+  capabilityPrime = primeModelCapabilities();
   if (saved) for (const [key, value] of Object.entries(saved)) {
     if (key === 'players' || key === 'connections') continue;
     const input = els.setupForm.elements.namedItem(key); if (!input) continue;
@@ -2768,6 +2787,9 @@ async function startConfiguredTournament() {
     showActionToast('Seat at least 2 models', 'fold');
     return;
   }
+  // Ensure model capability metadata is available before the first request so
+  // optional sampling parameters are gated correctly from decision one.
+  if (capabilityPrime) { try { await capabilityPrime; } catch {} }
   els.startTopBtn.disabled = true;
   const startLabel = $('.action-label', els.startTopBtn);
   if (startLabel) startLabel.textContent = 'Starting…';

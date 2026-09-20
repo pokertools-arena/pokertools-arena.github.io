@@ -2550,6 +2550,12 @@ body{min-height:100dvh;overscroll-behavior-y:none}
 .tab-panel>.panel-block.grow,.event-panel{min-height:0;display:flex;flex-direction:column}
 .panel-block{min-width:0}
 
+/* Recent decisions is the inspector's scroll region: the current-decision panel
+   keeps its fixed height and the decision stream scrolls beneath it. */
+.decision-feed-panel{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.decision-feed-panel>.panel-title{flex:0 0 auto}
+.decision-feed{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.16) transparent}
+
 /* Poker room: quieter chrome, deeper felt, stronger seat hierarchy. */
 .arena-head{flex:0 0 44px;height:44px;padding-inline:14px;background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.006))}
 .arena-status{display:flex;align-items:center;min-width:76px;font-weight:800;letter-spacing:.05em}
@@ -2600,8 +2606,8 @@ body{min-height:100dvh;overscroll-behavior-y:none}
 .log-toolbar input,.log-toolbar select{height:34px;font-size:10px;border-radius:9px;background:#0a0e11}
 .log-clear{height:34px;padding-inline:10px;align-self:stretch}
 .event-log{flex:1;min-height:0;overflow:auto;padding:7px 8px 12px;display:flex;flex-direction:column;gap:5px;font-size:10px;line-height:1.35;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.16) transparent}
-.event-log::-webkit-scrollbar,.tab-panel::-webkit-scrollbar,.dialog-body::-webkit-scrollbar,.tests-body::-webkit-scrollbar{width:8px;height:8px}
-.event-log::-webkit-scrollbar-thumb,.tab-panel::-webkit-scrollbar-thumb,.dialog-body::-webkit-scrollbar-thumb,.tests-body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:99px;border:2px solid transparent;background-clip:padding-box}
+.event-log::-webkit-scrollbar,.tab-panel::-webkit-scrollbar,.dialog-body::-webkit-scrollbar,.tests-body::-webkit-scrollbar,.decision-feed::-webkit-scrollbar{width:8px;height:8px}
+.event-log::-webkit-scrollbar-thumb,.tab-panel::-webkit-scrollbar-thumb,.dialog-body::-webkit-scrollbar-thumb,.tests-body::-webkit-scrollbar-thumb,.decision-feed::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:99px;border:2px solid transparent;background-clip:padding-box}
 .event-row{
   position:relative;width:100%;display:grid;grid-template-columns:3px minmax(0,1fr) auto;gap:9px;align-items:start;
   padding:9px 9px 9px 8px;border:1px solid rgba(255,255,255,.055);border-radius:10px;
@@ -2663,6 +2669,8 @@ input:focus,select:focus{border-color:rgba(157,220,177,.44)!important;box-shadow
   }
   .site-footer{display:flex}
   .tab-panel.active{max-height:none;overflow:visible}
+  .decision-feed-panel{display:block;min-height:0}
+  .decision-feed{overflow:visible;max-height:none}
   .event-panel{height:min(72dvh,720px)}
   .poker-table{min-height:0!important}
   .felt-ring{left:3%;right:3%;top:8%;bottom:8%;border-width:8px}
