@@ -33,6 +33,8 @@ const BASE_CONFIG = {
   },
   connections: {
     defaultKind: 'openai',
+    siteUrl: 'https://pokertools-arena.github.io/',
+    siteName: 'pokertools-arena',
     presets: {
       openai: 'https://api.openai.com/v1',
       openrouter: 'https://openrouter.ai/api/v1',
@@ -82,5 +84,13 @@ export function applyConfiguredFormDefaults(form) {
 
 export function defaultConnections() {
   const kind = ARENA_CONFIG.connections.defaultKind;
-  return [{ name: 'API', kind, baseUrl: CONNECTION_PRESETS[kind], apiKey: '', headers: '' }];
+  return [{ name: 'API', kind, baseUrl: CONNECTION_PRESETS[kind], apiKey: '', headers: defaultExtraHeaders(kind) }];
+}
+
+export function defaultExtraHeaders(kind) {
+  if (kind !== 'openrouter') return '';
+  return JSON.stringify({
+    'HTTP-Referer': ARENA_CONFIG.connections.siteUrl,
+    'X-OpenRouter-Title': ARENA_CONFIG.connections.siteName,
+  }, null, 2);
 }

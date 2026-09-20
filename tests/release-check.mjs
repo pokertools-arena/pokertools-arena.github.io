@@ -81,7 +81,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.9.0') throw new Error('Expected release version 0.9.0');
+if (pkg.version !== '0.9.1') throw new Error('Expected release version 0.9.1');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -296,6 +296,16 @@ if (!core.includes('phaseRemaining / phaseTotal')) throw new Error('Shared clock
 if (!app.includes('lowTimeMs') || !app.includes('lowTimeFraction')) throw new Error('Configurable low-time thresholds missing');
 if (!index.includes('name="lowTimeSeconds"') || !index.includes('name="lowTimeFraction"')) throw new Error('Low-time timing fields missing from setup UI');
 if (existsSync(join(root,'app.js')) || existsSync(join(root,'index.html')) || existsSync(join(root,'styles.css'))) throw new Error('Duplicate root application sources present');
+
+// 0.9.1 — visible cards, table clarity, replay rows and OpenRouter attribution.
+if (!compactCss.includes('.hole-cards{position:relative') || !compactCss.includes('-webkit-line-clamp:2')) throw new Error('Visible cards / two-line seat actions missing');
+if (!css.includes('[data-density="compact"] .hole-card') || !css.includes('[data-density="micro"] .hole-card')) throw new Error('Density-aware dealt-card sizing missing');
+if (!compactCss.includes('conic-gradient(from-90deg') || !css.includes('calc((1 - var(--turn, 1)) * 1turn)')) throw new Error('Clockwise seat countdown missing');
+if (!compactCss.includes('#tab-stats.panel-block{display:flex;flex-direction:column') || !compactCss.includes('.stats-grid{margin-top:10px;min-height:0;flex:11auto')) throw new Error('Scrollable Stats layout missing');
+if (!compactCss.includes('.poker-table.action-message-visible.table-brand-stage.table-brand{opacity:1')) throw new Error('Persistent table wordmark missing');
+if (!app.includes('replay-player-identity') || !app.includes('replay-player-stack')) throw new Error('Compact replay player rows missing');
+if (!config.includes("'HTTP-Referer': ARENA_CONFIG.connections.siteUrl") || !config.includes("'X-OpenRouter-Title': ARENA_CONFIG.connections.siteName")) throw new Error('OpenRouter attribution defaults missing');
+if (!core.includes("if (!headers['HTTP-Referer'] &&") || !core.includes("if (!headers['X-OpenRouter-Title'])")) throw new Error('OpenRouter custom attribution headers must be preserved');
 
 for (const workflow of ['ci.yml','pages.yml','publish.yml','real-diagnostics.yml']) {
   if (!statSync(join(root,'.github','workflows',workflow)).isFile()) throw new Error(`Missing workflow ${workflow}`);

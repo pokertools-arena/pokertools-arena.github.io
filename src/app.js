@@ -2,7 +2,7 @@ import { createBrowserEngine as createPokerToolsBrowserEngine } from '@pokertool
 import { DECISION_SANITY_SCENARIOS } from './benchmark/scenarios.js';
 import {
   ARENA_CONFIG, TABLE_DEFAULTS, TIMING_DEFAULTS, CONFIG_LIMITS,
-  CONNECTION_PRESETS, HISTORY_CONFIG, applyConfiguredFormDefaults, defaultConnections,
+  CONNECTION_PRESETS, HISTORY_CONFIG, applyConfiguredFormDefaults, defaultConnections, defaultExtraHeaders,
 } from './config/arena-config.js';
 import {
   ACTION, RECENT_PUBLIC_HANDS,
@@ -972,7 +972,8 @@ function addConnectionRow(connection = {}) {
   $('[data-field=kind]', row).value = connection.kind || 'openai';
   $('[data-field=baseUrl]', row).value = connection.baseUrl || connectionPresetUrl(connection.kind || 'openai');
   $('[data-field=apiKey]', row).value = connection.apiKey || '';
-  $('[data-field=headers]', row).value = connection.headers || '';
+  const headersInput = $('[data-field=headers]', row);
+  headersInput.value = connection.headers || defaultExtraHeaders(connection.kind || 'openai');
   $('[data-field=name]', row).addEventListener('input', () => refreshSeatConnectionSelect());
   $('[data-field=kind]', row).addEventListener('change', event => {
     const baseInput = $('[data-field=baseUrl]', row);
@@ -981,6 +982,9 @@ function addConnectionRow(connection = {}) {
     if (!nameInput.value.trim() || nameInput.value === 'API' || /^API \d+$/.test(nameInput.value) || nameInput.value === 'OpenRouter' || nameInput.value === 'TypeSafe') {
       nameInput.value = event.target.value === 'openrouter' ? 'OpenRouter' : event.target.value === 'typesafe' ? 'TypeSafe' : `API ${rowSeq}`;
     }
+    const defaultOpenRouterHeaders = defaultExtraHeaders('openrouter');
+    if (event.target.value === 'openrouter' && !headersInput.value.trim()) headersInput.value = defaultOpenRouterHeaders;
+    if (event.target.value !== 'openrouter' && headersInput.value.trim() === defaultOpenRouterHeaders) headersInput.value = '';
     refreshSeatConnectionSelect();
   });
   $('[data-field=kind]', row).addEventListener('change', () => {
@@ -2583,12 +2587,12 @@ function openDecisionReplay(eventId) {
   }
 
   const opponents = replay.opponents || [];
-  els.replayOpponents.innerHTML = opponents.map(o => `<div class="replay-opponent"><div><b>${escapeHtml(replayDisplayName(o.id, o.name))}</b><small>${escapeHtml(o.position || `Seat ${o.seat || '—'}`)}</small></div><span>${fmt(o.stack)} <small>${Number(o.stackBB || 0).toFixed(1)} BB</small></span></div>`).join('');
+  els.replayOpponents.innerHTML = opponents.map(o => `<div class="replay-opponent"><div class="replay-player-identity"><b>${escapeHtml(replayDisplayName(o.id, o.name))}</b><small>${escapeHtml(o.position || `Seat ${o.seat || '—'}`)}</small></div><div class="replay-player-stack"><strong>${fmt(o.stack)}</strong><small>${Number(o.stackBB || 0).toFixed(1)} BB</small></div></div>`).join('');
   els.replayStreet.textContent = String(replay.street || '—').toUpperCase();
   els.replayBoard.innerHTML = Array.from({ length: 5 }, (_, i) => cardHtml(replay.board?.[i], !replay.board?.[i], 'replay-card')).join('');
   els.replayPot.textContent = `POT ${fmt(replay.pot || 0)}`;
   const hero = replay.hero || {};
-  els.replayHero.innerHTML = `<div class="replay-hero-head"><div><b>${escapeHtml(modelName)}</b><small>${escapeHtml(hero.position || '—')}</small></div><span>${fmt(hero.stack)} <small>${Number(hero.stackBB || 0).toFixed(1)} BB</small></span></div><div class="replay-hero-cards">${[0,1].map(i => cardHtml(hero.cards?.[i], !hero.cards?.[i], 'replay-hole', true)).join('')}</div>`;
+  els.replayHero.innerHTML = `<div class="replay-hero-head"><div class="replay-player-identity"><b>${escapeHtml(modelName)}</b><small>${escapeHtml(hero.position || '—')}</small></div><div class="replay-player-stack"><strong>${fmt(hero.stack)}</strong><small>${Number(hero.stackBB || 0).toFixed(1)} BB</small></div></div><div class="replay-hero-cards">${[0,1].map(i => cardHtml(hero.cards?.[i], !hero.cards?.[i], 'replay-hole', true)).join('')}</div>`;
   const b = replay.betting || {};
   els.replaySummary.innerHTML = [
     ['Stack', fmt(hero.stack)], ['Pot', fmt(replay.pot)], ['To call', fmt(b.toCall)], ['Effective call', fmt(b.effectiveCall)],

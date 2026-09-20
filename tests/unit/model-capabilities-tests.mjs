@@ -8,8 +8,9 @@
 import assert from 'node:assert/strict';
 import {
   buildOpenAICompatibleBody, registerModelCapabilities, modelSupportsParameter,
-  resolveTemperature, isReasoningModel, DEFAULT_TEMPERATURE,
+  resolveTemperature, isReasoningModel, DEFAULT_TEMPERATURE, makeHeaders,
 } from '../../src/lib/decision-core.js';
+import { defaultExtraHeaders } from '../../src/config/arena-config.js';
 
 const connection = { baseUrl: 'https://openrouter.ai/api/v1', apiKey: 'test-key', kind: 'openrouter', headers: '' };
 const legalActions = [
@@ -67,5 +68,13 @@ assert.equal(glmBody.max_tokens, 2048, 'reasoning models get the larger completi
 assert.deepEqual(glmBody.reasoning, { max_tokens: 256, exclude: true }, 'reasoning must be capped and excluded');
 const deepseekBody = bodyFor('deepseek/deepseek-v4.1-flash', 0.3, 'tool');
 assert.equal(deepseekBody.max_tokens, 2048, 'deepseek v4 gets the reasoning completion budget');
+
+// 7. OpenRouter attribution is visible in Settings and explicit values are never overwritten.
+const attribution = JSON.parse(defaultExtraHeaders('openrouter'));
+assert.equal(attribution['HTTP-Referer'], 'https://pokertools-arena.github.io/');
+assert.equal(attribution['X-OpenRouter-Title'], 'pokertools-arena');
+const customHeaders = makeHeaders({ ...connection, headers: JSON.stringify({ 'HTTP-Referer': 'https://example.test/', 'X-OpenRouter-Title': 'Example' }) });
+assert.equal(customHeaders['HTTP-Referer'], 'https://example.test/');
+assert.equal(customHeaders['X-OpenRouter-Title'], 'Example');
 
 console.log('model-capabilities-test: capability-aware temperature PASS');

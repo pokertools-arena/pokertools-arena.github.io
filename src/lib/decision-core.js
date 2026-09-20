@@ -208,9 +208,9 @@ export function makeHeaders(connection) {
   if (connection.apiKey) headers.Authorization = `Bearer ${connection.apiKey}`;
   try {
     if (new URL(connection.baseUrl).hostname.includes('openrouter.ai')) {
-      headers['X-OpenRouter-Title'] = 'pokertools-arena';
+      if (!headers['X-OpenRouter-Title']) headers['X-OpenRouter-Title'] = 'pokertools-arena';
       const loc = typeof location !== 'undefined' ? location : null;
-      if (loc && (loc.protocol === 'http:' || loc.protocol === 'https:')) headers['HTTP-Referer'] = loc.href;
+      if (!headers['HTTP-Referer'] && loc && (loc.protocol === 'http:' || loc.protocol === 'https:')) headers['HTTP-Referer'] = `${loc.origin}/`;
     }
   } catch {}
   return headers;

@@ -1,5 +1,21 @@
 # Release notes
 
+## 0.9.1 — table clarity and replay polish
+
+- Moved dealt hole cards into each live seat's layout and added density-aware
+  card sizing so faces remain visible at every supported table size. Player
+  actions now use two readable lines without being covered by the cards.
+- Reversed the seat countdown ring so depletion advances clockwise.
+- Added a matte felt weave, subtle wear marks, richer depth, and a wood-grain
+  rail while keeping the table quiet enough for cards and actions to lead.
+- Reduced the felt wordmark opacity and reserved a separate centered action line,
+  so action updates no longer hide `pokertools-arena`.
+- Fixed scrolling in the Stats tab and normalized the Log filter controls.
+- Reworked decision-replay player rows into compact identity, position, chips,
+  and big-blind groups; action-history rows now align cleanly.
+- OpenRouter connections now show editable default `HTTP-Referer` and
+  `X-OpenRouter-Title` attribution headers. Explicit custom values are preserved.
+
 ## 0.9.0 — responsive interface and centralized configuration
 
 - Rebuilt the visual system around a compact token set and a single coherent

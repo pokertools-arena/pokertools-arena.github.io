@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.9.0.** A responsive interface and configuration release: the table, inspector, logs, decision history, and dialogs now adapt cleanly from phones to wide displays. Tournament defaults are centralized, with 30 seconds per action and 3,000 starting chips.
+> **Current release: 0.9.1.** A table-clarity release with fully visible dealt cards, readable two-line actions, clockwise timers, richer felt and wood detail, scrollable statistics, compact decision replays, and default OpenRouter attribution headers.
 
 ---
 
