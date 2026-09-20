@@ -38,7 +38,7 @@ const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const els = {
   startTopBtn: $('#startTopBtn'), seatsBtn: $('#seatsBtn'), soundBtn: $('#soundBtn'), recordBtn: $('#recordBtn'), exportBtn: $('#exportBtn'), setupBtn: $('#setupBtn'), testsBtn: $('#testsBtn'), pauseBtn: $('#pauseBtn'), stopBtn: $('#stopBtn'),
   statusDot: $('#statusDot'), statusLabel: $('#statusLabel'), tournamentMeta: $('#tournamentMeta'),
-  pokerTable: $('#pokerTable'), seatsLayer: $('#seatsLayer'), fxLayer: $('#fxLayer'), actionToast: $('#actionToast'), board: $('#board'), potValue: $('#potValue'), blindsValue: $('#blindsValue'), anteValue: $('#anteValue'), handValue: $('#handValue'), levelValue: $('#levelValue'), streetLabel: $('#streetLabel'),
+  pokerTable: $('#pokerTable'), tableArena: $('#tableArena'), seatsLayer: $('#seatsLayer'), fxLayer: $('#fxLayer'), actionToast: $('#actionToast'), board: $('#board'), dealerMarker: $('#dealerMarker'), smallBlindMarker: $('#smallBlindMarker'), bigBlindMarker: $('#bigBlindMarker'), potValue: $('#potValue'), blindsValue: $('#blindsValue'), anteValue: $('#anteValue'), handValue: $('#handValue'), levelValue: $('#levelValue'), streetLabel: $('#streetLabel'),
   decisionPanelTitle: $('#decisionPanelTitle'), decisionEmpty: $('#decisionEmpty'), decisionCard: $('#decisionCard'), decisionPlayer: $('#decisionPlayer'), decisionModel: $('#decisionModel'), decisionPhase: $('#decisionPhase'), decisionClock: $('#decisionClock'), bankClock: $('#bankClock'), decisionHand: $('#decisionHand'), decisionStreet: $('#decisionStreet'), decisionPosition: $('#decisionPosition'), decisionOptionCount: $('#decisionOptionCount'), decisionActionLabel: $('#decisionActionLabel'), decisionActionHint: $('#decisionActionHint'), legalActions: $('#legalActions'), decisionLabelHand: $('#decisionLabelHand'), decisionLabelStreet: $('#decisionLabelStreet'), decisionLabelPosition: $('#decisionLabelPosition'), decisionLabelOptions: $('#decisionLabelOptions'),
   decisionFeed: $('#decisionFeed'), decisionFeedSummary: $('#decisionFeedSummary'), eventLog: $('#eventLog'), logSummary: $('#logSummary'), logTabCount: $('#logTabCount'), logSearch: $('#logSearch'), logFilter: $('#logFilter'), logClear: $('#logClear'), statsGrid: $('#statsGrid'),
   setupDialog: $('#setupDialog'), setupForm: $('#setupForm'), closeSetup: $('#closeSetup'), setupError: $('#setupError'), saveSettingsBtn: $('#saveSettingsBtn'), seatSummary: $('#seatSummary'),
@@ -215,19 +215,19 @@ function showActionToast(text, type = '') {
     els.pokerTable?.classList.remove('action-message-visible');
   }, 1550);
 }
-function seatEl(playerId) { return $(`.seat[data-player-id="${CSS.escape(String(playerId))}"]`, els.seatsLayer); }
+function seatEl(playerId) { return $(`.table-seat[data-player-id="${CSS.escape(String(playerId))}"]`, els.seatsLayer); }
 function stopTableEffects() {
   clearTimeout(showActionToast.timer);
   els.actionToast?.classList.add('hidden');
   els.pokerTable?.classList.remove('action-message-visible');
   els.fxLayer?.replaceChildren();
-  for (const el of $$('.seat.fold-flash, .seat.check-flash'))
+  for (const el of $$('.table-seat.fold-flash, .table-seat.check-flash'))
     { el.classList.remove('fold-flash'); el.classList.remove('check-flash'); }
 }
 function animateNewHand(s) {
   if (!animationsAllowed()) return;
   requestAnimationFrame(() => {
-    const cards = $$('.seat .card:not(.empty)', els.seatsLayer);
+    const cards = $$('.table-seat .playing-card', els.seatsLayer);
     const tableRect = els.pokerTable?.getBoundingClientRect();
     cards.forEach((card, i) => {
       const rect = card.getBoundingClientRect();
@@ -285,7 +285,8 @@ function processVisualEffects(s) {
       }
       if (type === ACTION.FOLD && seat) { seat.classList.add('fold-flash'); setTimeout(() => seat.classList.remove('fold-flash'), 650); playTableSound('fold'); }
       if (type === ACTION.CHECK && seat) { seat.classList.add('check-flash'); setTimeout(() => seat.classList.remove('check-flash'), 500); playTableSound('check'); }
-      showActionToast(`${displayModelName(e.configuredModel || e.resolvedModel || e.playerName)} · ${e.action?.description || type}`, type);
+      // The action already lives immediately above this player's cards. Keep
+      // the middle of the felt clear instead of repeating it there.
     }
     if (e.type === 'HAND_END') {
       const before = new Map((previous?.table?.players || []).filter(Boolean).map(p => [p.id, Number(p.stack || 0)]));
@@ -414,6 +415,18 @@ function cardHtml(card, empty = false, extraClass = '', rankOnlyCorners = false)
   const corner = `<span class="card-corner"><b>${escapeHtml(rank)}</b>${rankOnlyCorners ? '' : `<i>${escapeHtml(suit)}</i>`}</span>`;
   const bottomCorner = `<span class="card-corner bottom"><b>${escapeHtml(rank)}</b>${rankOnlyCorners ? '' : `<i>${escapeHtml(suit)}</i>`}</span>`;
   return `<div class="card ${red ? 'red' : 'black'} ${rankOnlyCorners ? 'rank-only-corners' : ''} ${extraClass}" aria-label="${escapeHtml(rank + suit)}">${corner}<span class="card-suit">${escapeHtml(suit)}</span>${bottomCorner}</div>`;
+}
+function tableCardHtml(card, kind = 'board') {
+  if (!card) return kind === 'board'
+    ? '<span class="board-card board-card--empty" aria-label="Empty community card slot"></span>'
+    : '';
+  const raw = String(card).trim().replace(/10/i, 'T');
+  const match = raw.match(/^([2-9TJQKA])([shdc♠♥♦♣])$/i);
+  const suitMap = { s: '♠', h: '♥', d: '♦', c: '♣', '♠': '♠', '♥': '♥', '♦': '♦', '♣': '♣' };
+  const rank = match ? match[1].toUpperCase() : raw.slice(0, -1).toUpperCase();
+  const suit = match ? suitMap[match[2].toLowerCase()] || match[2] : suitMap[raw.slice(-1).toLowerCase()] || raw.slice(-1);
+  const red = suit === '♥' || suit === '♦';
+  return `<span class="playing-card ${kind === 'hole' ? 'hole-card' : 'board-card'} ${red ? 'red' : ''}" data-rank="${escapeHtml(rank)}" data-suit="${escapeHtml(suit)}" aria-label="${escapeHtml(rank + suit)}"></span>`;
 }
 
 async function loadPokerTools() {
@@ -1182,6 +1195,7 @@ function openSeatEditor(seatIndex) {
   els.saveSeatBtn.disabled = locked;
   els.removeSeatBtn.disabled = locked || !seatAssignments[seatIndex];
   if (!els.seatDialog.open) els.seatDialog.showModal();
+  syncChoicePickers();
   if (!locked) requestAnimationFrame(() => { els.seatName.focus(); els.seatName.select(); });
 }
 function readSeatDraft() {
@@ -1360,10 +1374,10 @@ function seatPositionOnFelt(seat, slot, tableRect, feltRect, density, lobby) {
   const centerY = feltTop + feltRect.height / 2;
 
   const scaleByDensity = {
-    roomy: [0.89, 0.88],
-    compact: [0.87, 0.88],
-    tight: [0.885, 0.895],
-    micro: [1.0, 0.95],
+    roomy: [1.22, 1.34],
+    compact: [1.2, 1.31],
+    tight: [1.18, 1.28],
+    micro: [1.15, 1.24],
   };
   let [scaleX, scaleY] = scaleByDensity[density] || scaleByDensity.compact;
   if (lobby) { scaleX += 0.012; scaleY += 0.012; }
@@ -1376,11 +1390,35 @@ function seatPositionOnFelt(seat, slot, tableRect, feltRect, density, lobby) {
   };
 }
 
+function positionTableMarker(marker, seat, tangentOffset = 0) {
+  const felt = $('.table-felt', els.pokerTable);
+  if (!marker || !felt || !seat) { if (marker) marker.hidden = true; return; }
+  const feltRect = felt.getBoundingClientRect(), seatRect = seat.getBoundingClientRect();
+  const dx = seatRect.left + seatRect.width / 2 - (feltRect.left + feltRect.width / 2);
+  const dy = seatRect.top + seatRect.height / 2 - (feltRect.top + feltRect.height / 2);
+  const length = Math.hypot(dx, dy) || 1;
+  const rx = Math.max(1, feltRect.width / 2 - 18), ry = Math.max(1, feltRect.height / 2 - 18);
+  const edgeScale = 1 / Math.sqrt((dx * dx) / (rx * rx) + (dy * dy) / (ry * ry));
+  marker.hidden = false;
+  marker.style.left = `${feltRect.width / 2 + dx * edgeScale + (-dy / length) * tangentOffset}px`;
+  marker.style.top = `${feltRect.height / 2 + dy * edgeScale + (dx / length) * tangentOffset}px`;
+}
+function updateTableMarkers() {
+  const seats = [...els.seatsLayer.querySelectorAll('.table-seat[data-position]')];
+  const dealer = seats.find(seat => tablePositionBadge(seat.dataset.position) === 'D');
+  const sb = seats.find(seat => tablePositionBadge(seat.dataset.position) === 'SB');
+  const bb = seats.find(seat => tablePositionBadge(seat.dataset.position) === 'BB');
+  const shared = dealer && dealer === sb;
+  positionTableMarker(els.dealerMarker, dealer, shared ? -11 : 0);
+  positionTableMarker(els.smallBlindMarker, sb, shared ? 11 : 0);
+  positionTableMarker(els.bigBlindMarker, bb);
+}
+
 function layoutTableSeats({ lobby = false } = {}) {
-  const seats = [...els.seatsLayer.querySelectorAll('.seat')];
+  const seats = [...els.seatsLayer.querySelectorAll('.table-seat')];
   if (!seats.length) return;
-  const tableRect = els.pokerTable.getBoundingClientRect();
-  const felt = $('.felt-ring', els.pokerTable);
+  const tableRect = els.tableArena.getBoundingClientRect();
+  const felt = $('.table-scene', els.pokerTable);
   const feltRect = felt?.getBoundingClientRect();
   if (!tableRect.width || !tableRect.height || !feltRect?.width || !feltRect?.height) return;
 
@@ -1413,11 +1451,13 @@ function layoutTableSeats({ lobby = false } = {}) {
   }
 
   els.pokerTable.dataset.density = chosen;
+  updateTableMarkers();
   requestAnimationFrame(() => {
-    const currentRect = els.pokerTable.getBoundingClientRect();
+    const currentRect = els.tableArena.getBoundingClientRect();
     if (currentRect.width && currentRect.height) {
       const inset = chosen === 'micro' ? 4 : chosen === 'tight' ? 6 : 9;
       seats.forEach(seat => clampSeatIntoTable(seat, currentRect, inset, inset));
+      updateTableMarkers();
     }
     if (animated) requestAnimationFrame(() => els.pokerTable.classList.remove('lobby-measure'));
   });
@@ -1426,22 +1466,22 @@ function layoutTableSeats({ lobby = false } = {}) {
 function lobbySeatHtml(seatIndex) {
   const player = seatAssignments[seatIndex];
   if (!player) {
-    return `<button type="button" class="seat lobby-seat empty-seat" data-lobby-seat="${seatIndex}" aria-label="Configure seat ${seatIndex + 1}">
-      <span class="empty-seat-plus">+</span><span class="empty-seat-number">Seat ${seatIndex + 1}</span><span class="empty-seat-copy">Add model</span>
-    </button>`;
+    return `<div class="table-seat" data-lobby-seat="${seatIndex}"><button type="button" class="empty-seat" aria-label="Configure empty seat ${seatIndex + 1}">
+      <span class="empty-seat-icon" aria-hidden="true"></span><span class="empty-seat-copy"><span class="empty-seat-title">Sit here</span><span class="empty-seat-subtitle">Empty seat ${seatIndex + 1}</span></span>
+    </button></div>`;
   }
   const conn = connectionById(player.connectionId);
-  return `<button type="button" class="seat lobby-seat configured-seat" data-lobby-seat="${seatIndex}" aria-label="Edit ${escapeHtml(player.name)} in seat ${seatIndex + 1}">
-    <div class="seat-head"><div><div class="seat-name">${escapeHtml(visiblePlayerName(player.name, player.model))}</div><div class="seat-model mono">${escapeHtml(shortModel(player.model))}</div></div><span class="seat-pos">S${seatIndex + 1}</span></div>
-    <div class="configured-seat-meta"><span>${escapeHtml(conn?.name || 'Connection')}</span><span>${escapeHtml(effectiveProtocol(player, conn) === 'jev_decisions' ? 'Jev Decisions' : effectiveProtocol(player, conn) === 'jev_native' ? 'Jev native' : effectiveProtocol(player, conn).replace('_', ' '))}</span></div>
-    <div class="lobby-edit-hint">Click to edit</div>
-  </button>`;
+  return `<div class="table-seat table-seat--pending" data-lobby-seat="${seatIndex}"><button type="button" class="seat-card seat-card--pending" aria-label="Edit ${escapeHtml(player.name)} in seat ${seatIndex + 1}">
+    <span class="seat-name">${escapeHtml(visiblePlayerName(player.name, player.model))}</span><span class="seat-stack seat-stack--pending">WAITING</span>
+    <span class="seat-model">${escapeHtml(shortModel(player.model))}</span><span class="seat-bb seat-bb--pending">— BB</span>
+    <span class="seat-connection sr-only">${escapeHtml(conn?.name || 'Connection')}</span>
+  </button></div>`;
 }
 function renderLobbyTable() {
   els.pokerTable.classList.add('lobby-mode');
   els.seatsLayer.innerHTML = Array.from({ length: MAX_LOBBY_SEATS }, (_, i) => lobbySeatHtml(i)).join('');
   layoutTableSeats({ lobby: true });
-  els.board.innerHTML = Array.from({ length: 5 }, () => cardHtml(null, true)).join('');
+  els.board.innerHTML = Array.from({ length: 5 }, () => tableCardHtml(null)).join('');
   const count = seatAssignments.filter(Boolean).length;
   els.potValue.textContent = `${count}/${MAX_LOBBY_SEATS}`;
   els.blindsValue.textContent = '—';
@@ -1492,15 +1532,18 @@ function renderTable(s) {
     const elimination = (s.eliminations ?? []).find(e => e.playerId === p.id);
     const actionText = s.status === 'FINISHED' ? (isWinner ? 'WINNER · 1ST' : elimination ? `${ordinal(elimination.place)} · ELIMINATED` : (stat.lastAction || '')) : (stat.lastAction || (busted ? 'ELIMINATED' : allIn ? 'ALL IN' : ''));
     const actionKind = isWinner ? 'winner' : /raise/i.test(actionText) ? 'raise' : /bet/i.test(actionText) ? 'bet' : /call/i.test(actionText) ? 'call' : /fold/i.test(actionText) ? 'fold' : /check/i.test(actionText) ? 'check' : '';
-    return `<div class="seat ${active ? 'active' : ''} ${isWinner ? 'winner' : ''} ${busted ? 'busted' : ''} ${allIn ? 'all-in' : ''}" data-player-id="${escapeHtml(p.id)}" data-lobby-seat="${Number(cfg.lobbySeat ?? i)}" data-visual-index="${visualIndex}" data-visual-count="${visualCount}">
-      <i class="seat-turn" aria-hidden="true"></i>
-      <div class="seat-head"><div><div class="seat-name">${escapeHtml(visiblePlayerName(p.name, cfg.model))}</div><div class="seat-model mono">${escapeHtml(shortModel(cfg.model))}</div></div><span class="seat-pos">${escapeHtml(p.position || '')}</span></div>
-      <div class="seat-stack"><strong><span class="chip-dot"></span>${fmt(p.stack)}</strong><span>${Number(p.stackBB || 0).toFixed(1)} BB</span></div>
-      <div class="hole-cards">${[0, 1].map((k) => cardHtml(p.cards?.[k], !p.cards?.[k], `hole-card card-${k + 1}`, true)).join('')}</div>
-      <div class="last-action ${actionKind}">${escapeHtml(actionText)}</div></div>`;
+    const action = tableActionParts(active && s.status !== 'FINISHED' ? 'THINKING' : actionText, active ? 'thinking' : actionKind);
+    return `<div class="table-seat ${active ? 'turn-active' : ''} ${isWinner ? 'winner' : ''} ${busted ? 'busted' : ''} ${allIn ? 'all-in' : ''}" data-player-id="${escapeHtml(p.id)}" data-lobby-seat="${Number(cfg.lobbySeat ?? i)}" data-visual-index="${visualIndex}" data-visual-count="${visualCount}" data-position="${escapeHtml(p.position || '')}">
+      <div class="seat-card">
+        <i class="seat-turn" aria-hidden="true"></i><span class="seat-name">${escapeHtml(visiblePlayerName(p.name, cfg.model))}</span><span class="seat-stack">${fmt(p.stack)}</span>
+        <span class="seat-model">${escapeHtml(shortModel(cfg.model))}</span><span class="seat-bb">${Number(p.stackBB || 0).toFixed(1)} BB</span>
+      </div>
+      <span class="hole-cards" aria-hidden="true">${[0, 1].map(k => tableCardHtml(p.cards?.[k], 'hole')).join('')}</span>
+      ${action ? `<span class="table-action ${active ? 'thinking' : actionKind}" aria-label="Latest action"><span class="table-action-icon">${action.icon}</span><span class="table-action-name">${escapeHtml(action.name)}</span>${action.value ? `<span class="table-action-value">${escapeHtml(action.value)}</span>` : ''}</span>` : ''}
+    </div>`;
   }).join('');
   layoutTableSeats();
-  els.board.innerHTML = Array.from({ length: 5 }, (_, i) => cardHtml(table.board?.[i], !table.board?.[i], `board-card board-${i + 1}`)).join('');
+  els.board.innerHTML = Array.from({ length: 5 }, (_, i) => tableCardHtml(table.board?.[i])).join('');
   els.potValue.textContent = fmtHud(table.pot);
   els.potValue.title = fmt(table.pot);
   els.blindsValue.textContent = `${fmtHud(table.smallBlind)} / ${fmtHud(table.bigBlind)}`;
@@ -1514,8 +1557,22 @@ function renderTable(s) {
   els.streetLabel.textContent = s.status === 'FINISHED' && s.winner ? `WINNER · ${displayModelName(s.winner.model || '')}` : (table.street || '—');
   els.streetLabel.classList.toggle('winner-street', s.status === 'FINISHED' && Boolean(s.winner));
 }
+function tablePositionBadge(position) {
+  const value = String(position || '').trim().toUpperCase();
+  if (value === 'BTN' || value === 'BUTTON' || value === 'D' || value === 'DEALER') return 'D';
+  return value === 'SB' || value === 'BB' ? value : '';
+}
+function tableActionParts(text, kind = '') {
+  const value = String(text || '').trim();
+  if (!value) return null;
+  const amount = value.match(/(?:^|\s)([\d,.]+(?:K|M)?)(?:\s|$)/i)?.[1] || '';
+  const label = { thinking: 'THINKING', raise: 'RAISE', bet: 'BET', call: 'CALL', check: 'CHECK', fold: 'FOLD', winner: 'WINNER' }[kind];
+  const name = label || value.replace(amount, '').replace(/[·:\-]+$/g, '').trim() || value;
+  const icon = kind === 'fold' ? '×' : kind === 'check' ? '✓' : kind === 'call' ? '→' : kind === 'raise' ? '↗' : kind === 'bet' ? '↑' : kind === 'winner' ? '★' : '•';
+  return { icon, name, value: amount };
+}
 function clearTurnRings(keep = null) {
-  for (const el of $$('.seat.turn-active')) if (el !== keep) el.classList.remove('turn-active');
+  for (const el of $$('.table-seat.turn-active')) if (el !== keep) el.classList.remove('turn-active');
 }
 function stopClock() {
   if (clockTimer) { cancelAnimationFrame(clockTimer); clearInterval(clockTimer); }
@@ -1901,7 +1958,7 @@ function render(s, { force = false } = {}) {
   if (s?.status === 'FINISHED' && tableRecording && !tableRecording.stopping) setTimeout(() => stopTableRecording(), 900);
   if (!(lobbyVisible && !['RUNNING', 'PAUSED'].includes(s?.status))) processVisualEffects(s);
 }
-function openSetup({ preserveError = false } = {}) { if (!preserveError) els.setupError.classList.add('hidden'); if (!els.setupDialog.open) els.setupDialog.showModal(); }
+function openSetup({ preserveError = false } = {}) { if (!preserveError) els.setupError.classList.add('hidden'); if (!els.setupDialog.open) els.setupDialog.showModal(); syncChoicePickers(); }
 function cloneJson(value) { return JSON.parse(JSON.stringify(value)); }
 function sanityAgents() {
   const connections = readConnections();
@@ -2741,6 +2798,135 @@ function downloadText(filename, text) {
   const blob = new Blob([text], { type: 'application/x-ndjson' }), url = URL.createObjectURL(blob), a = document.createElement('a');
   a.href = url; a.download = filename; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+const choicePickers = new Map();
+let openChoicePicker = null;
+
+function selectedOption(select) {
+  return [...select.options].find(option => option.value === select.value) || select.options[0] || null;
+}
+function syncChoicePicker(select) {
+  const picker = choicePickers.get(select);
+  if (!picker) return;
+  const option = selectedOption(select);
+  picker.trigger.textContent = option?.textContent?.trim() || 'Choose…';
+  picker.trigger.disabled = select.disabled;
+  picker.trigger.setAttribute('aria-disabled', String(select.disabled));
+}
+function syncChoicePickers() {
+  for (const select of choicePickers.keys()) syncChoicePicker(select);
+}
+function closeChoicePicker({ focus = false } = {}) {
+  if (!openChoicePicker) return;
+  const { trigger, menu } = openChoicePicker;
+  trigger.setAttribute('aria-expanded', 'false');
+  if (typeof menu.hidePopover === 'function' && menu.matches(':popover-open')) menu.hidePopover();
+  menu.classList.remove('choice-menu-open');
+  if (focus) trigger.focus();
+  openChoicePicker = null;
+}
+function positionChoiceMenu(trigger, menu) {
+  const margin = 8, gap = 5, rect = trigger.getBoundingClientRect();
+  const width = Math.min(Math.max(rect.width, 170), 320, window.innerWidth - margin * 2);
+  menu.style.width = `${Math.round(width)}px`;
+  const height = menu.getBoundingClientRect().height;
+  let top = rect.bottom + gap;
+  if (top + height > window.innerHeight - margin && rect.top - height - gap >= margin) top = rect.top - height - gap;
+  menu.style.left = `${Math.round(clamp(rect.left, margin, window.innerWidth - width - margin))}px`;
+  menu.style.top = `${Math.round(clamp(top, margin, Math.max(margin, window.innerHeight - height - margin)))}px`;
+}
+function renderChoiceOptions(select, menu) {
+  menu.replaceChildren(...[...select.options].map((option, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'choice-option';
+    button.role = 'option';
+    button.dataset.optionIndex = String(index);
+    button.textContent = option.textContent;
+    button.disabled = option.disabled;
+    button.setAttribute('aria-selected', String(option.value === select.value));
+    return button;
+  }));
+}
+function openChoiceMenu(select, trigger, menu, { keyboard = false } = {}) {
+  if (select.disabled) return;
+  if (openChoicePicker?.select === select) { closeChoicePicker(); return; }
+  closeChoicePicker();
+  syncChoicePicker(select);
+  renderChoiceOptions(select, menu);
+  trigger.setAttribute('aria-expanded', 'true');
+  openChoicePicker = { select, trigger, menu };
+  if (typeof menu.showPopover === 'function') menu.showPopover();
+  else menu.classList.add('choice-menu-open');
+  positionChoiceMenu(trigger, menu);
+  if (keyboard) (menu.querySelector('[aria-selected="true"]:not(:disabled)') || menu.querySelector('.choice-option:not(:disabled)'))?.focus();
+}
+function enhanceSelect(select) {
+  if (!(select instanceof HTMLSelectElement) || choicePickers.has(select)) return;
+  const picker = document.createElement('span'), trigger = document.createElement('button'), menu = document.createElement('div');
+  const id = select.id || select.name || `select-${choicePickers.size + 1}`;
+  picker.className = 'choice-picker';
+  trigger.type = 'button';
+  trigger.className = 'choice-trigger';
+  trigger.setAttribute('aria-haspopup', 'listbox');
+  trigger.setAttribute('aria-expanded', 'false');
+  trigger.setAttribute('aria-label', select.getAttribute('aria-label') || `Choose ${id.replace(/[-_]/g, ' ')}`);
+  menu.className = 'choice-menu';
+  menu.id = `choice-menu-${id.replace(/[^a-z0-9_-]/gi, '-')}-${choicePickers.size + 1}`;
+  menu.role = 'listbox';
+  menu.setAttribute('popover', 'manual');
+  trigger.setAttribute('aria-controls', menu.id);
+  select.classList.add('native-select-enhanced');
+  select.insertAdjacentElement('afterend', picker);
+  picker.append(trigger);
+  (select.closest('dialog') || document.body).append(menu);
+  choicePickers.set(select, { select, picker, trigger, menu });
+  syncChoicePicker(select);
+  trigger.addEventListener('click', () => openChoiceMenu(select, trigger, menu));
+  trigger.addEventListener('keydown', event => {
+    if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) {
+      event.preventDefault();
+      openChoiceMenu(select, trigger, menu, { keyboard: true });
+    }
+  });
+  menu.addEventListener('click', event => {
+    const optionButton = event.target.closest('.choice-option');
+    if (!optionButton || optionButton.disabled) return;
+    const option = select.options[Number(optionButton.dataset.optionIndex)];
+    if (!option) return;
+    select.value = option.value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    syncChoicePicker(select);
+    closeChoicePicker({ focus: true });
+  });
+  menu.addEventListener('keydown', event => {
+    const options = $$('.choice-option:not(:disabled)', menu);
+    const index = options.indexOf(document.activeElement);
+    if (event.key === 'Escape') { event.preventDefault(); closeChoicePicker({ focus: true }); }
+    else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      options[(index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length]?.focus();
+    } else if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      options[event.key === 'Home' ? 0 : options.length - 1]?.focus();
+    }
+  });
+  select.addEventListener('change', () => syncChoicePicker(select));
+}
+
+$$('select').forEach(enhanceSelect);
+new MutationObserver(records => {
+  for (const record of records) for (const node of record.addedNodes) {
+    if (!(node instanceof Element)) continue;
+    if (node.matches('select')) enhanceSelect(node);
+    $$('select', node).forEach(enhanceSelect);
+  }
+}).observe(document.body, { childList: true, subtree: true });
+document.addEventListener('pointerdown', event => {
+  if (openChoicePicker && !openChoicePicker.trigger.contains(event.target) && !openChoicePicker.menu.contains(event.target)) closeChoicePicker();
+}, true);
+window.addEventListener('resize', () => closeChoicePicker(), { passive: true });
+window.addEventListener('scroll', () => closeChoicePicker(), { passive: true, capture: true });
 
 const tooltipEl = document.createElement('div');
 tooltipEl.className = 'ui-tooltip';

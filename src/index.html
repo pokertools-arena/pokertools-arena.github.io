@@ -53,7 +53,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="./styles.css?v=0.9.3" />
+  <link rel="stylesheet" href="./styles.css?v=0.10.0" />
 </head>
 <body>
   <div class="app-shell">
@@ -142,24 +142,37 @@
             <div class="wallpaper-row">♣ ♥ ♠ ♦ ♣ ♥ ♠ ♦ ♣ ♥ ♠ ♦ ♣ ♥ ♠ ♦</div>
             <div class="wallpaper-row">♥ ♠ ♦ ♣ ♥ ♠ ♦ ♣ ♥ ♠ ♦ ♣ ♥ ♠ ♦ ♣</div>
           </div>
-          <div class="felt-ring"></div>
-          <div id="fxLayer" class="fx-layer" aria-hidden="true"></div>
-          <div id="seatsLayer" class="seats-layer"></div>
-          <div class="table-center">
-            <div class="table-brand-stage">
-              <div class="table-brand" aria-label="pokertools-arena model benchmark table"><span class="table-brand-mark">♠</span><span class="table-brand-copy"><strong>pokertools-arena</strong><small>model benchmark table</small></span></div>
-              <div id="actionToast" class="action-toast hidden" aria-live="polite"></div>
-            </div>
-            <div id="streetLabel" class="street-label">LOBBY</div>
-            <div id="board" class="board"></div>
-            <div class="table-hud" aria-label="Hand information">
-              <div class="hud-pill hud-pot"><span>POT</span><strong id="potValue">0</strong></div>
-              <div class="hud-pill"><span>BLINDS</span><strong id="blindsValue">— / —</strong></div>
-              <div class="hud-pill"><span>ANTE</span><strong id="anteValue">—</strong></div>
-              <div class="hud-pill"><span>HAND</span><strong id="handValue">—</strong></div>
-              <div class="hud-pill"><span>LEVEL</span><strong id="levelValue">—</strong></div>
+          <div id="tableArena" class="table-arena" data-player-count="10">
+            <div id="seatsLayer" class="table-seats"></div>
+            <div class="table-scene">
+              <section class="casino-table" aria-label="Poker table">
+                <div class="table-felt">
+                  <div class="table-markers" aria-hidden="true">
+                    <span id="dealerMarker" class="table-marker table-marker--dealer"><span class="dealer-button">D</span></span>
+                    <span id="smallBlindMarker" class="table-marker table-marker--sb"><span class="blind-chip"></span></span>
+                    <span id="bigBlindMarker" class="table-marker table-marker--bb"><span class="blind-chip"></span><span class="blind-chip"></span></span>
+                  </div>
+                  <div class="table-content">
+                    <div class="table-branding" aria-hidden="true"><div class="table-brand-logo">♠</div><div class="table-brand-title">POKERTOOLS-ARENA</div><div class="table-brand-subtitle">MODEL BENCHMARK TABLE</div></div>
+                    <div class="board-zone">
+                      <div id="streetLabel" class="street-label">LOBBY</div>
+                      <div id="board" class="community-cards" aria-label="Community cards"></div>
+                      <div class="pot-visual hud-pot" aria-hidden="true">
+                        <span class="chip-stack"><span class="pot-chip"></span><span class="pot-chip"></span><span class="pot-chip"></span></span>
+                        <span class="chip-stack"><span class="pot-chip chip-blue"></span><span class="pot-chip chip-blue"></span><span class="pot-chip chip-blue"></span><span class="pot-chip chip-blue"></span></span>
+                        <span class="chip-stack"><span class="pot-chip chip-black"></span><span class="pot-chip chip-black"></span><span class="pot-chip chip-black"></span></span>
+                      </div>
+                      <div class="game-info" aria-label="Hand information">
+                        <span>POT <b id="potValue">0</b></span><span>BLINDS <b id="blindsValue">— / —</b></span><span>ANTE <b id="anteValue">—</b></span><span>HAND <b id="handValue">—</b></span><span>LEVEL <b id="levelValue">—</b></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
+          <div id="fxLayer" class="fx-layer" aria-hidden="true"></div>
+          <div id="actionToast" class="action-toast hidden" aria-live="polite"></div>
         </div>
       </section>
     </main>
@@ -400,6 +413,6 @@
   </template>
 
   <script src="./arena-env.js"></script>
-  <script type="module" src="./app.js?v=0.9.3"></script>
+  <script type="module" src="./app.js?v=0.10.0"></script>
 </body>
 </html>

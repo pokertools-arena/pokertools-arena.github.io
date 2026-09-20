@@ -81,7 +81,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.9.3') throw new Error('Expected release version 0.9.3');
+if (pkg.version !== '0.10.0') throw new Error('Expected release version 0.10.0');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -103,7 +103,7 @@ if (!has('isUnsupportedToolChoiceError') || !has('tool→json_schema')) throw ne
 if (!has('fetchJsonWithRetry') || !has('response.status === 429 || response.status >= 500')) throw new Error('Bounded provider retry missing');
 if (!app.includes('modelErrors') || !app.includes('providerErrors') || !app.includes('rateLimits') || !app.includes('protocolFallbacks')) throw new Error('Reliability telemetry missing');
 if (!compactCss.includes('height:100dvh')) throw new Error('Dynamic viewport desktop shell missing');
-if (!index.includes('class="table-brand"') || index.includes('class="felt-brand"')) throw new Error('Table brand hierarchy not updated');
+if (!index.includes('class="table-branding"') || index.includes('class="felt-brand"')) throw new Error('Table brand hierarchy not updated');
 if (index.includes('id="winnerBanner"') || app.includes('winnerBanner')) throw new Error('Dead winner-banner anchor still present');
 if (!app.includes('rankOnlyCorners') || !css.includes('.rank-only-corners')) throw new Error('Hole-card corner simplification missing');
 if (!index.includes('favicon.svg')) throw new Error('Favicon link missing');
@@ -139,18 +139,18 @@ if (!index.includes('class="tabs" role="tablist"')) throw new Error('Inspector m
 if (!index.includes('arena-card') || !/class="arena-card"[\s\S]*id="pokerTable"/.test(index)) throw new Error('Table must live in the arena card');
 if (!index.includes('id="testsBtn"') || !index.includes('icon-only-action')) throw new Error('Tests must be an icon-only header control');
 if (!compactCss.includes('grid-template-columns:minmax(350px,390px)minmax(0,1fr)') || !compactCss.includes('.inspector{order:1')) throw new Error('Inspector-first grid missing');
-if (!compactCss.includes('.table-brand-copystrong') || !css.includes('font-size: clamp(')) throw new Error('Responsive tablecloth brand missing');
+if (!compactCss.includes('.table-brand-title{') || !css.includes('font-size: clamp(')) throw new Error('Responsive tablecloth brand missing');
 if (!app.includes('function seatPositionOnFelt(') || !app.includes('function visualSeatAngle(')) throw new Error('Rail-based seat positioning missing');
 if (!app.includes('function seatVisualSlot(')) throw new Error('Seat visual slot resolution missing');
 if (!app.includes("if (width < 430 || height < 430) return ['micro'];")) throw new Error('Seat density floor missing');
 if (!app.includes('seatRectsOverlap(a, b, gap = 7)')) throw new Error('Seat overlap gap must stay 7');
 // 0.5.1 — felt typography + short-viewport scaling.
-if (!compactCss.includes('.table-brand-mark{font-size:clamp(') || !compactCss.includes('.table-brand-copystrong{font-size:clamp(')) throw new Error('Responsive felt identity sizing missing');
-if (!compactCss.includes('.lobby-seat{width:132px;min-height:86px')) throw new Error('Lobby seat sizing missing');
+if (!compactCss.includes('.table-brand-logo{font-size:clamp(') || !compactCss.includes('.table-brand-title{') || !compactCss.includes('font-size:clamp(')) throw new Error('Responsive felt identity sizing missing');
+if (!compactCss.includes('.table-seat{position:absolute') || !compactCss.includes('--table-seat-width:136px')) throw new Error('Lobby seat sizing missing');
 if (!app.includes("if (width < 620 || height < 500) return ['tight', 'micro'];")) throw new Error('Short-wide viewports must not collapse to micro');
 // 0.5.2 — live resize must match a reload.
 if (!app.includes("els.pokerTable.classList.add('lobby-measure')")) throw new Error('Resize measurement must freeze seat transitions');
-if (!compactCss.includes('.poker-table.lobby-measure.lobby-seat{transition:none')) throw new Error('lobby-measure transition freeze missing');
+if (!compactCss.includes('.poker-table.lobby-measure.table-seat{transition:none')) throw new Error('lobby-measure transition freeze missing');
 if (!app.includes("visualViewport.addEventListener('resize', relayoutForViewport")) throw new Error('visualViewport resize handling missing');
 if (!app.includes('renderLobbyTable();\n        layoutTableSeats({ lobby: true });')) throw new Error('Resize must rebuild and re-layout the lobby seats');
 // 0.6.0 — full event archive + Log tab rework.
@@ -237,7 +237,7 @@ if (!app.includes('displayModelName') || !app.includes("'Tournament winner'") ||
 if (!index.includes('id="testsParticipants"') || !index.includes('Decision sanity suite')) throw new Error('0.2.15 decision suite explainer/participants UI missing');
 if (!app.includes('renderSanityParticipants') || !app.includes('sanityModelSummary') || !css.includes('0.2.15 — Decision sanity suite clarity')) throw new Error('0.2.15 decision suite comparison UX missing');
 if (!index.includes('id="replayDialog"') || !app.includes('openDecisionReplay') || !app.includes('replay: {') || !css.includes('0.2.16 — decision history replay')) throw new Error('0.2.16 decision replay UX missing');
-if (!app.includes('showActionToast(`${displayModelName(')) throw new Error('Action ticker must use model identity instead of Player N');
+if (!app.includes('class="table-action ${active ? \'thinking\' : actionKind}"') || app.includes('showActionToast(`${displayModelName(')) throw new Error('Player actions must render above cards without a duplicate center ticker');
 if (!index.includes('id="saveReplayImage"') || !index.includes('id="copyReplayImage"') || !app.includes('makeReplayShareCanvas') || !app.includes('1080') || !app.includes('1350')) throw new Error('0.2.19 replay social-image export missing');
 if (!css.includes('0.2.19 — replay modal + social sharing')) throw new Error('0.2.19 replay modal polish missing');
 
@@ -298,7 +298,7 @@ if (!index.includes('name="lowTimeSeconds"') || !index.includes('name="lowTimeFr
 if (existsSync(join(root,'app.js')) || existsSync(join(root,'index.html')) || existsSync(join(root,'styles.css'))) throw new Error('Duplicate root application sources present');
 
 // 0.9.1 — visible cards, table clarity, replay rows and OpenRouter attribution.
-if (!compactCss.includes('.hole-cards{position:relative') || !compactCss.includes('-webkit-line-clamp:2')) throw new Error('Visible cards / two-line seat actions missing');
+if (!compactCss.includes('.table-seat.hole-cards{position:absolute') || !compactCss.includes('.table-action{position:absolute')) throw new Error('Visible cards / player action pills missing');
 if (!css.includes('[data-density="compact"] .hole-card') || !css.includes('[data-density="micro"] .hole-card')) throw new Error('Density-aware dealt-card sizing missing');
 if (!compactCss.includes('conic-gradient(from-90deg') || !css.includes('calc((1 - var(--turn, 1)) * 1turn)')) throw new Error('Clockwise seat countdown missing');
 if (!compactCss.includes('#tab-stats.panel-block{display:flex;flex-direction:column') || !compactCss.includes('.stats-grid{margin-top:10px;min-height:0;flex:11auto')) throw new Error('Scrollable Stats layout missing');
@@ -317,6 +317,13 @@ if (!css.includes('rotate: -4deg') || !css.includes('rotate: 6deg')) throw new E
 if (!css.includes('.seat-model::before') || !css.includes('content: "◇"')) throw new Error('Seat model glyph missing');
 if (!css.includes('--seat-active: #132a1f') || !css.includes('--gold: #eadb9e')) throw new Error('Prototype table tokens missing');
 if (!css.includes('0.9.3 — poker-table prototype port')) throw new Error('0.9.3 CSS marker missing');
+// 0.10.0 — full template state system, custom selects and modal control polish.
+if (!index.includes('class="table-arena"') || !index.includes('id="dealerMarker"') || !index.includes('class="board-card board-card--empty"') && !app.includes('board-card--empty')) throw new Error('Template table shell and empty-card state missing');
+if (!app.includes('seat-card--pending') || !app.includes('class="empty-seat"') || !app.includes('tableActionParts')) throw new Error('Complete table seat states missing');
+if (!app.includes('function updateTableMarkers') || !app.includes("return value === 'SB' || value === 'BB' ? value : ''")) throw new Error('D/SB/BB-only table markers missing');
+if (!app.includes('function enhanceSelect') || !css.includes('.choice-menu') || !css.includes('.choice-option[aria-selected="true"]')) throw new Error('Custom select picker missing');
+if (!css.includes('.dialog-head .button, .dialog-body .button, .dialog-footer .button { min-height: 38px; }')) throw new Error('Modal button/input height alignment missing');
+if (!css.includes('0.10.0 — complete poker-table template implementation')) throw new Error('0.10.0 CSS marker missing');
 
 for (const workflow of ['ci.yml','pages.yml','publish.yml','real-diagnostics.yml']) {
   if (!statSync(join(root,'.github','workflows',workflow)).isFile()) throw new Error(`Missing workflow ${workflow}`);

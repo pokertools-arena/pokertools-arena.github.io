@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.9.3.** The table-prototype release ports the standalone `poker-table.html` study into the live arena: a suit-print wallpaper room, card-style seats with model/big-blind rows, fanned hole cards, gold action pills, and a low felt wordmark.
+> **Current release: 0.10.0.** The table-template release replaces the legacy game table with the full `poker-table.html` state system, adds responsive player/action/card presentation and live D/SB/BB markers, and introduces compact custom selection controls plus polished modal actions.
 
 ---
 

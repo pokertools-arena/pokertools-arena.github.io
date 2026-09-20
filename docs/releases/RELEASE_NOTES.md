@@ -1,5 +1,18 @@
 # Release notes
 
+## 0.10.0 — complete table template
+
+- Replaced the legacy game-table structure with the complete
+  `poker-table.html` scene, felt, board, pot, marker, card and seat system.
+- Wired empty seats, configured players waiting for chips, active players,
+  empty community-card slots, turn timers, winners and eliminated players to
+  their dedicated template states.
+- Moved each action/turn status above that player's hole cards, removed the
+  duplicate center-table action ticker, and limited positional presentation to
+  live dealer, small-blind and big-blind markers.
+- Added compact custom selection popovers with keyboard navigation, polished
+  information-button alignment, and matched modal action heights to inputs.
+
 ## 0.9.3 — table prototype port
 
 - Imported the standalone `poker-table.html` design study into the live arena.
