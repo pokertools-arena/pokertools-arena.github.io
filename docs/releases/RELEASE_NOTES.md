@@ -1,5 +1,12 @@
 # Release notes
 
+## 0.6.3 — Icon-only Restart
+
+- **Restart is icon-only.** The `↻` control now matches the icon-only
+  Pause/Resume, Stop, Settings and Tests buttons, so every header action except
+  the primary Start shares one compact width. The tooltip and screen-reader
+  label still announce "Restart with a new tournament".
+
 ## 0.6.2 — Icon-only Pause/Resume and Stop
 
 - **Pause/Resume and Stop are icon-only.** Both header controls now match the

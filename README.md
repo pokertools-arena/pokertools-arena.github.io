@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.6.2.** The icon-actions release: the Pause/Resume and Stop header controls are now icon-only, matching Settings and Tests, so the top bar stays compact while the full action name lives in the tooltip and accessible label.
+> **Current release: 0.6.3.** The icon-actions release: the Restart, Pause/Resume and Stop header controls are now icon-only, matching Settings and Tests, so the top bar stays compact while the full action name lives in the tooltip and accessible label.
 
 ---
 
