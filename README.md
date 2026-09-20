@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.10.0.** The table-template release replaces the legacy game table with the full `poker-table.html` state system, adds responsive player/action/card presentation and live D/SB/BB markers, and introduces compact custom selection controls plus polished modal actions.
+> **Current release: 0.10.1.** The table-template release now keeps its branding responsive and safely contained above the playing area, removes the lobby/street block from the felt, and retains the complete player-state system, custom selection controls, and live D/SB/BB markers.
 
 ---
 

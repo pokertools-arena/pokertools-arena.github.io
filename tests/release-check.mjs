@@ -81,7 +81,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.10.0') throw new Error('Expected release version 0.10.0');
+if (pkg.version !== '0.10.1') throw new Error('Expected release version 0.10.1');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -145,7 +145,7 @@ if (!app.includes('function seatVisualSlot(')) throw new Error('Seat visual slot
 if (!app.includes("if (width < 430 || height < 430) return ['micro'];")) throw new Error('Seat density floor missing');
 if (!app.includes('seatRectsOverlap(a, b, gap = 7)')) throw new Error('Seat overlap gap must stay 7');
 // 0.5.1 — felt typography + short-viewport scaling.
-if (!compactCss.includes('.table-brand-logo{font-size:clamp(') || !compactCss.includes('.table-brand-title{') || !compactCss.includes('font-size:clamp(')) throw new Error('Responsive felt identity sizing missing');
+if (!compactCss.includes('.table-brand-logo{') || !compactCss.includes('font-size:clamp(20px,8cqi,84px)') || !compactCss.includes('.table-brand-title{') || !compactCss.includes('font-size:clamp(9px,4.4cqi,48px)')) throw new Error('Responsive felt identity sizing missing');
 if (!compactCss.includes('.table-seat{position:absolute') || !compactCss.includes('--table-seat-width:136px')) throw new Error('Lobby seat sizing missing');
 if (!app.includes("if (width < 620 || height < 500) return ['tight', 'micro'];")) throw new Error('Short-wide viewports must not collapse to micro');
 // 0.5.2 — live resize must match a reload.
@@ -324,6 +324,10 @@ if (!app.includes('function updateTableMarkers') || !app.includes("return value 
 if (!app.includes('function enhanceSelect') || !css.includes('.choice-menu') || !css.includes('.choice-option[aria-selected="true"]')) throw new Error('Custom select picker missing');
 if (!css.includes('.dialog-head .button, .dialog-body .button, .dialog-footer .button { min-height: 38px; }')) throw new Error('Modal button/input height alignment missing');
 if (!css.includes('0.10.0 — complete poker-table template implementation')) throw new Error('0.10.0 CSS marker missing');
+// 0.10.1 — uncluttered felt and contained responsive branding.
+if (index.includes('id="streetLabel"') || app.includes('els.streetLabel')) throw new Error('Lobby/street block must not render on the table');
+if (!css.includes('container-type: size') || !css.includes('.table-branding { position: absolute') || !css.includes('overflow: hidden; transform: translateX(-50%)')) throw new Error('Responsive contained table branding missing');
+if (!css.includes('0.10.1 — responsive branding')) throw new Error('0.10.1 CSS marker missing');
 
 for (const workflow of ['ci.yml','pages.yml','publish.yml','real-diagnostics.yml']) {
   if (!statSync(join(root,'.github','workflows',workflow)).isFile()) throw new Error(`Missing workflow ${workflow}`);

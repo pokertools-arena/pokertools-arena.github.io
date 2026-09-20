@@ -38,7 +38,7 @@ const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const els = {
   startTopBtn: $('#startTopBtn'), seatsBtn: $('#seatsBtn'), soundBtn: $('#soundBtn'), recordBtn: $('#recordBtn'), exportBtn: $('#exportBtn'), setupBtn: $('#setupBtn'), testsBtn: $('#testsBtn'), pauseBtn: $('#pauseBtn'), stopBtn: $('#stopBtn'),
   statusDot: $('#statusDot'), statusLabel: $('#statusLabel'), tournamentMeta: $('#tournamentMeta'),
-  pokerTable: $('#pokerTable'), tableArena: $('#tableArena'), seatsLayer: $('#seatsLayer'), fxLayer: $('#fxLayer'), actionToast: $('#actionToast'), board: $('#board'), dealerMarker: $('#dealerMarker'), smallBlindMarker: $('#smallBlindMarker'), bigBlindMarker: $('#bigBlindMarker'), potValue: $('#potValue'), blindsValue: $('#blindsValue'), anteValue: $('#anteValue'), handValue: $('#handValue'), levelValue: $('#levelValue'), streetLabel: $('#streetLabel'),
+  pokerTable: $('#pokerTable'), tableArena: $('#tableArena'), seatsLayer: $('#seatsLayer'), fxLayer: $('#fxLayer'), actionToast: $('#actionToast'), board: $('#board'), dealerMarker: $('#dealerMarker'), smallBlindMarker: $('#smallBlindMarker'), bigBlindMarker: $('#bigBlindMarker'), potValue: $('#potValue'), blindsValue: $('#blindsValue'), anteValue: $('#anteValue'), handValue: $('#handValue'), levelValue: $('#levelValue'),
   decisionPanelTitle: $('#decisionPanelTitle'), decisionEmpty: $('#decisionEmpty'), decisionCard: $('#decisionCard'), decisionPlayer: $('#decisionPlayer'), decisionModel: $('#decisionModel'), decisionPhase: $('#decisionPhase'), decisionClock: $('#decisionClock'), bankClock: $('#bankClock'), decisionHand: $('#decisionHand'), decisionStreet: $('#decisionStreet'), decisionPosition: $('#decisionPosition'), decisionOptionCount: $('#decisionOptionCount'), decisionActionLabel: $('#decisionActionLabel'), decisionActionHint: $('#decisionActionHint'), legalActions: $('#legalActions'), decisionLabelHand: $('#decisionLabelHand'), decisionLabelStreet: $('#decisionLabelStreet'), decisionLabelPosition: $('#decisionLabelPosition'), decisionLabelOptions: $('#decisionLabelOptions'),
   decisionFeed: $('#decisionFeed'), decisionFeedSummary: $('#decisionFeedSummary'), eventLog: $('#eventLog'), logSummary: $('#logSummary'), logTabCount: $('#logTabCount'), logSearch: $('#logSearch'), logFilter: $('#logFilter'), logClear: $('#logClear'), statsGrid: $('#statsGrid'),
   setupDialog: $('#setupDialog'), setupForm: $('#setupForm'), closeSetup: $('#closeSetup'), setupError: $('#setupError'), saveSettingsBtn: $('#saveSettingsBtn'), seatSummary: $('#seatSummary'),
@@ -1488,7 +1488,6 @@ function renderLobbyTable() {
   els.anteValue.textContent = '—';
   els.handValue.textContent = '—';
   els.levelValue.textContent = '—';
-  els.streetLabel.textContent = 'LOBBY';
 }
 function renderStatus(s) {
   const status = s?.status || 'IDLE';
@@ -1554,8 +1553,6 @@ function renderTable(s) {
   els.handValue.title = table.handNumber == null ? '' : `Hand ${table.handNumber}`;
   els.levelValue.textContent = Number(table.blindLevel ?? 0) + 1;
   els.levelValue.title = `Level ${Number(table.blindLevel ?? 0) + 1}`;
-  els.streetLabel.textContent = s.status === 'FINISHED' && s.winner ? `WINNER · ${displayModelName(s.winner.model || '')}` : (table.street || '—');
-  els.streetLabel.classList.toggle('winner-street', s.status === 'FINISHED' && Boolean(s.winner));
 }
 function tablePositionBadge(position) {
   const value = String(position || '').trim().toUpperCase();

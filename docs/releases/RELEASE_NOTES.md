@@ -1,5 +1,14 @@
 # Release notes
 
+## 0.10.1 — responsive felt branding
+
+- Removed the lobby/street label block from the table and its obsolete render
+  updates.
+- Constrained the table branding to a dedicated upper-felt region so it cannot
+  overflow the rail or sit beneath community cards.
+- Switched branding typography to table-relative container units, with safer
+  compact and portrait scaling and improved visibility.
+
 ## 0.10.0 — complete table template
 
 - Replaced the legacy game-table structure with the complete
