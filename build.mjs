@@ -31,6 +31,7 @@ await build({
   minify: false,
   sourcemap: false,
   legalComments: 'eof',
+  loader: { '.mp3': 'dataurl' },
   plugins: [browserBuiltinsPlugin],
   define: {
     'process.env.NODE_ENV': '"production"',

@@ -1,5 +1,45 @@
 # Release notes
 
+## 0.7.0 — table sound effects and recorded audio
+
+- **Real sound effects replace the synthesized tones.** The table now plays six
+  role-named MP3 cues: `card-deal`, `board-cards`, `chip-bet`, `chip-drop`
+  (fold/check), `all-in-chips` and `winner-bell`. The oscillator cues remain as
+  an immediate fallback while an asset is still decoding.
+- **Audio assets are normalized and renamed.** Every clip was peak-normalized
+  to −1.5 dBFS with a safety limiter, resampled to 44.1 kHz and re-encoded to
+  192 kbps MP3. Mono sources are duplicated to stereo with an explicit pan so
+  the power-preserving upmix cannot shave 3 dB. Files lost their vendor/ID
+  prefixes in favour of their role (`oxidvideos-placing-playing-card-522514.mp3`
+  → `card-deal.mp3`, and so on).
+- **Assets ship inside the bundle.** The MP3s are imported as `dataurl` assets
+  (`build.mjs`), so the bundled `dist/app.js` and the single-file
+  `pokertools-arena.html` both carry the audio — no separate asset request, no
+  extra MIME entry, and audio still works when the single file is opened from
+  `file://`.
+- **Recordings now include the game audio.** All cues are mixed through a single
+  master gain that also feeds a `MediaStreamAudioDestinationNode`. When a table
+  recording starts, a fresh destination's audio track is muxed with the canvas
+  video track and handed to `MediaRecorder` (`video/webm;codecs=vp8,opus`,
+  128 kbps audio), so the exported WebM contains exactly the table sounds that
+  played. The destination is disconnected and its track stopped when the
+  recording ends. Sound must be enabled for cues to play (and therefore to be
+  recorded).
+- **Audio and video stay in sync.** The 0.6.9 manual `captureStream(0)` +
+  `requestFrame()` path was removed: a stream created with rate `0` carries no
+  frame-rate metadata, so `MediaRecorder` stretched the video timeline against
+  the real-time audio track (audio ended up ahead of the picture). The canvas is
+  now sampled by the browser at a fixed 30 FPS, which keeps the video timeline
+  continuous even if a paint is skipped. Each recording also gets its own audio
+  destination, so a long-lived node's clock offset can no longer push the audio
+  ahead.
+
+### Notes
+
+- `npm test` now asserts the six asset files exist, the build inlines `.mp3`,
+  the sound master/destination routing is present, and the recorder muxes the
+  audio track.
+
 ## 0.6.10 — action-time default
 
 - **Per-move clock now defaults to 20 seconds** (`TIMING_DEFAULTS.actionSeconds`),

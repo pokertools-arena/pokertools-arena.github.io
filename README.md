@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.6.10.** The action-time-default release: the per-move clock now defaults to 20 seconds, and the setup form's `Action time` value is kept in sync with `TIMING_DEFAULTS.actionSeconds` by a release-check invariant so the two can no longer drift.
+> **Current release: 0.7.0.** The table-audio release: the poker table now uses six normalized, role-named sound effects bundled straight into the app, and the table recorder mixes that Web Audio output into the video so recordings include the game audio.
 
 ---
 

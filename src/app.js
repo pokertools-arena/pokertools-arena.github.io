@@ -18,6 +18,15 @@ import {
   applyBenchmarkMode, renderDecisionState, aggregateActionProbabilitiesByFamily, probabilityStats, SIZE_LABELS,
   isAggressiveType, familyForActionType, FAMILY_LABELS, decisionClockPhase,
 } from './lib/decision-core.js';
+// Table sound effects. esbuild inlines these as data URLs at build time (see
+// build.mjs), so the bundled and single-file builds both carry the audio and no
+// separate asset request or MIME entry is needed.
+import soundDeal from './assets/card-deal.mp3';
+import soundBoard from './assets/board-cards.mp3';
+import soundChip from './assets/chip-bet.mp3';
+import soundChipDrop from './assets/chip-drop.mp3';
+import soundAllIn from './assets/all-in-chips.mp3';
+import soundWinner from './assets/winner-bell.mp3';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -43,6 +52,7 @@ let clockTimer = null;
 let rowSeq = 0;
 let soundEnabled = false;
 let audioContext = null;
+let soundMasterGain = null;
 let lastVisualState = null;
 let lastProcessedEventId = null;
 const MAX_LOBBY_SEATS = 10;
@@ -87,6 +97,29 @@ function getAudioContext() {
   }
   return audioContext;
 }
+// Every cue is mixed through one master gain so the same signal can be routed
+// to the speakers and, while a table recording is running, to a MediaStream
+// audio track that is muxed into the video. This captures the real Web Audio
+// output without depending on the screen-share audio permission.
+function soundMaster() {
+  const ctx = getAudioContext();
+  if (!ctx) return null;
+  if (!soundMasterGain) {
+    soundMasterGain = ctx.createGain();
+    soundMasterGain.gain.value = 1;
+    soundMasterGain.connect(ctx.destination);
+  }
+  return soundMasterGain;
+}
+function recordingAudioTrack() {
+  const ctx = getAudioContext();
+  if (!ctx || typeof ctx.createMediaStreamDestination !== 'function') return null;
+  // A fresh destination per recording. A long-lived node keeps its own clock
+  // offset, which starts the audio track ahead of the video track.
+  const destination = ctx.createMediaStreamDestination();
+  soundMaster()?.connect(destination);
+  return { destination, track: destination.stream.getAudioTracks()[0] || null };
+}
 function tone(freq, duration = 0.05, gain = 0.035, offset = 0, type = 'sine') {
   if (!soundEnabled) return;
   const ctx = getAudioContext();
@@ -96,15 +129,75 @@ function tone(freq, duration = 0.05, gain = 0.035, offset = 0, type = 'sine') {
   osc.type = type; osc.frequency.setValueAtTime(freq, start);
   amp.gain.setValueAtTime(0.0001, start); amp.gain.exponentialRampToValueAtTime(gain, start + 0.008);
   amp.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-  osc.connect(amp).connect(ctx.destination); osc.start(start); osc.stop(start + duration + 0.02);
+  osc.connect(amp).connect(soundMaster() || ctx.destination); osc.start(start); osc.stop(start + duration + 0.02);
 }
-function playTableSound(kind) {
-  if (!soundEnabled) return;
-  if (kind === 'deal') { tone(720, .035, .018, 0, 'triangle'); tone(510, .04, .014, .035, 'triangle'); }
+
+const TABLE_SOUND_URLS = Object.freeze({
+  deal: soundDeal,
+  board: soundBoard,
+  chip: soundChip,
+  fold: soundChipDrop,
+  check: soundChipDrop,
+  allin: soundAllIn,
+  winner: soundWinner,
+});
+const TABLE_SOUND_GAIN = Object.freeze({ deal: 0.9, board: 0.7, chip: 0.8, fold: 0.8, check: 0.8, allin: 0.8, winner: 0.9 });
+const tableSoundBuffers = new Map();
+const tableSoundLoads = new Map();
+let tableSoundsPreloaded = false;
+
+function loadTableSound(kind) {
+  const url = TABLE_SOUND_URLS[kind];
+  if (!url) return Promise.resolve(null);
+  if (tableSoundBuffers.has(kind)) return Promise.resolve(tableSoundBuffers.get(kind));
+  if (tableSoundLoads.has(kind)) return tableSoundLoads.get(kind);
+  const ctx = getAudioContext();
+  if (!ctx || typeof fetch !== 'function') return Promise.resolve(null);
+  const load = fetch(url)
+    .then(response => { if (!response.ok) throw new Error(`Sound asset ${kind} unavailable`); return response.arrayBuffer(); })
+    .then(bytes => ctx.decodeAudioData(bytes))
+    .then(buffer => { tableSoundBuffers.set(kind, buffer); return buffer; })
+    .catch(() => null)
+    .finally(() => tableSoundLoads.delete(kind));
+  tableSoundLoads.set(kind, load);
+  return load;
+}
+function preloadTableSounds() {
+  if (tableSoundsPreloaded) return;
+  tableSoundsPreloaded = true;
+  for (const kind of Object.keys(TABLE_SOUND_URLS)) void loadTableSound(kind);
+}
+// Synthesized cues remain as an immediate fallback while an asset is decoding
+// (or if it can never be loaded), so feedback is never silent.
+function playSynthTableSound(kind) {
+  if (kind === 'deal' || kind === 'board') { tone(720, .035, .018, 0, 'triangle'); tone(510, .04, .014, .035, 'triangle'); }
   else if (kind === 'chip') { tone(1320, .028, .025, 0, 'square'); tone(940, .035, .018, .026, 'square'); }
   else if (kind === 'fold') { tone(240, .08, .018, 0, 'triangle'); }
   else if (kind === 'check') { tone(480, .035, .015, 0, 'sine'); }
+  else if (kind === 'allin') { tone(300, .09, .022, 0, 'sawtooth'); tone(180, .12, .02, .07, 'sawtooth'); }
   else if (kind === 'winner') { tone(523, .12, .028, 0); tone(659, .12, .026, .1); tone(784, .18, .03, .2); }
+}
+function playTableSound(kind) {
+  if (!soundEnabled) return;
+  const ctx = getAudioContext();
+  const buffer = tableSoundBuffers.get(kind);
+  if (ctx && buffer) {
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const source = ctx.createBufferSource(), amp = ctx.createGain();
+    source.buffer = buffer;
+    amp.gain.value = TABLE_SOUND_GAIN[kind] ?? 0.85;
+    source.connect(amp).connect(soundMaster() || ctx.destination);
+    source.start();
+    return;
+  }
+  void loadTableSound(kind);
+  playSynthTableSound(kind);
+}
+function isAllInDecision(event) {
+  const action = event?.action || {};
+  if (/\ball[- ]?in\b/i.test(action.description || '')) return true;
+  const amount = Number(action.amount), stack = Number(event?.replay?.hero?.stack);
+  return Number.isFinite(amount) && Number.isFinite(stack) && stack > 0 && amount >= stack;
 }
 function elementCenter(el, relativeTo) {
   if (!el || !relativeTo) return null;
@@ -177,7 +270,7 @@ function animateBoardCards(previousCount, currentCount) {
         { transform: 'translateY(0) rotateY(0deg) scale(1)', opacity: 1 }
       ], { duration: 420, delay: i * 100, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'both' });
     });
-    playTableSound('deal');
+    playTableSound('board');
   });
 }
 function processVisualEffects(s) {
@@ -204,7 +297,10 @@ function processVisualEffects(s) {
     if (e.type === 'DECISION') {
       const seat = seatEl(e.playerId), pot = $('.hud-pot', document);
       const type = e.action?.type || '';
-      if ([ACTION.CALL, ACTION.BET, ACTION.RAISE].includes(type)) flyChips(seat, pot, type === ACTION.RAISE ? 4 : 3);
+      if ([ACTION.CALL, ACTION.BET, ACTION.RAISE].includes(type)) {
+        flyChips(seat, pot, type === ACTION.RAISE ? 4 : 3);
+        if (isAllInDecision(e)) playTableSound('allin');
+      }
       if (type === ACTION.FOLD && seat) { seat.classList.add('fold-flash'); setTimeout(() => seat.classList.remove('fold-flash'), 650); playTableSound('fold'); }
       if (type === ACTION.CHECK && seat) { seat.classList.add('check-flash'); setTimeout(() => seat.classList.remove('check-flash'), 500); playTableSound('check'); }
       showActionToast(`${displayModelName(e.configuredModel || e.resolvedModel || e.playerName)} · ${e.action?.description || type}`, type);
@@ -2008,12 +2104,19 @@ const TABLE_RECORDING_CONFIG = Object.freeze({
   minBitrate: 6_000_000,
   maxBitrate: 16_000_000,
   bitsPerPixelPerFrame: 0.14,
+  audioBitsPerSecond: 128_000,
   background: '#07090b',
 });
 
 function recorderMimeType() {
   if (!globalThis.MediaRecorder) return '';
-  for (const type of ['video/webm;codecs=vp8', 'video/webm;codecs=vp9', 'video/webm']) {
+  for (const type of [
+    'video/webm;codecs=vp8,opus',
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8',
+    'video/webm;codecs=vp9',
+    'video/webm',
+  ]) {
     if (MediaRecorder.isTypeSupported?.(type)) return type;
   }
   return '';
@@ -2163,16 +2266,15 @@ function createTableRecordingCanvas(video) {
 }
 
 function createCanvasRecordingStream(canvas) {
-  let stream = canvas.captureStream(0);
-  let track = stream.getVideoTracks()[0];
-  if (track && typeof track.requestFrame === 'function') {
-    return { stream, track, manualFrames: true };
-  }
-  stream.getTracks().forEach(item => item.stop());
-  stream = canvas.captureStream(TABLE_RECORDING_CONFIG.frameRate);
-  track = stream.getVideoTracks()[0];
+  // Let the browser sample the canvas at a fixed rate. A manual
+  // captureStream(0) + requestFrame() stream carries no frame-rate metadata, so
+  // MediaRecorder cannot time the video track against the real-time audio track
+  // and stretches it (audio ends up ahead of the picture). A fixed rate keeps
+  // the video timeline continuous even if a paint is skipped.
+  const stream = canvas.captureStream(TABLE_RECORDING_CONFIG.frameRate);
+  const track = stream.getVideoTracks()[0];
   if (!track) throw new Error('Could not create the table recording video track');
-  return { stream, track, manualFrames: false };
+  return { stream, track };
 }
 
 function paintTableRecordingFrame(recording) {
@@ -2194,7 +2296,6 @@ function paintTableRecordingFrame(recording) {
     return false;
   }
   ctx.restore();
-  if (recording.manualFrames) recording.canvasTrack.requestFrame();
   return true;
 }
 
@@ -2229,6 +2330,8 @@ function disposeTableRecording(recording, { stopCapture = true, stopCanvas = tru
   }
   if (stopCanvas) recording.canvasStream?.getTracks?.().forEach(track => track.stop());
   if (stopCapture) recording.captureStream?.getTracks?.().forEach(track => track.stop());
+  try { if (soundMasterGain && recording.audioDestination) soundMasterGain.disconnect(recording.audioDestination); } catch {}
+  try { recording.audioTrack?.stop?.(); } catch {}
   recording.canvas?.remove?.();
 }
 
@@ -2281,8 +2384,13 @@ async function startTableRecording() {
 
     const { canvas, ctx } = createTableRecordingCanvas(captureVideo);
     const canvasCapture = createCanvasRecordingStream(canvas);
-    const { stream: canvasStream, track: canvasTrack, manualFrames } = canvasCapture;
+    const { stream: canvasStream, track: canvasTrack } = canvasCapture;
     try { canvasTrack.contentHint = 'detail'; } catch {}
+    // Mix the table's Web Audio output into the recording through a fresh
+    // destination owned by this recording.
+    const recordingAudio = recordingAudioTrack();
+    const audioTrack = recordingAudio?.track || null;
+    const recorderStream = audioTrack ? new MediaStream([canvasTrack, audioTrack]) : canvasStream;
 
     recording = {
       recorder: null,
@@ -2293,7 +2401,8 @@ async function startTableRecording() {
       ctx,
       canvasStream,
       canvasTrack,
-      manualFrames,
+      audioTrack,
+      audioDestination: recordingAudio?.destination || null,
       chunks: [],
       stopping: false,
       animationFrameId: null,
@@ -2305,8 +2414,9 @@ async function startTableRecording() {
       height: canvas.height,
       frameRate: TABLE_RECORDING_CONFIG.frameRate,
     });
-    const options = mimeType ? { mimeType, videoBitsPerSecond } : { videoBitsPerSecond };
-    const recorder = new MediaRecorder(canvasStream, options);
+    const options = { videoBitsPerSecond, audioBitsPerSecond: TABLE_RECORDING_CONFIG.audioBitsPerSecond };
+    if (mimeType) options.mimeType = mimeType;
+    const recorder = new MediaRecorder(recorderStream, options);
     recording.recorder = recorder;
     tableRecording = recording;
 
@@ -2338,7 +2448,7 @@ async function startTableRecording() {
     recorder.start(1000);
     setRecordButton(true);
     showActionToast(
-      `Recording · ${canvas.width}×${canvas.height} · ${TABLE_RECORDING_CONFIG.frameRate} fps`,
+      `Recording · ${canvas.width}×${canvas.height} · ${TABLE_RECORDING_CONFIG.frameRate} fps${audioTrack ? ' · audio' : ''}`,
       'check',
     );
   } catch (err) {
@@ -2650,7 +2760,7 @@ els.soundBtn.addEventListener('click', async () => {
   els.soundBtn.classList.toggle('active', soundEnabled);
   els.soundBtn.title = soundEnabled ? 'Disable table sounds' : 'Enable table sounds';
   els.soundBtn.setAttribute('aria-label', els.soundBtn.title);
-  if (soundEnabled) { try { await getAudioContext()?.resume(); } catch {} playTableSound('chip'); }
+  if (soundEnabled) { try { await getAudioContext()?.resume(); } catch {} preloadTableSounds(); playTableSound('chip'); }
 });
 
 els.recordBtn?.addEventListener('click', () => tableRecording ? stopTableRecording() : void startTableRecording());
