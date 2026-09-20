@@ -53,7 +53,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="./styles.css?v=0.11.0" />
+  <link rel="stylesheet" href="./styles.css?v=0.12.0" />
 </head>
 <body>
   <div class="app-shell">
@@ -128,7 +128,7 @@
           <div id="tournamentMeta" class="mono muted">Seat 2–10 models, then press ▶</div>
           <div class="arena-head-actions">
             <button id="soundBtn" class="arena-icon-button sound-button" type="button" aria-pressed="false" title="Enable table sounds" aria-label="Enable table sounds"><span class="action-icon">♪</span></button>
-            <button id="recordBtn" class="arena-icon-button record-button" type="button" aria-pressed="false" title="Record poker table with current-tab audio" aria-label="Record poker table with current-tab audio"><span class="action-icon">●</span></button>
+            <button id="recordBtn" class="arena-icon-button record-button" type="button" aria-pressed="false" title="Record poker table with shared tab/system audio" aria-label="Record poker table with shared tab/system audio"><span class="action-icon">●</span></button>
           </div>
         </div>
 
@@ -156,11 +156,7 @@
                     <div class="table-branding" aria-hidden="true"><div class="table-brand-logo">♠</div><div class="table-brand-title">POKERTOOLS-ARENA</div><div class="table-brand-subtitle">MODEL BENCHMARK TABLE</div></div>
                     <div class="board-zone">
                       <div id="board" class="community-cards" aria-label="Community cards"></div>
-                      <div class="pot-visual hud-pot" aria-hidden="true">
-                        <span class="chip-stack"><span class="pot-chip"></span><span class="pot-chip"></span><span class="pot-chip"></span></span>
-                        <span class="chip-stack"><span class="pot-chip chip-blue"></span><span class="pot-chip chip-blue"></span><span class="pot-chip chip-blue"></span><span class="pot-chip chip-blue"></span></span>
-                        <span class="chip-stack"><span class="pot-chip chip-black"></span><span class="pot-chip chip-black"></span><span class="pot-chip chip-black"></span></span>
-                      </div>
+                      <div id="potChips" class="pot-visual hud-pot" aria-label="Pot chips"></div>
                       <div class="game-info" aria-label="Hand information">
                         <span>POT <b id="potValue">0</b></span><span>BLINDS <b id="blindsValue">— / —</b></span><span>ANTE <b id="anteValue">—</b></span><span>HAND <b id="handValue">—</b></span><span>LEVEL <b id="levelValue">—</b></span>
                       </div>
@@ -371,7 +367,7 @@
           <div class="replay-action-block"><span>Chosen action</span><strong id="replayAction">—</strong></div>
           <div id="replayReason" class="replay-reason"></div>
           <details class="replay-history" open><summary>Actions before this decision</summary><div id="replayHistory"></div></details>
-          <details class="replay-legal"><summary>Legal actions offered to the model</summary><div id="replayLegal"></div></details>
+            <details class="replay-legal"><summary><span>Legal actions offered to the model</span><small id="replayLegalSummary">—</small></summary><div id="replayLegal"></div></details>
         </section>
       </div>
       <div class="dialog-footer replay-footer">
@@ -412,6 +408,6 @@
   </template>
 
   <script src="./arena-env.js"></script>
-  <script type="module" src="./app.js?v=0.11.0"></script>
+  <script type="module" src="./app.js?v=0.12.0"></script>
 </body>
 </html>

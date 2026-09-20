@@ -38,7 +38,7 @@ const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const els = {
   startTopBtn: $('#startTopBtn'), seatsBtn: $('#seatsBtn'), soundBtn: $('#soundBtn'), recordBtn: $('#recordBtn'), exportBtn: $('#exportBtn'), setupBtn: $('#setupBtn'), testsBtn: $('#testsBtn'), pauseBtn: $('#pauseBtn'), stopBtn: $('#stopBtn'),
   statusDot: $('#statusDot'), statusLabel: $('#statusLabel'), tournamentMeta: $('#tournamentMeta'),
-  pokerTable: $('#pokerTable'), tableArena: $('#tableArena'), seatsLayer: $('#seatsLayer'), fxLayer: $('#fxLayer'), actionToast: $('#actionToast'), board: $('#board'), dealerMarker: $('#dealerMarker'), smallBlindMarker: $('#smallBlindMarker'), bigBlindMarker: $('#bigBlindMarker'), potValue: $('#potValue'), blindsValue: $('#blindsValue'), anteValue: $('#anteValue'), handValue: $('#handValue'), levelValue: $('#levelValue'),
+  pokerTable: $('#pokerTable'), tableArena: $('#tableArena'), seatsLayer: $('#seatsLayer'), fxLayer: $('#fxLayer'), actionToast: $('#actionToast'), board: $('#board'), potChips: $('#potChips'), dealerMarker: $('#dealerMarker'), smallBlindMarker: $('#smallBlindMarker'), bigBlindMarker: $('#bigBlindMarker'), potValue: $('#potValue'), blindsValue: $('#blindsValue'), anteValue: $('#anteValue'), handValue: $('#handValue'), levelValue: $('#levelValue'),
   decisionPanelTitle: $('#decisionPanelTitle'), decisionEmpty: $('#decisionEmpty'), decisionCard: $('#decisionCard'), decisionPlayer: $('#decisionPlayer'), decisionModel: $('#decisionModel'), decisionPhase: $('#decisionPhase'), decisionClock: $('#decisionClock'), bankClock: $('#bankClock'), decisionHand: $('#decisionHand'), decisionStreet: $('#decisionStreet'), decisionPosition: $('#decisionPosition'), decisionOptionCount: $('#decisionOptionCount'), decisionActionLabel: $('#decisionActionLabel'), decisionActionHint: $('#decisionActionHint'), legalActions: $('#legalActions'), decisionLabelHand: $('#decisionLabelHand'), decisionLabelStreet: $('#decisionLabelStreet'), decisionLabelPosition: $('#decisionLabelPosition'), decisionLabelOptions: $('#decisionLabelOptions'),
   decisionFeed: $('#decisionFeed'), decisionFeedSummary: $('#decisionFeedSummary'), eventLog: $('#eventLog'), logSummary: $('#logSummary'), logTabCount: $('#logTabCount'), logSearch: $('#logSearch'), logFilter: $('#logFilter'), logClear: $('#logClear'), statsGrid: $('#statsGrid'),
   setupDialog: $('#setupDialog'), setupForm: $('#setupForm'), closeSetup: $('#closeSetup'), setupError: $('#setupError'), saveSettingsBtn: $('#saveSettingsBtn'), seatSummary: $('#seatSummary'),
@@ -46,7 +46,7 @@ const els = {
   seatDialog: $('#seatDialog'), seatForm: $('#seatForm'), closeSeat: $('#closeSeat'), seatDialogTitle: $('#seatDialogTitle'), seatLockNotice: $('#seatLockNotice'),
   seatName: $('#seatName'), seatConnection: $('#seatConnection'), seatModel: $('#seatModel'), seatModelOptions: $('#seatModelOptions'), seatModelStatus: $('#seatModelStatus'), refreshModelsBtn: $('#refreshModelsBtn'), seatProtocol: $('#seatProtocol'), seatProvider: $('#seatProvider'), seatError: $('#seatError'), removeSeatBtn: $('#removeSeatBtn'), cancelSeatBtn: $('#cancelSeatBtn'), saveSeatBtn: $('#saveSeatBtn'),
   testsDialog: $('#testsDialog'), closeTests: $('#closeTests'), runTestsBtn: $('#runTestsBtn'), clearTestsBtn: $('#clearTestsBtn'), testsStatus: $('#testsStatus'), testsParticipants: $('#testsParticipants'), testsProgressLabel: $('#testsProgressLabel'), testsProgressFill: $('#testsProgressFill'), testsResults: $('#testsResults'),
-  replayDialog: $('#replayDialog'), closeReplay: $('#closeReplay'), replayTitle: $('#replayTitle'), replayBadge: $('#replayBadge'), replaySubtitle: $('#replaySubtitle'), replayOpponents: $('#replayOpponents'), replayStreet: $('#replayStreet'), replayBoard: $('#replayBoard'), replayPot: $('#replayPot'), replayHero: $('#replayHero'), replaySummary: $('#replaySummary'), replayAction: $('#replayAction'), replayReason: $('#replayReason'), replayHistory: $('#replayHistory'), replayLegal: $('#replayLegal'), replayShareStatus: $('#replayShareStatus'), copyReplayImage: $('#copyReplayImage'), shareReplayImage: $('#shareReplayImage'), saveReplayImage: $('#saveReplayImage'),
+  replayDialog: $('#replayDialog'), closeReplay: $('#closeReplay'), replayTitle: $('#replayTitle'), replayBadge: $('#replayBadge'), replaySubtitle: $('#replaySubtitle'), replayOpponents: $('#replayOpponents'), replayStreet: $('#replayStreet'), replayBoard: $('#replayBoard'), replayPot: $('#replayPot'), replayHero: $('#replayHero'), replaySummary: $('#replaySummary'), replayAction: $('#replayAction'), replayReason: $('#replayReason'), replayHistory: $('#replayHistory'), replayLegal: $('#replayLegal'), replayLegalSummary: $('#replayLegalSummary'), replayShareStatus: $('#replayShareStatus'), copyReplayImage: $('#copyReplayImage'), shareReplayImage: $('#shareReplayImage'), saveReplayImage: $('#saveReplayImage'),
 };
 
 let engineModule = null;
@@ -427,6 +427,30 @@ function tableCardHtml(card, kind = 'board') {
   const suit = match ? suitMap[match[2].toLowerCase()] || match[2] : suitMap[raw.slice(-1).toLowerCase()] || raw.slice(-1);
   const red = suit === '♥' || suit === '♦';
   return `<span class="playing-card ${kind === 'hole' ? 'hole-card' : 'board-card'} ${red ? 'red' : ''}" data-rank="${escapeHtml(rank)}" data-suit="${escapeHtml(suit)}" aria-label="${escapeHtml(rank + suit)}"></span>`;
+}
+function integerGcd(values) {
+  const gcd = (a, b) => { while (b) [a, b] = [b, a % b]; return Math.abs(a); };
+  return values.map(value => Math.abs(Math.round(Number(value) || 0))).filter(Boolean).reduce(gcd, 0) || 1;
+}
+function potChipsHtml(pot, { smallBlind = 0, bigBlind = 0, ante = 0 } = {}) {
+  let remaining = Math.max(0, Math.round(Number(pot) || 0));
+  if (!remaining) return '';
+  const base = integerGcd([smallBlind, bigBlind, ante]);
+  const denominations = [
+    { color: 'gold', value: base * 100 },
+    { color: 'black', value: base * 25 },
+    { color: 'blue', value: base * 5 },
+    { color: 'red', value: base },
+  ];
+  return denominations.map(({ color, value }) => {
+    const count = Math.floor(remaining / value);
+    remaining -= count * value;
+    if (!count) return '';
+    const shown = Math.min(5, count);
+    const chips = Array.from({ length: shown }, () => `<span class="pot-chip chip-${color}"></span>`).join('');
+    const overflow = count > shown ? ` data-chip-count="×${count}"` : '';
+    return `<span class="chip-stack"${overflow} title="${count} × ${fmt(value)} chips" aria-label="${count} ${color} chips worth ${fmt(value)} each">${chips}</span>`;
+  }).join('');
 }
 
 async function loadPokerTools() {
@@ -1482,6 +1506,7 @@ function renderLobbyTable() {
   els.seatsLayer.innerHTML = Array.from({ length: MAX_LOBBY_SEATS }, (_, i) => lobbySeatHtml(i)).join('');
   layoutTableSeats({ lobby: true });
   els.board.innerHTML = Array.from({ length: 5 }, () => tableCardHtml(null)).join('');
+  if (els.potChips) els.potChips.innerHTML = '';
   const count = seatAssignments.filter(Boolean).length;
   els.potValue.textContent = `${count}/${MAX_LOBBY_SEATS}`;
   els.blindsValue.textContent = '—';
@@ -1543,6 +1568,7 @@ function renderTable(s) {
   }).join('');
   layoutTableSeats();
   els.board.innerHTML = Array.from({ length: 5 }, (_, i) => tableCardHtml(table.board?.[i])).join('');
+  if (els.potChips) els.potChips.innerHTML = potChipsHtml(table.pot, table);
   els.potValue.textContent = fmtHud(table.pot);
   els.potValue.title = fmt(table.pot);
   els.blindsValue.textContent = `${fmtHud(table.smallBlind)} / ${fmtHud(table.bigBlind)}`;
@@ -2166,7 +2192,7 @@ function setRecordButton(active, label = null) {
   const text = $('.action-label', els.recordBtn);
   if (icon) icon.textContent = active ? '■' : '●';
   if (text) text.textContent = label || (active ? 'Stop rec' : 'Record');
-  els.recordBtn.title = active ? 'Stop table recording and save video' : 'Record poker table with current-tab audio';
+  els.recordBtn.title = active ? 'Stop table recording and save video' : 'Record poker table with shared tab/system audio';
   els.recordBtn.setAttribute('aria-label', els.recordBtn.title);
 }
 
@@ -2267,6 +2293,8 @@ function paintTableRecordingFrame(recording, source, sourceWidth, sourceHeight) 
 
 function createCaptureVideo(stream) {
   const video = document.createElement('video');
+  // Mute only the hidden preview element to prevent echo. The original shared
+  // audio track remains live and is recorded through the audio pipeline below.
   video.muted = true;
   video.playsInline = true;
   video.autoplay = true;
@@ -2465,11 +2493,12 @@ async function startTableRecording() {
         width: { ideal: TABLE_RECORDING_CONFIG.maxWidth },
         height: { ideal: TABLE_RECORDING_CONFIG.maxHeight },
       },
-      audio: true,
+      audio: { suppressLocalAudioPlayback: false },
       preferCurrentTab: true,
       selfBrowserSurface: 'include',
       surfaceSwitching: 'exclude',
-      systemAudio: 'exclude',
+      systemAudio: 'include',
+      windowAudio: 'system',
     });
 
     const captureTrack = captureStream.getVideoTracks()[0];
@@ -2485,10 +2514,13 @@ async function startTableRecording() {
       });
     } catch {}
 
-    const audioTrack = captureStream.getAudioTracks()[0] || null;
-    if (audioTrack?.applyConstraints) {
-      try { await audioTrack.applyConstraints({ suppressLocalAudioPlayback: false }); } catch {}
+    const sourceAudioTrack = captureStream.getAudioTracks()[0] || null;
+    if (sourceAudioTrack?.applyConstraints) {
+      try { await sourceAudioTrack.applyConstraints({ suppressLocalAudioPlayback: false }); } catch {}
     }
+    // Mux the original shared-audio track directly so its capture timestamps
+    // stay aligned with the timestamp-preserving video pipeline.
+    const audioTrack = sourceAudioTrack;
 
     captureVideo = createCaptureVideo(captureStream);
     await captureVideo.play().catch(() => {});
@@ -2516,6 +2548,7 @@ async function startTableRecording() {
       sourceWidth,
       sourceHeight,
       audioTrack,
+      sourceAudioTrack,
       chunks: [],
       stopping: false,
       pipelineError: null,
@@ -2572,7 +2605,7 @@ async function startTableRecording() {
     startTableRecordingVideo(recording);
     setRecordButton(true);
     showActionToast(
-      `Recording · ${canvas.width}×${canvas.height} · ${TABLE_RECORDING_CONFIG.frameRate} fps · ${audioTrack ? 'tab audio' : 'no tab audio'}`,
+      `Recording · ${canvas.width}×${canvas.height} · ${TABLE_RECORDING_CONFIG.frameRate} fps · ${audioTrack ? 'shared audio' : 'no audio — enable Share audio'}`,
       audioTrack ? 'check' : 'fold',
     );
   } catch (err) {
@@ -2615,6 +2648,18 @@ function replayHistoryRow(row) {
   const action = row?.action?.description || row?.action?.type || 'Action';
   return `<div class="replay-history-row"><span><b>${escapeHtml(label)}</b>${row?.position ? `<small>${escapeHtml(row.position)}</small>` : ''}</span><strong>${escapeHtml(action)}</strong></div>`;
 }
+function replayLegalActionsHtml(actions, chosenAction) {
+  if (!Array.isArray(actions) || !actions.length) return '<div class="empty-state">No legal actions stored.</div>';
+  return `<div class="replay-legal-list">${actions.map((action, index) => {
+    const selected = action.id === chosenAction?.id || (!chosenAction?.id && action.type === chosenAction?.type);
+    const label = action.description || action.type || action.id || `Action ${index + 1}`;
+    return `<div class="replay-legal-option ${selected ? 'selected' : ''}">
+      <span class="replay-legal-index">${selected ? '✓' : index + 1}</span>
+      <span class="replay-legal-copy"><strong>${escapeHtml(label)}</strong><small>${escapeHtml(action.id || action.type || '')}</small></span>
+      ${selected ? '<span class="replay-legal-picked">Chosen</span>' : ''}
+    </div>`;
+  }).join('')}</div>`;
+}
 function openDecisionReplay(eventId) {
   const event = eventArchive(currentState).find(e => e.id === eventId && e.type === 'DECISION');
   if (!event || !els.replayDialog) return;
@@ -2638,6 +2683,7 @@ function openDecisionReplay(eventId) {
     els.replaySummary.innerHTML = `<span>Position <b>${escapeHtml(event.position || '—')}</b></span><span>Latency <b>${fmt(event.latencyMs || 0)} ms</b></span>`;
     els.replayHistory.innerHTML = '<div class="empty-state">No snapshot history stored.</div>';
     els.replayLegal.innerHTML = '<div class="empty-state">No legal-action snapshot stored.</div>';
+    if (els.replayLegalSummary) els.replayLegalSummary.textContent = 'Unavailable';
     els.replayDialog.showModal();
     return;
   }
@@ -2655,7 +2701,9 @@ function openDecisionReplay(eventId) {
     ['Blinds', `${fmt(replay.blinds?.smallBlind)} / ${fmt(replay.blinds?.bigBlind)}`], ['Position', hero.position || '—']
   ].map(([k,v]) => `<span>${escapeHtml(k)} <b>${escapeHtml(v)}</b></span>`).join('');
   els.replayHistory.innerHTML = (replay.actionHistory || []).length ? replay.actionHistory.map(replayHistoryRow).join('') : '<div class="empty-state">No actions before this decision.</div>';
-  els.replayLegal.innerHTML = (replay.legalActions || []).map(a => `<span class="action-chip ${a.id === event.action?.id ? 'selected' : ''}" title="${escapeHtml(a.id)}">${escapeHtml(a.description || a.type)}</span>`).join('') || '<div class="empty-state">No legal actions stored.</div>';
+  const legalActions = replay.legalActions || [];
+  els.replayLegal.innerHTML = replayLegalActionsHtml(legalActions, event.action);
+  if (els.replayLegalSummary) els.replayLegalSummary.textContent = `${legalActions.length} option${legalActions.length === 1 ? '' : 's'} · chosen highlighted`;
   const handLabel = replay.heroHand?.category || deterministicHandLabel(hero.cards, replay.board);
   if (handLabel) els.replaySummary.insertAdjacentHTML('beforeend', `<span>Deterministic hand evaluation <b>${escapeHtml(handLabel)}</b></span>`);
   els.replayReason.innerHTML = `<div class="replay-reason-text">${escapeHtml(replayReasonText(event))}</div>${decisionTelemetryHtml(event, { limit: 99 })}`;
@@ -2727,6 +2775,25 @@ function replayReasonText(event) {
   if (Number.isFinite(Number(meta.family?.confidence))) lines.push(`Confidence  ${confidenceBand(meta.family.confidence)} · ${compactPercent(meta.family.confidence)}`);
   return lines.length ? lines.join('\n') : (meta.family ? 'Typed decision; no text rationale.' : 'No public rationale was returned.');
 }
+function replayProbabilityRows(event, limit = 5) {
+  const meta = event?.decisionMeta || {};
+  const familyLabel = key => familyCriteria([String(key).toLowerCase()])[String(key).toLowerCase()] ?? String(key).toUpperCase();
+  const sizeLabel = key => SIZE_LABELS[String(key).toLowerCase()] ?? String(key).toUpperCase();
+  const ranked = (values, label, group, take) => Object.entries(values ?? {})
+    .filter(([, value]) => Number.isFinite(Number(value)))
+    .sort((a, b) => Number(b[1]) - Number(a[1]))
+    .slice(0, take)
+    .map(([key, value]) => ({ label: label(key), value: clamp(Number(value), 0, 1), group }));
+  if (meta.family?.probabilities) {
+    const familyRows = ranked(meta.family.probabilities, familyLabel, 'Family', meta.sizing?.probabilities ? 3 : limit);
+    return [...familyRows, ...ranked(meta.sizing?.probabilities, sizeLabel, 'Size', Math.max(0, limit - familyRows.length))].slice(0, limit);
+  }
+  if (meta.probabilities) {
+    const familyMass = aggregateActionProbabilitiesByFamily(meta.probabilities, event?.legalActions, { labelResolver: id => ({ description: (event?.legalActions || []).find(action => action.id === id)?.description || id }) });
+    return ranked(familyMass, familyLabel, 'Family', limit);
+  }
+  return [];
+}
 function makeReplayShareCanvas(event) {
   const replay = event?.replay || {};
   const hero = replay.hero || {};
@@ -2757,9 +2824,20 @@ function makeReplayShareCanvas(event) {
   const metrics=[['STACK',fmt(hero.stack ?? 0)],['TO CALL',fmt(b.toCall ?? 0)],['POSITION',hero.position||event?.position||'—'],['LATENCY',`${event?.latencyMs||0} ms`]];
   metrics.forEach((m,i)=>{const x=72+i*234;roundedRect(ctx,x,892,216,78,15,'rgba(255,255,255,.028)','rgba(255,255,255,.06)',1);ctx.fillStyle='rgba(210,220,214,.38)';ctx.font='800 12px ui-monospace,monospace';ctx.fillText(m[0],x+16,918);ctx.fillStyle='#e8eeea';ctx.font='900 22px system-ui';ctx.fillText(m[1],x+16,950)});
   roundedRect(ctx,72,1004,936,226,22,'rgba(255,255,255,.026)','rgba(255,255,255,.065)',1);
-  const telemetryHeading = event?.decisionMeta?.family ? 'TYPED DECISION TELEMETRY' : 'PUBLIC RATIONALE';
+  const probabilityRows = replayProbabilityRows(event);
+  const telemetryHeading = probabilityRows.length ? 'JEV DECISION PROBABILITIES' : 'PUBLIC RATIONALE';
   ctx.fillStyle='rgba(211,221,215,.42)'; ctx.font='800 13px ui-monospace,monospace'; ctx.fillText(telemetryHeading,98,1036);
-  ctx.fillStyle='#d9e1dc'; ctx.font='600 25px system-ui'; wrapCanvasText(ctx, replayReasonText(event),98,1080,884,36,5);
+  if (probabilityRows.length) {
+    probabilityRows.forEach((row, index) => {
+      const y = 1066 + index * 30, percent = Math.round(row.value * 100);
+      ctx.fillStyle = 'rgba(211,221,215,.68)'; ctx.font = '700 15px system-ui'; ctx.textAlign = 'left'; ctx.fillText(`${row.group} · ${row.label}`.slice(0, 34), 98, y);
+      roundedRect(ctx, 430, y - 12, 480, 8, 4, 'rgba(255,255,255,.075)');
+      roundedRect(ctx, 430, y - 12, Math.max(4, 480 * row.value), 8, 4, row.group === 'Size' ? '#6db9ff' : '#f4c85a');
+      ctx.fillStyle = '#eef4f0'; ctx.font = '900 15px ui-monospace,monospace'; ctx.textAlign = 'right'; ctx.fillText(`${percent}%`, 982, y); ctx.textAlign = 'left';
+    });
+  } else {
+    ctx.fillStyle='#d9e1dc'; ctx.font='600 25px system-ui'; wrapCanvasText(ctx, replayReasonText(event),98,1080,884,36,5);
+  }
   ctx.fillStyle='rgba(211,221,215,.32)'; ctx.font='700 14px ui-monospace,monospace'; ctx.fillText(`${event?.connection || ''}  ·  ${event?.protocol || event?.requestedProtocol || ''}`,98,1202);
   ctx.fillStyle='rgba(216,225,219,.30)'; ctx.font='700 15px system-ui'; ctx.fillText('pokertools-arena.github.io',72,1300);
   ctx.textAlign='right'; ctx.fillText('AI poker decision snapshot',1008,1300); ctx.textAlign='left';

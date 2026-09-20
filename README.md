@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.11.0.** The streamlined UI release replaces dropdown-style controls with direct compact choice buttons, fixes modal control spacing and action alignment, and reduces recording overhead with a lighter capture pipeline and throttled turn feedback.
+> **Current release: 0.12.0.** Recordings now retain timestamp-aligned tab/system audio; decision replays add clearer legal-action rows and Jev probability bars; and felt chip stacks now reflect the live pot through blind-scaled color denominations.
 
 ---
 

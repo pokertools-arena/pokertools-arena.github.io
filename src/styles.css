@@ -67,7 +67,7 @@ a { color: inherit; }
 .repo-link { width: 34px; height: 34px; border-color: transparent; border-radius: 9px; }
 .repo-icon { width: 18px; height: 18px; }
 .topbar-actions { display: flex; gap: 6px; }
-.button { min-height: 36px; padding: 0 13px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--surface-2); color: var(--text); font-weight: 650; transition: border-color .16s, background .16s, color .16s, transform .16s; }
+.button { min-height: 36px; padding: 0 13px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--surface-2); color: var(--text); font-weight: 650; transition: border-color .16s, background .16s, color .16s, transform .16s; }
 .button:hover:not(:disabled) { border-color: #546470; background: var(--surface-3); }
 .button:active:not(:disabled), .arena-icon-button:active { transform: translateY(1px); }
 .button.primary { border-color: #ebc24f; background: var(--accent); color: var(--accent-ink); }
@@ -352,9 +352,11 @@ button.event-row:hover { border-radius: 8px; background: var(--surface-2); }
 .chip-stack:first-child { margin-left: 0; }
 .pot-chip, .blind-chip { aspect-ratio: 1; border: 2px dashed rgb(255 255 255 / 70%); border-radius: 50%; background: #9f2f31; box-shadow: 0 2px 3px rgb(0 0 0 / 25%); }
 .pot-chip { position: absolute; left: 50%; width: clamp(13px, 1.35vw, 19px); transform: translateX(-50%); }
-.pot-chip:nth-child(1) { bottom: 0; } .pot-chip:nth-child(2) { bottom: 3px; } .pot-chip:nth-child(3) { bottom: 6px; } .pot-chip:nth-child(4) { bottom: 9px; }
-.pot-chip.chip-blue { background: #315e91; } .pot-chip.chip-black { background: #202324; }
-.game-info { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px clamp(7px, 1.35vw, 18px); font-size: clamp(7px, .9vw, 13px); line-height: 1.15; font-weight: 800; letter-spacing: .065em; text-transform: uppercase; opacity: .76; }
+.pot-chip:nth-child(1) { bottom: 0; } .pot-chip:nth-child(2) { bottom: 3px; } .pot-chip:nth-child(3) { bottom: 6px; } .pot-chip:nth-child(4) { bottom: 9px; } .pot-chip:nth-child(5) { bottom: 12px; }
+.pot-chip.chip-red { background: #9f2f31; } .pot-chip.chip-blue { background: #315e91; } .pot-chip.chip-black { background: #202324; } .pot-chip.chip-gold { background: #a68135; }
+.chip-stack[data-chip-count] { margin-right: 8px; }
+.chip-stack[data-chip-count]::after { position: absolute; right: -10px; top: -4px; color: rgb(225 236 230 / 62%); content: attr(data-chip-count); font: 800 7px/1 var(--mono); }
+.game-info { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px clamp(7px, 1.35vw, 8px); font-size: clamp(7px, .9vw, 13px); line-height: 1.15; font-weight: 800; letter-spacing: .065em; text-transform: uppercase; opacity: .76; }
 .game-info span { white-space: nowrap; } .game-info b { color: rgb(207 250 228 / 52%); font-weight: 900; }
 .table-markers { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
 .table-marker { position: absolute; left: 50%; top: 50%; display: flex; align-items: center; justify-content: center; transform: translate(-50%, -50%); transition: left .18s ease, top .18s ease; }
@@ -509,6 +511,7 @@ label input, label select { margin-top: 5px; font-weight: 450; }
 .test-state-dot.pass { background: var(--good); }
 .test-state-dot.fail { background: var(--bad); }
 
+/* 0.12.0 — richer decision replay and share output. */
 .replay-dialog { width: min(920px, calc(100vw - 28px)); }
 .replay-body { display: grid; grid-template-columns: minmax(310px, 1.1fr) minmax(280px, .9fr); gap: 16px; }
 .replay-table-wrap { min-width: 0; }
@@ -524,6 +527,7 @@ label input, label select { margin-top: 5px; font-weight: 450; }
 .replay-center { text-align: center; }
 .replay-street, .replay-pot { margin: 5px; color: rgb(255 255 255 / 65%); font: 700 9px var(--mono); letter-spacing: .1em; }
 .replay-board .card { width: 42px; }
+.replay-board .card-corner.bottom { display: none; }
 .replay-hero { align-self: center; min-width: 170px; }
 .replay-hero-head { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
 .replay-hero-cards { margin-top: 6px; display: flex; justify-content: center; gap: 4px; }
@@ -537,6 +541,18 @@ label input, label select { margin-top: 5px; font-weight: 450; }
 .replay-reason { margin-top: 9px; color: var(--text-soft); font-size: 12px; }
 .replay-history, .replay-legal { margin-top: 10px; border-top: 1px solid var(--line); }
 .replay-history summary, .replay-legal summary { padding: 9px 0; color: var(--text-soft); font-size: 11px; font-weight: 700; }
+.replay-legal summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.replay-legal summary small { color: var(--text-muted); font-size: 9px; font-weight: 500; }
+.replay-legal-list { display: grid; gap: 5px; }
+.replay-legal-option { min-width: 0; padding: 7px 8px; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 8px; background: #0a0f13; }
+.replay-legal-option.selected { border-color: #766526; background: #1c190d; }
+.replay-legal-index { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; background: var(--surface-2); color: var(--text-muted); font: 800 9px/1 var(--mono); }
+.replay-legal-option.selected .replay-legal-index { background: #443a17; color: var(--accent); }
+.replay-legal-copy { min-width: 0; }
+.replay-legal-copy strong, .replay-legal-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.replay-legal-copy strong { color: var(--text-soft); font-size: 10px; }
+.replay-legal-copy small { margin-top: 1px; color: var(--text-muted); font: 8px/1.3 var(--mono); }
+.replay-legal-picked { color: var(--accent); font: 800 8px/1 var(--mono); letter-spacing: .05em; text-transform: uppercase; }
 .replay-history-row { padding: 5px 7px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; border-bottom: 1px solid var(--line); color: var(--text-muted); font-size: 10px; }
 .replay-history-row strong { text-align: right; }
 .replay-share-copy strong, .replay-share-copy span { display: block; }

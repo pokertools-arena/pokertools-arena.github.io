@@ -81,7 +81,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.11.0') throw new Error('Expected release version 0.11.0');
+if (pkg.version !== '0.12.0') throw new Error('Expected release version 0.12.0');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -221,7 +221,7 @@ if (!app.includes('audioBitsPerSecond')) throw new Error('Recording audio bitrat
 if (!app.includes('function supportsTimestampedVideoPipeline') || !app.includes('MediaStreamTrackProcessor') || !app.includes('MediaStreamTrackGenerator')) throw new Error('Timestamp-preserving video pipeline missing');
 if (!app.includes('new VideoFrame(recording.canvas, { timestamp, duration })')) throw new Error('Recording must preserve source capture timestamps through VideoFrame');
 if (!app.includes('function startTimestampedVideoPump') || !app.includes('function startFallbackVideoPump')) throw new Error('Recording video pump missing');
-if (!app.includes('audio: true') || !app.includes("systemAudio: 'exclude'")) throw new Error('Recording must request current-tab audio only');
+if (!app.includes("audio: { suppressLocalAudioPlayback: false }") || !app.includes("systemAudio: 'include'")) throw new Error('Recording must request audible tab/system audio');
 if (!app.includes('captureStream.getAudioTracks()[0]')) throw new Error('Recording must use the getDisplayMedia audio track');
 if (!app.includes('outputVideoTrack') || !app.includes('new MediaStream(tracks)')) throw new Error('Recording stream must mux the capture audio track');
 if (app.includes('createMediaStreamDestination()') || app.includes('function recordingAudioTrack')) throw new Error('Recording must not re-route Web Audio into the recording');
@@ -334,6 +334,13 @@ if (!css.includes('.compact-footer { justify-content: flex-end; }') || !css.incl
 if (!app.includes("setTimeout(frame, tableRecording ? 100 : 50)") || !app.includes("imageSmoothingQuality = 'medium'") || !app.includes('recording.crop || tableCropSourceRect')) throw new Error('Recording and turn-feedback optimization missing');
 if (!css.includes('.is-recording .table-seat')) throw new Error('Recording-mode animation reduction missing');
 if (!css.includes('0.11.0 — direct choice controls')) throw new Error('0.11.0 CSS marker missing');
+// 0.12.0 — audible timestamp-preserving recordings and richer replay snapshots.
+if (!app.includes("windowAudio: 'system'") || !app.includes('const audioTrack = sourceAudioTrack') || !app.includes('capture timestamps')) throw new Error('Timestamp-preserving system-audio recording path missing');
+if (!app.includes('function replayProbabilityRows') || !app.includes('JEV DECISION PROBABILITIES') || !app.includes("ctx.fillText(`${percent}%`")) throw new Error('PNG probability bars/percentages missing');
+if (!app.includes('function replayLegalActionsHtml') || !css.includes('.replay-legal-option.selected')) throw new Error('Improved replay legal-action list missing');
+if (!css.includes('.replay-board .card-corner.bottom { display: none; }')) throw new Error('Replay board duplicate bottom corners still visible');
+if (!index.includes('id="potChips"') || !app.includes('function potChipsHtml') || !app.includes('integerGcd([smallBlind, bigBlind, ante])') || !css.includes('.pot-chip.chip-gold')) throw new Error('Pot-driven denomination chip rendering missing');
+if (!css.includes('0.12.0 — richer decision replay')) throw new Error('0.12.0 CSS marker missing');
 
 for (const workflow of ['ci.yml','pages.yml','publish.yml','real-diagnostics.yml']) {
   if (!statSync(join(root,'.github','workflows',workflow)).isFile()) throw new Error(`Missing workflow ${workflow}`);

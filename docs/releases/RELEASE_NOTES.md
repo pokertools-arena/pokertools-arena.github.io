@@ -1,5 +1,25 @@
 # Release notes
 
+## 0.12.0 — audible recordings and richer replays
+
+- Changed screen capture to request audible tab/system audio instead of
+  excluding it, while keeping local playback enabled and the hidden preview
+  muted only to prevent echo.
+- Preserved the original shared-audio track and timestamps instead of routing
+  it through Web Audio, avoiding extra latency or music quality loss. The
+  replacement table sounds remain safely attenuated by their existing gains.
+- Added labeled Jev probability bars and visible percentages to exported
+  decision-snapshot PNGs.
+- Rebuilt the replay legal-actions section as readable option rows with a
+  clearly highlighted chosen action.
+- Removed duplicate bottom corners from replay community cards while retaining
+  the existing hero-card presentation.
+- Made the felt chip stacks derive from the live pot: red, blue, black and gold
+  denominations scale from the blind/ante chip unit and show large stack counts
+  without flooding the table.
+- Kept the replacement board and winner sound assets and normalized the
+  Download button spacing through shared button styling.
+
 ## 0.11.0 — streamlined controls and recording
 
 - Replaced dropdown-style select popovers with direct, compact option buttons
