@@ -1,4 +1,4 @@
-# pokertools-arena 0.8.0 — benchmark methodology & results
+# pokertools-arena 0.9.0 — benchmark methodology & results
 
 Generated: 2026-09-19T18:19:58.352Z
 Methodology: paired fixed-state corpus; deterministic interleaving with recorded experiment seed.
@@ -99,4 +99,3 @@ No real tournament A/B run was attached to this release.
 - Paired architecture agreement measures decision-policy stability on fixed states, not win-rate superiority.
 - Tournament win rate is not a conclusion at these sample sizes, and tournament trajectories diverge after the first different action.
 - Provider rate limits and model version drift can affect reproducibility even for identical fixed states.
-

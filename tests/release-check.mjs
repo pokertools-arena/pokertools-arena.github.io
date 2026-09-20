@@ -21,7 +21,7 @@ for (const file of files) {
   if (/\p{Script=Cyrillic}/u.test(text)) throw new Error(`Cyrillic text found in ${file.slice(root.length + 1)}`);
 }
 
-for (const file of ['src/app.js','src/lib/decision-core.js','src/benchmark/scenarios.js','build.mjs','bin/pokertools-arena.mjs','tests/integration/pokertools-integration.mjs','tests/integration/launcher-port-retry.mjs','tests/unit/decision-scenarios.mjs','tests/unit/decision-diagnostics.mjs','tests/unit/hierarchical-decision-tests.mjs','tests/unit/methodology-tests.mjs','tests/unit/paired-architecture-tests.mjs','tests/unit/size-bucket-tests.mjs','tests/unit/model-capabilities-tests.mjs','tests/unit/archive-content.mjs','tests/unit/report-consistency.mjs','tests/real/real-decision-diagnostics.mjs','tests/analysis/diagnostics-analyze.mjs','tools/diagnostics/scenarios.js','tools/diagnostics/representations.js','tools/diagnostics/harness.js','tools/diagnostics/corpus.js','tools/diagnostics/stats.js','tools/diagnostics/counters.js','tools/diagnostics/paired.js','tools/diagnostics/report.js','tools/diagnostics/size-buckets.js','tools/release/archive.mjs']) {
+for (const file of ['src/app.js','src/config/arena-config.js','src/lib/decision-core.js','src/benchmark/scenarios.js','build.mjs','bin/pokertools-arena.mjs','tests/integration/pokertools-integration.mjs','tests/integration/launcher-port-retry.mjs','tests/unit/decision-scenarios.mjs','tests/unit/decision-diagnostics.mjs','tests/unit/hierarchical-decision-tests.mjs','tests/unit/methodology-tests.mjs','tests/unit/paired-architecture-tests.mjs','tests/unit/size-bucket-tests.mjs','tests/unit/model-capabilities-tests.mjs','tests/unit/archive-content.mjs','tests/unit/report-consistency.mjs','tests/real/real-decision-diagnostics.mjs','tests/analysis/diagnostics-analyze.mjs','tools/diagnostics/scenarios.js','tools/diagnostics/representations.js','tools/diagnostics/harness.js','tools/diagnostics/corpus.js','tools/diagnostics/stats.js','tools/diagnostics/counters.js','tools/diagnostics/paired.js','tools/diagnostics/report.js','tools/diagnostics/size-buckets.js','tools/release/archive.mjs']) {
   const result = spawnSync(process.execPath, ['--check', join(root, file)], { encoding:'utf8' });
   if (result.status !== 0) throw new Error(result.stderr || `Syntax check failed: ${file}`);
 }
@@ -33,11 +33,13 @@ const app = readFileSync(join(root,'src','app.js'),'utf8');
 // code. Invariants below accept either location.
 const corePath = join(root,'src','lib','decision-core.js');
 const core = existsSync(corePath) ? readFileSync(corePath,'utf8') : '';
+const config = readFileSync(join(root,'src','config','arena-config.js'),'utf8');
 const has = text => app.includes(text) || core.includes(text);
 const css = readFileSync(join(root,'src','styles.css'),'utf8');
+const compactCss = css.replace(/\s+/g, '');
 if (!index.includes('id="soundBtn"') || !index.includes('id="fxLayer"')) throw new Error('Visual/audio UI controls missing');
 if (!index.includes('id="startTopBtn"') || !index.includes('id="seatDialog"') || !index.includes('id="seatsLayer"')) throw new Error('Seat-first lobby UI missing');
-if (!app.includes('MAX_LOBBY_SEATS = 10') || !app.includes('function openSeatEditor') || !app.includes('function renderLobbyTable')) throw new Error('Seat-first lobby logic missing');
+if (!app.includes('MAX_LOBBY_SEATS = TABLE_DEFAULTS.maxPlayers') || !config.includes('maxPlayers: 10') || !app.includes('function openSeatEditor') || !app.includes('function renderLobbyTable')) throw new Error('Seat-first lobby logic missing');
 if (index.includes('id="playersEditor"') || app.includes('addPlayerRow(')) throw new Error('Legacy player-list setup still present');
 if (!app.startsWith("import { createBrowserEngine as createPokerToolsBrowserEngine } from '@pokertools/engine/browser';")) throw new Error('App does not import @pokertools/engine/browser directly');
 if (/esm\.sh|esm\.unpkg\.com|cdn\.jsdelivr\.net/.test(app)) throw new Error('Runtime PokerTools CDN reference found in app.js');
@@ -79,7 +81,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.8.0') throw new Error('Expected release version 0.8.0');
+if (pkg.version !== '0.9.0') throw new Error('Expected release version 0.9.0');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -100,11 +102,9 @@ if (!app.includes('OPENROUTER_DECISION_MODELS') || !app.includes('typesafe/jev-1
 if (!has('isUnsupportedToolChoiceError') || !has('tool→json_schema')) throw new Error('Adaptive tool-to-JSON-schema fallback missing');
 if (!has('fetchJsonWithRetry') || !has('response.status === 429 || response.status >= 500')) throw new Error('Bounded provider retry missing');
 if (!app.includes('modelErrors') || !app.includes('providerErrors') || !app.includes('rateLimits') || !app.includes('protocolFallbacks')) throw new Error('Reliability telemetry missing');
-if (!css.includes('True viewport fit on desktop')) throw new Error('Viewport overflow regression fix missing');
-if (!css.includes('height:100dvh')) throw new Error('Dynamic viewport desktop shell missing');
+if (!compactCss.includes('height:100dvh')) throw new Error('Dynamic viewport desktop shell missing');
 if (!index.includes('class="table-brand"') || index.includes('class="felt-brand"')) throw new Error('Table brand hierarchy not updated');
-if (!index.includes('id="winnerBanner"')) throw new Error('Legacy winner status anchor missing');
-if (!css.includes('.winner-banner{display:none!important}')) throw new Error('Winner banner must not shift table layout');
+if (index.includes('id="winnerBanner"') || app.includes('winnerBanner')) throw new Error('Dead winner-banner anchor still present');
 if (!app.includes('rankOnlyCorners') || !css.includes('.rank-only-corners')) throw new Error('Hole-card corner simplification missing');
 if (!index.includes('favicon.svg')) throw new Error('Favicon link missing');
 if (!index.includes('id="testsDialog"') || !index.includes('id="testsBtn"')) throw new Error('Decision sanity-suite UI missing');
@@ -112,7 +112,7 @@ if (!index.includes('id="anteValue"') || !index.includes('id="handValue"') || !i
 if (!app.includes('DECISION_SANITY_SCENARIOS') || !app.includes('runDecisionSanitySuite')) throw new Error('Decision sanity-suite runner missing');
 if (!app.includes('id: player.id || `player-${player.lobbySeat + 1}`')) throw new Error('Sanity agents must carry stable unique ids');
 if (!app.includes('function syncSeatNameFromModel') || !app.includes('seatNameAuto')) throw new Error('Seat editor must show the model-derived seat name');
-if (!css.includes('.icon-button svg{') || !index.includes('class="icon-glyph"')) throw new Error('Close buttons must use centered SVG glyphs');
+if (!compactCss.includes('.icon-buttonsvg{') || !index.includes('class="icon-glyph"')) throw new Error('Close buttons must use centered SVG glyphs');
 if (app.includes('decision-facts-note') || core.includes('SPECTATOR_NOTE') || css.includes('.decision-facts-note')) throw new Error('Typed-decision spectator note must not be rendered');
 if (!app.includes('function stopTableEffects(')) throw new Error('Stopping a run must cancel in-flight table effects');
 if (!app.includes("if (['STOPPED', 'ERROR'].includes(s?.status)) { stopClock(); return; }")) throw new Error('Stopped runs must not keep the decision clock running');
@@ -138,40 +138,38 @@ if (index.indexOf('class="inspector"') > index.indexOf('class="arena-card"')) th
 if (!index.includes('class="tabs" role="tablist"')) throw new Error('Inspector must expose the tablist');
 if (!index.includes('arena-card') || !/class="arena-card"[\s\S]*id="pokerTable"/.test(index)) throw new Error('Table must live in the arena card');
 if (!index.includes('id="testsBtn"') || !index.includes('icon-only-action')) throw new Error('Tests must be an icon-only header control');
-if (!css.includes('grid-template-columns:410px minmax(760px,1fr)') || !css.includes('.inspector{order:1}')) throw new Error('Inspector-first grid missing');
-if (!css.includes('.table-brand-copy strong{font-size:clamp(28px,2.7vw,44px)!important}')) throw new Error('Tablecloth brand must be enlarged');
+if (!compactCss.includes('grid-template-columns:minmax(350px,390px)minmax(0,1fr)') || !compactCss.includes('.inspector{order:1')) throw new Error('Inspector-first grid missing');
+if (!compactCss.includes('.table-brand-copystrong') || !css.includes('font-size: clamp(')) throw new Error('Responsive tablecloth brand missing');
 if (!app.includes('function seatPositionOnFelt(') || !app.includes('function visualSeatAngle(')) throw new Error('Rail-based seat positioning missing');
 if (!app.includes('function seatVisualSlot(')) throw new Error('Seat visual slot resolution missing');
 if (!app.includes("if (width < 430 || height < 430) return ['micro'];")) throw new Error('Seat density floor missing');
 if (!app.includes('seatRectsOverlap(a, b, gap = 7)')) throw new Error('Seat overlap gap must stay 7');
 // 0.5.1 — felt typography + short-viewport scaling.
-if (!css.includes('.table-brand-mark{font-size:46px!important')) throw new Error('Felt mark must be 46px');
-if (!css.includes('.table-brand-copy strong{font-size:46px!important')) throw new Error('Felt wordmark must be 46px');
-if (!css.includes('.table-brand-copy small{font-size:12px!important')) throw new Error('Felt subtitle must be 12px');
-if (!css.includes('.lobby-seat{width:140px!important;min-height:100px!important}')) throw new Error('Lobby seats must be 140x100');
+if (!compactCss.includes('.table-brand-mark{font-size:clamp(') || !compactCss.includes('.table-brand-copystrong{font-size:clamp(')) throw new Error('Responsive felt identity sizing missing');
+if (!compactCss.includes('.lobby-seat{width:132px;min-height:86px')) throw new Error('Lobby seat sizing missing');
 if (!app.includes("if (width < 620 || height < 500) return ['tight', 'micro'];")) throw new Error('Short-wide viewports must not collapse to micro');
 // 0.5.2 — live resize must match a reload.
 if (!app.includes("els.pokerTable.classList.add('lobby-measure')")) throw new Error('Resize measurement must freeze seat transitions');
-if (!css.includes('.poker-table.lobby-measure .lobby-seat{transition:none!important}')) throw new Error('lobby-measure transition freeze missing');
+if (!compactCss.includes('.poker-table.lobby-measure.lobby-seat{transition:none')) throw new Error('lobby-measure transition freeze missing');
 if (!app.includes("visualViewport.addEventListener('resize', relayoutForViewport")) throw new Error('visualViewport resize handling missing');
 if (!app.includes('renderLobbyTable();\n        layoutTableSeats({ lobby: true });')) throw new Error('Resize must rebuild and re-layout the lobby seats');
 // 0.6.0 — full event archive + Log tab rework.
 if (!app.includes('function eventArchive(')) throw new Error('Full event archive accessor missing');
 if (app.includes('if (this.events.length > 3000)')) throw new Error('Event archive must not silently drop early events');
-if (!app.includes('events: this.events.slice(-300)')) throw new Error('Broadcast snapshots must stay compact');
+if (!app.includes('events: this.events.slice(-HISTORY_CONFIG.snapshotEvents)') || !config.includes('snapshotEvents: 300')) throw new Error('Broadcast snapshots must stay compact and configurable');
 if (!index.includes('id="logSearch"') || !index.includes('id="logFilter"') || !index.includes('id="logClear"')) throw new Error('Log search/filter controls missing');
 if (!index.includes('id="logSummary"')) throw new Error('Log summary missing');
 if (!app.includes('function eventMatchesView(') || !app.includes('function eventCategory(')) throw new Error('Log filtering logic missing');
 if (!index.includes('viewport-fit=cover')) throw new Error('Safe-area viewport meta missing');
-if (!css.includes('.sr-only{')) throw new Error('sr-only utility missing');
+if (!compactCss.includes('.sr-only{')) throw new Error('sr-only utility missing');
 // 0.6.1 — rail seat layout + build resilience.
 if (!/src="\.\/app\.js\?v=[^"]*"/.test(index) || !/href="\.\/styles\.css\?v=[^"]*"/.test(index)) throw new Error('Asset cache-busting query strings missing');
 if (!readFileSync(join(root,'build.mjs'),'utf8').includes('could not inline')) throw new Error('Single-file build must fail loudly when inlining misses');
-if (!css.includes('@media(min-width:960px){')) throw new Error('Inspector-first grid must be authoritative at >=960px');
+if (!compactCss.includes('@media(min-width:960px){')) throw new Error('Inspector-first grid must be authoritative at >=960px');
 if (!app.includes('const feedArchive = eventArchive(s);')) throw new Error('Feed must read spectator text from the full archive');
 if (!app.includes("eventArchive(currentState).filter(e => e.type === 'SPECTATOR_EXPLANATION'")) throw new Error('Replay must take the latest explanation like the feed');
 if (!app.includes("if (width < 620 || height < 500) return ['tight', 'micro'];")) throw new Error('Short-wide viewports must not collapse to micro');
-if (!css.includes('order:-1') || !css.includes('#bankClock{order')) throw new Error('Bank clock must lead the clock block');
+if (!compactCss.includes('#bankClock{')) throw new Error('Bank clock styling missing');
 if (!app.match(/const previous = lastVisualState;/)) throw new Error('Previous visual state must be snapshotted');
 if (index.includes('Close settings">×')) throw new Error('Text close glyph still present (off-centre)');
 // 0.6.2 — icon-only Pause/Resume and Stop header controls.
@@ -194,7 +192,7 @@ if (!has('deepseek-[rv]\\d')) throw new Error('DeepSeek reasoning-model detectio
 if (!has('truncatedError') || !has('truncated→retry')) throw new Error('Truncated reasoning-stage retry missing');
 if (!index.includes('id="startTopBtn" class="button primary top-action icon-only-action')) throw new Error('Start must be an icon-only header control');
 // 0.6.7 — build-before-start, browser capability priming, scrollable decision feed.
-if (!index.includes('class="panel-block decision-feed-panel"') || !css.includes('.decision-feed{flex:1 1 auto;min-height:0;overflow-y:auto')) throw new Error('Scrollable Recent decisions panel missing');
+if (!index.includes('class="panel-block decision-feed-panel"') || !compactCss.includes('.decision-feed{flex:11auto;min-height:0') || !compactCss.includes('overflow-y:auto')) throw new Error('Scrollable decision history panel missing');
 if (!app.includes('function primeModelCapabilities') || !app.includes('capabilityPrime = primeModelCapabilities()')) throw new Error('Browser capability priming missing');
 if (!String(pkg.scripts?.prestart || '').includes('build')) throw new Error('npm start must build before serving dist');
 if (!css.includes('.table-hud') || !css.includes('.tests-dialog')) throw new Error('Table HUD/tests UI polish missing');
@@ -207,11 +205,10 @@ if (!app.includes("'video/webm;codecs=vp8,opus'") || !app.includes("'video/webm;
 if (!app.includes('function finalizeTableRecording')) throw new Error('Centralized recorder finalization missing');
 if (!app.includes('recording.animationFrameId = requestAnimationFrame(loop)')) throw new Error('requestAnimationFrame painter scheduler missing');
 if (app.includes('requestVideoFrameCallback')) throw new Error('Legacy requestVideoFrameCallback painter still present');
-// 0.6.10 — action-time default kept in sync between TIMING_DEFAULTS and the setup form.
-const actionDefault = app.match(/const TIMING_DEFAULTS = Object\.freeze\(\{[\s\S]*?actionSeconds:\s*(\d+)/);
-const actionFormValue = index.match(/name="actionSeconds"[^>]*value="(\d+)"/);
-if (!actionDefault || !actionFormValue) throw new Error('Action-time default missing');
-if (actionDefault[1] !== actionFormValue[1]) throw new Error(`Action-time default mismatch: app ${actionDefault[1]}s vs form ${actionFormValue[1]}s`);
+// Form values and bounds are populated from one configurable source.
+if (!config.includes('actionSeconds: 30') || !config.includes('startingStack: 3_000')) throw new Error('30-second / 3,000-chip defaults missing');
+if (!config.includes('applyConfiguredFormDefaults') || !app.includes('applyConfiguredFormDefaults(els.setupForm)')) throw new Error('Configured form-default binding missing');
+if (/name="(?:actionSeconds|startingStack)"[^>]*value=/.test(index)) throw new Error('Tournament defaults must not be duplicated in HTML');
 // 0.7.0 — table sound effects from bundled assets, mixed into recordings.
 for (const file of ['card-deal.mp3','board-cards.mp3','chip-bet.mp3','chip-drop.mp3','all-in-chips.mp3','winner-bell.mp3']) {
   if (!existsSync(join(root, 'src', 'assets', file))) throw new Error(`Missing table sound asset ${file}`);
@@ -230,7 +227,7 @@ if (!app.includes('outputVideoTrack') || !app.includes('new MediaStream(tracks)'
 if (app.includes('createMediaStreamDestination()') || app.includes('function recordingAudioTrack')) throw new Error('Recording must not re-route Web Audio into the recording');
 if (!app.includes('maxBitrate: 28_000_000')) throw new Error('0.8.0 recording bitrate range missing');
 if (!app.includes('source.connect(amp).connect(soundMaster()')) throw new Error('Table sounds must route through the recording master');
-if (!css.includes('0.2.8 — viewport-fit table') || !css.includes('grid-template-columns:minmax(0,1fr) clamp(270px,25vw,360px)')) throw new Error('0.2.8 viewport-fit table layout missing');
+if (!css.includes('0.2.8 — viewport-fit table') || !compactCss.includes('.workspace{') || !compactCss.includes('minmax(0,1fr)')) throw new Error('Viewport-fit table layout missing');
 if (!app.includes('const renderMemo') || !app.includes('activeInspectorTab') || !app.includes('schedulePersist()') || !app.includes('publicStatsCacheHand')) throw new Error('0.2.8 render/persistence optimization missing');
 if (!app.includes('decisionTelemetryHtml') || !index.includes('id="decisionHand"') || !index.includes('id="decisionOptionCount"')) throw new Error('Stable decision instrument / feed telemetry UI missing');
 if (!css.includes('0.2.13 — spectator dashboard polish')) throw new Error('Spectator dashboard polish missing');
@@ -245,10 +242,10 @@ if (!index.includes('id="saveReplayImage"') || !index.includes('id="copyReplayIm
 if (!css.includes('0.2.19 — replay modal + social sharing')) throw new Error('0.2.19 replay modal polish missing');
 
 if (!app.includes('seatLayoutDiagnostics') || !app.includes('clampSeatIntoTable') || !app.includes("'micro'") || !app.includes('ResizeObserver')) throw new Error('0.2.20 viewport-driven seat fitting missing');
-if (!css.includes('0.2.20 — true viewport-fit seating') || !css.includes('data-density="micro"')) throw new Error('0.2.20 micro density CSS missing');
+if (!css.includes('0.2.20 — true viewport-fit seating') || !compactCss.includes('@media(max-width:420px)')) throw new Error('Narrow-screen seat-density CSS missing');
 
 if (!app.includes('function setDecisionContext') || !app.includes('protocolDisplay(')) throw new Error('0.2.21 stable decision instrument missing');
-if (!css.includes('0.2.21 — visible-table sizing + stable decision instrument') || !css.includes('flex:1 1 0!important') || !css.includes('height:0!important')) throw new Error('0.2.21 visible table sizing CSS missing');
+if (!css.includes('0.2.21 — visible-table sizing + stable decision instrument') || !compactCss.includes('.poker-table{position:relative;min-height:0;flex:11auto')) throw new Error('Visible table sizing CSS missing');
 
 if (!index.includes('<script src="./arena-env.js"></script>') || !existsSync(join(root,'src','env','arena-env.js')) || !existsSync(join(root,'.env.example'))) throw new Error('0.2.22 .env bootstrap assets missing');
 const launcher = readFileSync(join(root,'bin','pokertools-arena.mjs'),'utf8');
@@ -290,10 +287,10 @@ if (!css.includes('0.4.0 — methodology')) throw new Error('0.4.0 methodology m
 if (!app.includes("tooltipEl.className = 'ui-tooltip'")) throw new Error('Floating tooltip controller missing');
 if (!app.includes('function positionTooltip(') || !app.includes('function showTooltip(') || !app.includes("dataset.tip")) throw new Error('Tooltip positioning/data-tip wiring missing');
 if (!app.includes("dialog.addEventListener('close', hideTooltip)")) throw new Error('Tooltips must hide when a modal closes');
-if (!css.includes('.ui-tooltip{position:fixed')) throw new Error('Tooltip must be fixed-position to escape modal clipping');
+if (!compactCss.includes('.ui-tooltip{position:fixed')) throw new Error('Tooltip must be fixed-position to escape modal clipping');
 if (css.includes('.info-button::after')) throw new Error('Clipped pseudo-element tooltip still present');
 // Turn-ring timing must derive from configuration, never a hardcoded budget.
-if (!app.includes('const TIMING_DEFAULTS = Object.freeze(')) throw new Error('Configurable timing defaults missing');
+if (!config.includes('export const TIMING_DEFAULTS = Object.freeze(')) throw new Error('Configurable timing defaults missing');
 if (!app.includes('decisionClockPhase(')) throw new Error('Turn ring must use the shared clock phase');
 if (!core.includes('phaseRemaining / phaseTotal')) throw new Error('Shared clock/ring phase missing');
 if (!app.includes('lowTimeMs') || !app.includes('lowTimeFraction')) throw new Error('Configurable low-time thresholds missing');
@@ -338,5 +335,3 @@ try {
 
 }
 console.log('release-check: PASS');
-
-if (!css.includes('0.2.17 — unclipped current decision layout') || !css.includes('flex:1 1 auto') || !css.includes('scrollbar-gutter:stable')) throw new Error('0.2.17 current decision layout polish missing');

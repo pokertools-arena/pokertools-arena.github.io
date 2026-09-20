@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.8.0.** The tab-audio recording release: table recordings now capture the current tab's own audio from `getDisplayMedia()` and rebuild video frames through a timestamp-preserving `MediaStreamTrackProcessor` → `VideoFrame` pipeline, so the exported WebM keeps audio and picture on the same capture clock at up to 2560×1440.
+> **Current release: 0.9.0.** A responsive interface and configuration release: the table, inspector, logs, decision history, and dialogs now adapt cleanly from phones to wide displays. Tournament defaults are centralized, with 30 seconds per action and 3,000 starting chips.
 
 ---
 
@@ -107,6 +107,8 @@ The table **is** the player editor. A fresh launch shows empty seats around the 
 3. Configure **Settings → Connections** (base URLs and keys) and **Settings → Tournament** (stack, blinds, clock, benchmark mode, architecture, representation).
 4. Press **Start**. Only configured seats enter the tournament, and seat editing locks while it runs.
 
+Defaults and validation limits live in [`src/config/arena-config.js`](./src/config/arena-config.js). A host page may override any value before loading `app.js` by assigning a partial object to `window.__POKERTOOLS_ARENA_CONFIG__`; the arena deep-merges it with the documented defaults.
+
 ## `.env` bootstrap
 
 The launcher reads `.env` from the current working directory (falling back to the package root) and injects only supported fields into page memory. Disable with `--no-env`. A real user `.env` is never moved, printed or archived.
@@ -117,7 +119,7 @@ OPENAI_API_KEY="sk-or-v1-..."
 OPENAI_PLAYER1=google/gemma-4-26b-a4b-it
 OPENAI_PLAYER2=qwen/qwen3.8-flash
 OPENAI_PLAYER3=typesafe/jev-1.13
-OPENAI_STARTING_STACK=10000
+OPENAI_STARTING_STACK=3000
 ```
 
 | Variable | Notes |
@@ -125,7 +127,7 @@ OPENAI_STARTING_STACK=10000
 | `OPENAI_BASE_URL` | Defaults to `https://api.openai.com/v1`; OpenRouter URLs are auto-detected. |
 | `OPENAI_API_KEY` | Optional for local/unauthenticated endpoints. |
 | `OPENAI_PLAYER1` … `OPENAI_PLAYER10` | Each value seats one model; Jev models auto-route to Decisions on OpenRouter. |
-| `OPENAI_STARTING_STACK` | Chip stack per seat (minimum 100, default 10000). |
+| `OPENAI_STARTING_STACK` | Chip stack per seat (minimum 100, default 3000). |
 
 See [`.env.example`](./.env.example).
 
@@ -186,6 +188,7 @@ pokertools-arena/
 ├── bin/pokertools-arena.mjs            local static launcher + .env bootstrap
 ├── src/                                browser application source
 │   ├── index.html · app.js · styles.css
+│   ├── config/arena-config.js           defaults, limits, presets, host overrides
 │   ├── lib/decision-core.js            canonical DOM-free decision core
 │   ├── benchmark/scenarios.js          in-app sanity scenarios
 │   ├── env/arena-env.js                .env placeholder injected by the launcher

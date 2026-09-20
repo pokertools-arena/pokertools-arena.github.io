@@ -1,5 +1,25 @@
 # Release notes
 
+## 0.9.0 — responsive interface and centralized configuration
+
+- Rebuilt the visual system around a compact token set and a single coherent
+  responsive cascade. The arena now fits desktop viewports without page-level
+  overflow and prioritizes the table before the inspector on tablets and phones.
+- Redesigned the inspector, event archive, decision history, statistics cards,
+  tournament table, and all four dialogs for clearer hierarchy, larger touch
+  targets, resilient text wrapping, sticky modal structure, and safe-area-aware
+  mobile layouts.
+- Added visible event counts, human-readable log labels, clearer newest-first
+  history context, and improved category rails so long runs remain easy to scan.
+- Centralized game defaults, validation limits, connection presets, and history
+  retention in `src/config/arena-config.js`. Host pages can override the full
+  configuration through `window.__POKERTOOLS_ARENA_CONFIG__`; the setup form is
+  populated from that source instead of duplicating values in HTML.
+- Changed the default action clock to **30 seconds** and the default starting
+  stack to **3,000 chips**, including the local launcher and documentation.
+- Removed unused decision imports, a dead action-history serializer, a hidden
+  winner-banner anchor, stale asset versions, and a write-only browser flag.
+
 ## 0.8.0 — tab-audio recording with timestamp-preserving A/V sync
 
 - **Recordings capture the current tab's own audio.** The recorder now requests
@@ -636,4 +656,3 @@ Strict diagnostics were preserved: Layer A (action-id mapping) 100%, Layer D
 (strictly dominated) 100% flat / 94% hierarchical, Layer B (raw hand
 recognition) 62% — the same cross-model weakness as before, and the reason
 Strategy mode exists.
-

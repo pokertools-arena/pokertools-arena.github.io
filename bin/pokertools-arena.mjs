@@ -79,7 +79,7 @@ function envBootstrap(values, overrides = {}) {
   };
   const autostart = truthy(flagOrEnv('OPENAI_AUTOSTART'));
   const maxDecisions = Math.max(0, Math.round(Number(flagOrEnv('OPENAI_MAX_DECISIONS') || 0) || 0));
-  const startingStack = Math.max(100, Math.round(Number(flagOrEnv('OPENAI_STARTING_STACK') || 10_000) || 10_000));
+  const startingStack = Math.max(100, Math.round(Number(flagOrEnv('OPENAI_STARTING_STACK') || 3_000) || 3_000));
   return {
     source: '.env',
     settings: {

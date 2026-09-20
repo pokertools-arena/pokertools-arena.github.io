@@ -1,20 +1,24 @@
 import { createBrowserEngine as createPokerToolsBrowserEngine } from '@pokertools/engine/browser';
 import { DECISION_SANITY_SCENARIOS } from './benchmark/scenarios.js';
 import {
-  ACTION, DECISION_CONTEXT_VERSION, RECENT_PUBLIC_HANDS, DECISION_OBJECTIVE, INFORMATION_POLICY,
+  ARENA_CONFIG, TABLE_DEFAULTS, TIMING_DEFAULTS, CONFIG_LIMITS,
+  CONNECTION_PRESETS, HISTORY_CONFIG, applyConfiguredFormDefaults, defaultConnections,
+} from './config/arena-config.js';
+import {
+  ACTION, RECENT_PUBLIC_HANDS,
   asNumber, round, clamp, summarizeError, ArenaRequestError, requestErrorCategory, decisionErrorCategory,
   retryDelayMs, sleepWithSignal, fetchJsonWithRetry, isUnsupportedToolChoiceError, mapGet, jsonSafe,
-  normalizeBaseUrl, completionsUrl, openRouterDecisionsUrl, isOpenRouterConnection, isJevModel, isReasoningModel,
+  normalizeBaseUrl, completionsUrl, openRouterDecisionsUrl, isOpenRouterConnection, isJevModel,
   effectiveProtocol, modelsUrl, parseHeaders, makeHeaders, combineAbort,
   playerCards, playerStack, currentBet, totalPot, clockwiseSeats, POSITION_TABLE, positionForSeat,
   describeAction, tryCandidate, legalActionCandidates, fallbackAction,
-  serializeForAgent, assertDecisionState, extractTextContent, stripCodeFence, normalizeDecisionObject, pokerPrompt,
+  serializeForAgent, assertDecisionState, extractTextContent, stripCodeFence,
   decideOpenAICompatible, decideJevDecisions, decideJevNative, decide, decideHierarchical, protocolCapabilityCache,
   registerModelCapabilities,
-  actionCriteria, heroHandSummary,
+  heroHandSummary,
   BENCHMARK_MODES, DECISION_ARCHITECTURES, DEFAULT_BENCHMARK_MODE, DEFAULT_DECISION_ARCHITECTURE,
   REPRESENTATION_MODES, DEFAULT_REPRESENTATION_MODE, DECISION_ARCHITECTURE_VERSION,
-  legalActionFamilies, legalAggressiveSizes, buildHierarchicalDecision, familyCriteria, sizeCriteria,
+  legalAggressiveSizes, buildHierarchicalDecision, familyCriteria, sizeCriteria,
   applyBenchmarkMode, renderDecisionState, aggregateActionProbabilitiesByFamily, probabilityStats, SIZE_LABELS,
   isAggressiveType, familyForActionType, FAMILY_LABELS, decisionClockPhase,
 } from './lib/decision-core.js';
@@ -34,9 +38,9 @@ const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const els = {
   startTopBtn: $('#startTopBtn'), seatsBtn: $('#seatsBtn'), soundBtn: $('#soundBtn'), recordBtn: $('#recordBtn'), exportBtn: $('#exportBtn'), setupBtn: $('#setupBtn'), testsBtn: $('#testsBtn'), pauseBtn: $('#pauseBtn'), stopBtn: $('#stopBtn'),
   statusDot: $('#statusDot'), statusLabel: $('#statusLabel'), tournamentMeta: $('#tournamentMeta'),
-  pokerTable: $('#pokerTable'), seatsLayer: $('#seatsLayer'), fxLayer: $('#fxLayer'), actionToast: $('#actionToast'), board: $('#board'), potValue: $('#potValue'), blindsValue: $('#blindsValue'), anteValue: $('#anteValue'), handValue: $('#handValue'), levelValue: $('#levelValue'), streetLabel: $('#streetLabel'), winnerBanner: $('#winnerBanner'),
+  pokerTable: $('#pokerTable'), seatsLayer: $('#seatsLayer'), fxLayer: $('#fxLayer'), actionToast: $('#actionToast'), board: $('#board'), potValue: $('#potValue'), blindsValue: $('#blindsValue'), anteValue: $('#anteValue'), handValue: $('#handValue'), levelValue: $('#levelValue'), streetLabel: $('#streetLabel'),
   decisionPanelTitle: $('#decisionPanelTitle'), decisionEmpty: $('#decisionEmpty'), decisionCard: $('#decisionCard'), decisionPlayer: $('#decisionPlayer'), decisionModel: $('#decisionModel'), decisionPhase: $('#decisionPhase'), decisionClock: $('#decisionClock'), bankClock: $('#bankClock'), decisionHand: $('#decisionHand'), decisionStreet: $('#decisionStreet'), decisionPosition: $('#decisionPosition'), decisionOptionCount: $('#decisionOptionCount'), decisionActionLabel: $('#decisionActionLabel'), decisionActionHint: $('#decisionActionHint'), legalActions: $('#legalActions'), decisionLabelHand: $('#decisionLabelHand'), decisionLabelStreet: $('#decisionLabelStreet'), decisionLabelPosition: $('#decisionLabelPosition'), decisionLabelOptions: $('#decisionLabelOptions'),
-  decisionFeed: $('#decisionFeed'), eventLog: $('#eventLog'), logSummary: $('#logSummary'), logSearch: $('#logSearch'), logFilter: $('#logFilter'), logClear: $('#logClear'), statsGrid: $('#statsGrid'),
+  decisionFeed: $('#decisionFeed'), decisionFeedSummary: $('#decisionFeedSummary'), eventLog: $('#eventLog'), logSummary: $('#logSummary'), logTabCount: $('#logTabCount'), logSearch: $('#logSearch'), logFilter: $('#logFilter'), logClear: $('#logClear'), statsGrid: $('#statsGrid'),
   setupDialog: $('#setupDialog'), setupForm: $('#setupForm'), closeSetup: $('#closeSetup'), setupError: $('#setupError'), saveSettingsBtn: $('#saveSettingsBtn'), seatSummary: $('#seatSummary'),
   connectionsEditor: $('#connectionsEditor'), connectionRowTemplate: $('#connectionRowTemplate'), addConnectionBtn: $('#addConnectionBtn'),
   seatDialog: $('#seatDialog'), seatForm: $('#seatForm'), closeSeat: $('#closeSeat'), seatDialogTitle: $('#seatDialogTitle'), seatLockNotice: $('#seatLockNotice'),
@@ -55,7 +59,7 @@ let audioContext = null;
 let soundMasterGain = null;
 let lastVisualState = null;
 let lastProcessedEventId = null;
-const MAX_LOBBY_SEATS = 10;
+const MAX_LOBBY_SEATS = TABLE_DEFAULTS.maxPlayers;
 let seatAssignments = Array(MAX_LOBBY_SEATS).fill(null);
 let editingSeatIndex = null;
 let seatNameAuto = false;
@@ -76,15 +80,6 @@ let activeDecisionClockId = null;
 let tableRecording = null;
 let currentReplayEvent = null;
 const renderMemo = { status: '', table: '', decision: '', feed: '', events: '', stats: '' };
-
-const TIMING_DEFAULTS = Object.freeze({
-  actionSeconds: 20,
-  timeBankSeconds: 30,
-  lowTimeSeconds: 5,
-  lowTimeFraction: 0.25,
-  betweenActionsMs: 250,
-  betweenHandsMs: 700,
-});
 
 function animationsAllowed() {
   return document.visibilityState === 'visible' && !globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -309,11 +304,6 @@ function processVisualEffects(s) {
   lastVisualState = s;
 }
 
-const defaultConnections = [
-  { name: 'API', kind: 'openai', baseUrl: 'https://api.openai.com/v1', apiKey: '', headers: '' },
-];
-const defaultPlayers = [];
-
 function injectedEnvironmentConfig() {
   const raw = globalThis.__POKERTOOLS_ENV__;
   if (!raw || typeof raw !== 'object') return null;
@@ -322,7 +312,7 @@ function injectedEnvironmentConfig() {
   if (!connections.length && !players.length) return null;
   const settings = raw.settings && typeof raw.settings === 'object'
     ? {
-      startingStack: Math.max(100, Math.round(Number(raw.settings.startingStack) || 10_000)),
+      startingStack: Math.max(CONFIG_LIMITS.startingStack.min, Math.round(Number(raw.settings.startingStack) || TABLE_DEFAULTS.startingStack)),
       autostart: Boolean(raw.settings.autostart),
       maxDecisions: Math.max(0, Math.round(Number(raw.settings.maxDecisions) || 0)),
     }
@@ -333,7 +323,7 @@ function injectedEnvironmentConfig() {
       id: String(c.id || `env-connection-${index + 1}`),
       name: String(c.name || 'API'),
       kind: ['openai','openrouter','typesafe'].includes(c.kind) ? c.kind : 'openai',
-      baseUrl: String(c.baseUrl || 'https://api.openai.com/v1'),
+      baseUrl: String(c.baseUrl || CONNECTION_PRESETS.openai),
       apiKey: String(c.apiKey || ''),
       headers: String(c.headers || ''),
     })),
@@ -429,18 +419,6 @@ function cardHtml(card, empty = false, extraClass = '', rankOnlyCorners = false)
 async function loadPokerTools() {
   engineModule = { createBrowserEngine: createPokerToolsBrowserEngine };
   return engineModule;
-}
-function serializeActionHistory(state, limit = 128) {
-  const rows = Array.isArray(state?.actionHistory) ? state.actionHistory.slice(-limit) : [];
-  return rows.map(row => {
-    if (typeof row === 'string') return row;
-    const seat = row.seat ?? row.playerSeat ?? null;
-    const player = seat != null ? state.players?.[seat] : null;
-    const action = row.action && typeof row.action === 'object' ? row.action : row;
-    const who = row.playerName ?? player?.name ?? action.playerId ?? (seat != null ? `Seat ${seat + 1}` : 'Table');
-    const amount = action.amount != null ? ` ${action.amount}` : '';
-    return `${who}: ${action.type ?? 'ACTION'}${amount}`;
-  });
 }
 function publicWinnerSummary(winners, players = []) {
   if (!Array.isArray(winners)) return [];
@@ -554,7 +532,7 @@ function buildBlindStructure(config) {
   let sb = Math.max(1, Math.round(config.smallBlind));
   let bb = Math.max(sb * 2, Math.round(config.bigBlind));
   let ante = Math.max(0, Math.round(config.ante || 0));
-  const multiplier = clamp(Number(config.blindMultiplier) || 1.5, 1.1, 3);
+  const multiplier = clamp(Number(config.blindMultiplier) || TABLE_DEFAULTS.blindMultiplier, CONFIG_LIMITS.blindMultiplier.min, CONFIG_LIMITS.blindMultiplier.max);
   const safe = value => Number.isSafeInteger(value) && value >= 0;
   for (let i = 0; i < 60; i++) {
     if (!safe(sb) || !safe(bb) || !safe(ante)) break;
@@ -569,7 +547,7 @@ function buildBlindStructure(config) {
   return levels;
 }
 function normalizeConfig(input = {}) {
-  const players = Array.isArray(input.players) ? input.players.slice(0, 10) : [];
+  const players = Array.isArray(input.players) ? input.players.slice(0, MAX_LOBBY_SEATS) : [];
   const connections = Array.isArray(input.connections) ? input.connections : [];
   if (players.length < 2) throw new Error('At least 2 players are required');
   if (!connections.length) throw new Error('Add at least one API connection');
@@ -583,17 +561,17 @@ function normalizeConfig(input = {}) {
     parseHeaders(c.headers);
     return { ...c, baseUrl: normalizeBaseUrl(c.baseUrl) };
   });
-  const smallBlind = Math.max(1, Math.round(Number(input.smallBlind) || 25));
-  const bigBlind = Math.max(2, Math.round(Number(input.bigBlind) || 50));
+  const smallBlind = Math.max(CONFIG_LIMITS.smallBlind.min, Math.round(Number(input.smallBlind) || TABLE_DEFAULTS.smallBlind));
+  const bigBlind = Math.max(CONFIG_LIMITS.bigBlind.min, Math.round(Number(input.bigBlind) || TABLE_DEFAULTS.bigBlind));
   if (bigBlind < smallBlind * 2) throw new Error('Big blind must be at least twice the small blind');
   return {
-    id: id('tournament'), name: 'pokertools-arena', startingStack: Math.max(100, Math.round(Number(input.startingStack) || 10_000)),
-    smallBlind, bigBlind, ante: Math.max(0, Math.round(Number(input.ante) || 0)),
-    handsPerLevel: Math.max(1, Math.round(Number(input.handsPerLevel) || 8)), blindMultiplier: clamp(Number(input.blindMultiplier) || 1.5, 1.1, 3),
-    actionSeconds: clamp(Number(input.actionSeconds) || TIMING_DEFAULTS.actionSeconds, 1, 120), timeBankSeconds: clamp(Number(input.timeBankSeconds) || TIMING_DEFAULTS.timeBankSeconds, 0, 600),
-    lowTimeSeconds: clamp(Number.isFinite(Number(input.lowTimeSeconds)) ? Number(input.lowTimeSeconds) : TIMING_DEFAULTS.lowTimeSeconds, 0, 600),
-    lowTimeFraction: clamp(Number.isFinite(Number(input.lowTimeFraction)) ? Number(input.lowTimeFraction) : TIMING_DEFAULTS.lowTimeFraction, 0, 1),
-    betweenActionsMs: clamp(Number(input.betweenActionsMs) || TIMING_DEFAULTS.betweenActionsMs, 0, 5000), betweenHandsMs: clamp(Number(input.betweenHandsMs) || TIMING_DEFAULTS.betweenHandsMs, 0, 10000),
+    id: id('tournament'), name: 'pokertools-arena', startingStack: Math.max(CONFIG_LIMITS.startingStack.min, Math.round(Number(input.startingStack) || TABLE_DEFAULTS.startingStack)),
+    smallBlind, bigBlind, ante: Math.max(CONFIG_LIMITS.ante.min, Math.round(Number(input.ante) || TABLE_DEFAULTS.ante)),
+    handsPerLevel: Math.max(CONFIG_LIMITS.handsPerLevel.min, Math.round(Number(input.handsPerLevel) || TABLE_DEFAULTS.handsPerLevel)), blindMultiplier: clamp(Number(input.blindMultiplier) || TABLE_DEFAULTS.blindMultiplier, CONFIG_LIMITS.blindMultiplier.min, CONFIG_LIMITS.blindMultiplier.max),
+    actionSeconds: clamp(Number(input.actionSeconds) || TIMING_DEFAULTS.actionSeconds, CONFIG_LIMITS.actionSeconds.min, CONFIG_LIMITS.actionSeconds.max), timeBankSeconds: clamp(Number(input.timeBankSeconds) || TIMING_DEFAULTS.timeBankSeconds, CONFIG_LIMITS.timeBankSeconds.min, CONFIG_LIMITS.timeBankSeconds.max),
+    lowTimeSeconds: clamp(Number.isFinite(Number(input.lowTimeSeconds)) ? Number(input.lowTimeSeconds) : TIMING_DEFAULTS.lowTimeSeconds, CONFIG_LIMITS.lowTimeSeconds.min, CONFIG_LIMITS.lowTimeSeconds.max),
+    lowTimeFraction: clamp(Number.isFinite(Number(input.lowTimeFraction)) ? Number(input.lowTimeFraction) : TIMING_DEFAULTS.lowTimeFraction, CONFIG_LIMITS.lowTimeFraction.min, CONFIG_LIMITS.lowTimeFraction.max),
+    betweenActionsMs: clamp(Number(input.betweenActionsMs) || TIMING_DEFAULTS.betweenActionsMs, CONFIG_LIMITS.betweenActionsMs.min, CONFIG_LIMITS.betweenActionsMs.max), betweenHandsMs: clamp(Number(input.betweenHandsMs) || TIMING_DEFAULTS.betweenHandsMs, CONFIG_LIMITS.betweenHandsMs.min, CONFIG_LIMITS.betweenHandsMs.max),
     connections: cleanConnections,
     benchmarkMode: input.benchmarkMode === BENCHMARK_MODES.RAW ? BENCHMARK_MODES.RAW : DEFAULT_BENCHMARK_MODE,
     decisionArchitecture: input.decisionArchitecture === DECISION_ARCHITECTURES.FLAT ? DECISION_ARCHITECTURES.FLAT : DEFAULT_DECISION_ARCHITECTURE,
@@ -695,7 +673,7 @@ class TournamentDirector {
     }
     const publicPlayerStats = this.config ? this.publicStatsCache : [];
     return { tournamentId: this.config?.id ?? null, status: this.status, config: this.publicConfig(), startedAt: this.startedAt, finishedAt: this.finishedAt, winner: this.winner,
-      eliminations: [...this.eliminations], currentDecision: this.currentDecision, table: spectatorState(this.engine, this.tournamentMeta()), stats: this.stats, publicPlayerStats, timeBanks: this.timeBanks, events: this.events.slice(-300) };
+      eliminations: [...this.eliminations], currentDecision: this.currentDecision, table: spectatorState(this.engine, this.tournamentMeta()), stats: this.stats, publicPlayerStats, timeBanks: this.timeBanks, events: this.events.slice(-HISTORY_CONFIG.snapshotEvents) };
   }
   broadcast() { this.onUpdate(this.snapshot()); }
   logEvent(type, data = {}) {
@@ -710,7 +688,7 @@ class TournamentDirector {
   persistLightweight() {
     try {
       const state = this.snapshot();
-      const lightweight = { ...state, events: state.events.slice(-100), currentDecision: null };
+      const lightweight = { ...state, events: state.events.slice(-HISTORY_CONFIG.persistedEvents), currentDecision: null };
       storageSet('pokertoolsArenaLastState', JSON.stringify(lightweight));
     } catch {}
   }
@@ -979,16 +957,12 @@ function refreshSeatConnectionSelect(selected = null) {
   applySeatProtocolRules();
 }
 function connectionPresetUrl(kind) {
-  if (kind === 'openrouter') return 'https://openrouter.ai/api/v1';
-  if (kind === 'typesafe') return 'https://api.typesafe.ai/v1/systemone';
-  return 'https://api.openai.com/v1';
+  return CONNECTION_PRESETS[kind] || CONNECTION_PRESETS.openai;
 }
 function shouldReplacePresetUrl(value) {
   const normalized = normalizeBaseUrl(value);
   return !normalized || [
-    'https://api.openai.com/v1',
-    'https://openrouter.ai/api/v1',
-    'https://api.typesafe.ai/v1/systemone',
+    ...Object.values(CONNECTION_PRESETS),
   ].includes(normalized);
 }
 function addConnectionRow(connection = {}) {
@@ -1012,9 +986,9 @@ function addConnectionRow(connection = {}) {
   $('[data-field=kind]', row).addEventListener('change', () => {
     const kind = $('[data-field=kind]', row).value;
     const url = $('[data-field=baseUrl]', row);
-    if (kind === 'typesafe' && (!url.value || url.value.includes('openrouter.ai'))) url.value = 'https://api.typesafe.ai/v1/systemone';
-    if (kind === 'openrouter' && (!url.value || url.value.includes('typesafe.ai'))) url.value = 'https://openrouter.ai/api/v1';
-    if (kind === 'openai' && (!url.value || url.value.includes('typesafe.ai'))) url.value = 'https://api.openai.com/v1';
+    if (kind === 'typesafe' && (!url.value || url.value.includes('openrouter.ai'))) url.value = CONNECTION_PRESETS.typesafe;
+    if (kind === 'openrouter' && (!url.value || url.value.includes('typesafe.ai'))) url.value = CONNECTION_PRESETS.openrouter;
+    if (kind === 'openai' && (!url.value || url.value.includes('typesafe.ai'))) url.value = CONNECTION_PRESETS.openai;
     refreshSeatConnectionSelect();
   });
   $('.remove-connection', row).addEventListener('click', () => {
@@ -1227,7 +1201,7 @@ function saveSeatAssignments() {
 }
 function restoreSeatAssignments(rows = []) {
   seatAssignments = Array(MAX_LOBBY_SEATS).fill(null);
-  const sources = rows.length ? rows : defaultPlayers;
+  const sources = rows;
   sources.slice(0, MAX_LOBBY_SEATS).forEach((player, index) => {
     const lobbySeat = clamp(Math.round(Number(player.lobbySeat ?? index)), 0, MAX_LOBBY_SEATS - 1);
     let connectionId = player.connectionId || '';
@@ -1282,9 +1256,10 @@ async function primeModelCapabilities() {
   }));
 }
 function restoreSetup() {
+  applyConfiguredFormDefaults(els.setupForm);
   let saved = null; try { saved = JSON.parse(storageGet('pokertoolsArenaBrowserConfig')); } catch {}
   const injected = injectedEnvironmentConfig();
-  const conns = injected?.connections?.length ? injected.connections : (saved?.connections?.length ? saved.connections : defaultConnections);
+  const conns = injected?.connections?.length ? injected.connections : (saved?.connections?.length ? saved.connections : defaultConnections());
   conns.forEach(addConnectionRow);
   restoreSeatAssignments(injected?.players?.length ? injected.players : (saved?.players?.length ? saved.players : []));
   capabilityPrime = primeModelCapabilities();
@@ -1307,7 +1282,7 @@ function renderLobbyIfVisible() {
   if (lobbyVisible && (!director || !['RUNNING', 'PAUSED'].includes(director.status))) renderTable(currentState || { status: 'IDLE', events: [] });
 }
 
-const TABLE_MIN_PLAYERS = 2;
+const TABLE_MIN_PLAYERS = TABLE_DEFAULTS.minPlayers;
 
 function visualSeatAngle(index, count) {
   const safeCount = Math.max(TABLE_MIN_PLAYERS, Math.min(MAX_LOBBY_SEATS, Math.round(Number(count) || TABLE_MIN_PLAYERS)));
@@ -1470,7 +1445,6 @@ function renderLobbyTable() {
   els.handValue.textContent = '—';
   els.levelValue.textContent = '—';
   els.streetLabel.textContent = 'LOBBY';
-  els.winnerBanner.classList.add('hidden');
 }
 function renderStatus(s) {
   const status = s?.status || 'IDLE';
@@ -1535,7 +1509,6 @@ function renderTable(s) {
   els.levelValue.title = `Level ${Number(table.blindLevel ?? 0) + 1}`;
   els.streetLabel.textContent = s.status === 'FINISHED' && s.winner ? `WINNER · ${displayModelName(s.winner.model || '')}` : (table.street || '—');
   els.streetLabel.classList.toggle('winner-street', s.status === 'FINISHED' && Boolean(s.winner));
-  els.winnerBanner.classList.add('hidden');
 }
 function clearTurnRings(keep = null) {
   for (const el of $$('.seat.turn-active')) if (el !== keep) el.classList.remove('turn-active');
@@ -1770,7 +1743,7 @@ function renderDecision(s) {
 function renderFeed(s) {
 
   const feedArchive = eventArchive(s);
-  const events = feedArchive.filter(e => e.type === 'DECISION').slice(-12).reverse();
+  const events = feedArchive.filter(e => e.type === 'DECISION').slice(-HISTORY_CONFIG.recentDecisions).reverse();
   const explanations = new Map(feedArchive.filter(e => e.type === 'SPECTATOR_EXPLANATION').map(e => [e.decisionId, e.text]));
   els.decisionFeed.innerHTML = events.length ? events.map(e => {
     const infra = [];
@@ -1782,6 +1755,7 @@ function renderFeed(s) {
     const reason = explanations.get(e.decisionId) || e.publicReason || (e.decisionMeta?.family ? 'Typed decision (no text rationale)' : 'No public rationale');
     return `<button type="button" class="decision-item decision-history-item ${e.error ? 'error' : ''}" data-decision-id="${escapeHtml(e.id)}" aria-label="Replay ${escapeHtml(displayModelName(e.configuredModel || e.resolvedModel || ''))} decision"><div class="decision-item-head"><strong title="${escapeHtml(e.configuredModel || e.resolvedModel || '')}">${escapeHtml(displayModelName(e.configuredModel || e.resolvedModel || ''))}</strong><span class="decision-item-action">${escapeHtml(e.action?.description || '—')}</span></div><div class="decision-reason">${escapeHtml(reason)}</div>${telemetry ? `<div class="decision-item-telemetry">${telemetry}</div>` : ''}<div class="decision-meta mono">${escapeHtml(e.connection || '')} · ${escapeHtml(shortModel(e.resolvedModel || e.configuredModel || ''))} · ${e.primaryDecisionLatencyMs || e.latencyMs || 0}ms${infra.length ? ` · ${escapeHtml(infra.join(' · '))}` : ''}${e.error ? ` · ${escapeHtml(e.error)}` : ''}<span class="decision-replay-hint">View hand ↗</span></div></button>`;
   }).join('') : '<div class="empty-state">No decisions yet.</div>';
+  if (els.decisionFeedSummary) els.decisionFeedSummary.textContent = events.length ? `${events.length} most recent` : 'Newest first';
 }
 function eventArchive(s = currentState) {
   if (director?.events?.length) return director.events;
@@ -1833,6 +1807,7 @@ function eventMatchesView(event) {
 function renderEvents(s) {
   const archive = eventArchive(s);
   const events = archive.filter(eventMatchesView).reverse();
+  if (els.logTabCount) els.logTabCount.textContent = archive.length > 999 ? '999+' : String(archive.length);
   if (els.logSummary) {
     const suffix = events.length === archive.length ? 'full run' : `${events.length} shown`;
     els.logSummary.textContent = `${archive.length.toLocaleString()} event${archive.length === 1 ? '' : 's'} · ${suffix}`;
@@ -1847,7 +1822,7 @@ function renderEvents(s) {
     const attrs = replayable ? ` type="button" data-decision-id="${escapeHtml(e.id)}" aria-label="Replay ${escapeHtml(detail || 'decision')}"` : '';
     return `<${tag}${attrs} class="event-row event-${category}${e.error || e.type?.includes?.('ERROR') ? ' has-error' : ''}">
       <span class="event-rail" aria-hidden="true"></span>
-      <span class="event-main"><span class="event-row-head"><span class="event-type">${escapeHtml(e.type)}</span><time class="event-time mono" datetime="${new Date(e.at).toISOString()}">${escapeHtml(time)}</time></span>${detail ? `<span class="event-detail">${escapeHtml(detail)}</span>` : ''}${meta ? `<span class="event-meta mono">${escapeHtml(meta)}</span>` : ''}</span>
+      <span class="event-main"><span class="event-row-head"><span class="event-type">${escapeHtml(e.type.replaceAll('_', ' '))}</span><time class="event-time mono" datetime="${new Date(e.at).toISOString()}">${escapeHtml(time)}</time></span>${detail ? `<span class="event-detail">${escapeHtml(detail)}</span>` : ''}${meta ? `<span class="event-meta mono">${escapeHtml(meta)}</span>` : ''}</span>
       ${replayable ? '<span class="event-open" aria-hidden="true">↗</span>' : ''}
     </${tag}>`;
   }).join('') || '<div class="empty-state log-empty">No events match these filters.</div>';
@@ -1899,6 +1874,10 @@ function statsRenderSignature(s) {
 }
 function render(s, { force = false } = {}) {
   currentState = s;
+  if (els.logTabCount) {
+    const eventCount = eventArchive(s).length;
+    els.logTabCount.textContent = eventCount > 999 ? '999+' : String(eventCount);
+  }
   const statusSig = statusRenderSignature(s);
   if (force || renderMemo.status !== statusSig) { renderMemo.status = statusSig; renderStatus(s); }
   const tableSig = tableRenderSignature(s);
@@ -2857,7 +2836,7 @@ els.clearTestsBtn.addEventListener('click', () => {
 });
 els.setupBtn.addEventListener('click', openSetup);
 els.closeSetup.addEventListener('click', () => els.setupDialog.close());
-els.addConnectionBtn.addEventListener('click', () => addConnectionRow({ name: `API ${els.connectionsEditor.children.length + 1}`, kind: 'openai', baseUrl: 'https://api.openai.com/v1' }));
+els.addConnectionBtn.addEventListener('click', () => addConnectionRow({ name: `API ${els.connectionsEditor.children.length + 1}`, kind: ARENA_CONFIG.connections.defaultKind, baseUrl: connectionPresetUrl(ARENA_CONFIG.connections.defaultKind) }));
 els.pauseBtn.addEventListener('click', () => { if (!director) return; currentState?.status === 'PAUSED' ? director.resume() : director.pause(); });
 els.stopBtn.addEventListener('click', () => {
   if (!director) return;
@@ -3032,8 +3011,6 @@ loadPokerTools().catch(err => {
   els.setupError.textContent = `PokerTools browser build failed to load: ${summarizeError(err)}. Check your internet connection or CDN access.`;
   els.setupError.classList.remove('hidden'); openSetup({ preserveError: true });
 });
-if (!storageGet('pokertoolsArenaBrowserSeen')) storageSet('pokertoolsArenaBrowserSeen', '1');
-
 let resizeTimer = null;
 function relayoutForViewport() {
   clearTimeout(resizeTimer);
