@@ -81,7 +81,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.9.2') throw new Error('Expected release version 0.9.2');
+if (pkg.version !== '0.9.3') throw new Error('Expected release version 0.9.3');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -310,6 +310,13 @@ if (!core.includes("if (!headers['HTTP-Referer'] &&") || !core.includes("if (!he
 if (!compactCss.includes('.poker-table{position:relative') || !css.includes('#07090b 100%')) throw new Error('Dark casino-table surround missing');
 if (!compactCss.includes('.felt-ring::before{') || !compactCss.includes('.felt-ring::after{')) throw new Error('Layered felt texture missing');
 if (!css.includes('repeating-linear-gradient(96deg') || !css.includes('0 22px 38px')) throw new Error('Dimensional wood rail missing');
+// 0.9.3 — poker-table prototype port: room wallpaper and card-style seats.
+if (!index.includes('class="wallpaper"') || !css.includes('.wallpaper-row')) throw new Error('Suit wallpaper backdrop missing');
+if (!css.includes('grid-template-areas: "head stack"') || !css.includes('grid-template-areas: "head stack" "action action" "cards cards"')) throw new Error('Card-style seat grid missing');
+if (!css.includes('rotate: -4deg') || !css.includes('rotate: 6deg')) throw new Error('Fanned hole cards missing');
+if (!css.includes('.seat-model::before') || !css.includes('content: "◇"')) throw new Error('Seat model glyph missing');
+if (!css.includes('--seat-active: #132a1f') || !css.includes('--gold: #eadb9e')) throw new Error('Prototype table tokens missing');
+if (!css.includes('0.9.3 — poker-table prototype port')) throw new Error('0.9.3 CSS marker missing');
 
 for (const workflow of ['ci.yml','pages.yml','publish.yml','real-diagnostics.yml']) {
   if (!statSync(join(root,'.github','workflows',workflow)).isFile()) throw new Error(`Missing workflow ${workflow}`);

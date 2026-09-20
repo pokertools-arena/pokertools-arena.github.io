@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.9.2.** The casino-table release adds deep green woven felt, a dimensional wood-grain rail, subtle table wear, warm overhead light, and a dark vignetted room background.
+> **Current release: 0.9.3.** The table-prototype release ports the standalone `poker-table.html` study into the live arena: a suit-print wallpaper room, card-style seats with model/big-blind rows, fanned hole cards, gold action pills, and a low felt wordmark.
 
 ---
 

@@ -1,5 +1,18 @@
 # Release notes
 
+## 0.9.3 — table prototype port
+
+- Imported the standalone `poker-table.html` design study into the live arena.
+- Added an oversized suit-print wallpaper behind the table and kept the dark,
+  vignetted casino-room surround.
+- Rebuilt each seat as a compact player card: name and stack on the first row,
+  model and big blinds beneath, a floating position badge, and a gold action
+  line above the dealt cards.
+- Fanned the hole cards, restyled the board as borderless white playing cards,
+  and gave the timer ring a green-to-red palette that matches the table.
+- Reworked the felt wordmark into a stacked logo, title and subtitle, and
+  flattened the table HUD into a translucent uppercase game-info line.
+
 ## 0.9.2 — authentic casino table
 
 - Reframed the table against a dark, vignetted casino-room background so the
