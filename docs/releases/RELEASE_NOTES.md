@@ -1,5 +1,13 @@
 # Release notes
 
+## 0.6.2 — Icon-only Pause/Resume and Stop
+
+- **Pause/Resume and Stop are icon-only.** Both header controls now match the
+  icon-only Settings and Tests buttons, so the top bar keeps a stable, compact
+  rhythm while a tournament runs. The icon still switches between pause (`Ⅱ`)
+  and resume (`▶`), and the tooltip plus the screen-reader label continue to
+  announce the full action name.
+
 ## 0.6.1 — Rail seat layout
 
 - **Seats sit on the table rail.** Positions are now computed on an ellipse

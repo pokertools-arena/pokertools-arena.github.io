@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.6.1.** The seat-layout release: players are positioned on the table rail itself with an elliptical, evenly-spaced ring (pairs across the top and bottom instead of one seat dead-centre), plus a resilient single-file build that tolerates cache-busted asset URLs, and a corrected inspector-first grid so 960–1180px windows keep the table beside the inspector.
+> **Current release: 0.6.2.** The icon-actions release: the Pause/Resume and Stop header controls are now icon-only, matching Settings and Tests, so the top bar stays compact while the full action name lives in the tooltip and accessible label.
 
 ---
 

@@ -53,7 +53,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="./styles.css?v=0.6.1-seat-layout" />
+  <link rel="stylesheet" href="./styles.css?v=0.6.2-icon-actions" />
 </head>
 <body>
   <div class="app-shell">
@@ -70,8 +70,8 @@
           <div class="topbar-actions">
             <button id="startTopBtn" class="button primary top-action" type="button" title="Start tournament"><span class="action-icon">▶</span><span class="action-label">Start</span></button>
             <button id="seatsBtn" class="button ghost top-action hidden" type="button" title="Restart with a new tournament"><span class="action-icon">↻</span><span class="action-label">Restart</span></button>
-            <button id="pauseBtn" class="button ghost top-action hidden" type="button"><span class="action-icon">Ⅱ</span><span class="action-label">Pause</span></button>
-            <button id="stopBtn" class="button danger top-action hidden" type="button"><span class="action-icon">■</span><span class="action-label">Stop</span></button>
+            <button id="pauseBtn" class="button ghost top-action icon-only-action hidden" type="button"><span class="action-icon">Ⅱ</span><span class="action-label">Pause</span></button>
+            <button id="stopBtn" class="button danger top-action icon-only-action hidden" type="button"><span class="action-icon">■</span><span class="action-label">Stop</span></button>
             <button id="testsBtn" class="button ghost top-action icon-only-action" type="button" title="Run the 10-spot decision sanity suite" aria-label="Decision sanity suite"><span class="action-icon">◇</span><span class="action-label">Tests</span></button>
             <button id="setupBtn" class="button ghost top-action icon-only-action" type="button" title="Connections and tournament settings" aria-label="Settings"><span class="action-icon">⚙</span><span class="action-label">Settings</span></button>
           </div>
@@ -391,6 +391,6 @@
   </template>
 
   <script src="./arena-env.js"></script>
-  <script type="module" src="./app.js?v=0.6.1-seat-layout"></script>
+  <script type="module" src="./app.js?v=0.6.2-icon-actions"></script>
 </body>
 </html>

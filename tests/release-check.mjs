@@ -79,7 +79,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.6.1') throw new Error('Expected release version 0.6.1');
+if (pkg.version !== '0.6.2') throw new Error('Expected release version 0.6.2');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -174,6 +174,9 @@ if (!app.includes("if (width < 620 || height < 500) return ['tight', 'micro'];")
 if (!css.includes('order:-1') || !css.includes('#bankClock{order')) throw new Error('Bank clock must lead the clock block');
 if (!app.match(/const previous = lastVisualState;/)) throw new Error('Previous visual state must be snapshotted');
 if (index.includes('Close settings">×')) throw new Error('Text close glyph still present (off-centre)');
+// 0.6.2 — icon-only Pause/Resume and Stop header controls.
+if (!index.includes('id="pauseBtn" class="button ghost top-action icon-only-action')) throw new Error('Pause/Resume must be an icon-only header control');
+if (!index.includes('id="stopBtn" class="button danger top-action icon-only-action')) throw new Error('Stop must be an icon-only header control');
 if (!css.includes('.table-hud') || !css.includes('.tests-dialog')) throw new Error('Table HUD/tests UI polish missing');
 if (!css.includes('0.2.8 — viewport-fit table') || !css.includes('grid-template-columns:minmax(0,1fr) clamp(270px,25vw,360px)')) throw new Error('0.2.8 viewport-fit table layout missing');
 if (!app.includes('const renderMemo') || !app.includes('activeInspectorTab') || !app.includes('schedulePersist()') || !app.includes('publicStatsCacheHand')) throw new Error('0.2.8 render/persistence optimization missing');

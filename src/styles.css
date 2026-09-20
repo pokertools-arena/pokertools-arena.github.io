@@ -299,8 +299,8 @@ h1{font-size:25px;display:flex;align-items:center;gap:9px;font-weight:850;letter
   .compact-pill{display:none!important}
   .top-action{min-width:29px;min-height:29px;padding:5px 7px;justify-content:center}
   .top-action .action-label{display:none}.top-action .action-icon{font-size:11px}
-  #startTopBtn .action-label,#pauseBtn .action-label,#stopBtn .action-label{display:inline;font-size:9px}
-  #startTopBtn,#pauseBtn,#stopBtn{padding-inline:8px}
+  #startTopBtn .action-label{display:inline;font-size:9px}
+  #startTopBtn{padding-inline:8px}
   .arena-card{min-height:610px}.arena-head{height:35px;padding:0 8px}.tournamentMeta{font-size:7px;max-width:65%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .poker-table{min-height:560px;height:69vh;max-height:630px}
   .empty-seat{min-height:70px}.empty-seat-plus{width:20px;height:20px;font-size:14px}.empty-seat-number{font-size:6px}.empty-seat-copy{font-size:5px}
@@ -898,7 +898,7 @@ label{min-width:0}
   .tests-grid-head,.tests-grid-row{grid-template-columns:minmax(105px,1fr) repeat(var(--test-agent-count,3),minmax(78px,1fr))}.test-spot p,.test-spot em,.test-cell p{display:none}.test-cell{min-height:54px}
 }
 @media(max-width:480px){
-  .topbar-actions .action-label{display:none!important}.topbar-actions #startTopBtn .action-label,.topbar-actions #pauseBtn .action-label,.topbar-actions #stopBtn .action-label{display:inline!important}
+  .topbar-actions .action-label{display:none!important}.topbar-actions #startTopBtn .action-label{display:inline!important}
   .connection-card-head{grid-template-columns:minmax(0,1fr) 30px}.connection-kind{grid-column:1}.connection-card-head .remove-connection{grid-column:2;grid-row:1;align-self:end}.connection-main-grid{grid-template-columns:1fr}.connection-main-grid .test-connection{grid-column:1;justify-self:stretch}
   .seat-editor-grid{grid-template-columns:1fr}.seat-model-field,.seat-provider-field{grid-column:1}.tournament-fields{grid-template-columns:1fr 1fr}
   .tests-grid-head,.tests-grid-row{grid-template-columns:95px repeat(var(--test-agent-count,3),minmax(64px,1fr))}.tests-grid-head small{display:none}.test-cell-top{display:block}.test-cell-top b{display:block;margin-top:2px;text-align:left;font-size:7px}
