@@ -1,5 +1,22 @@
 # Release notes
 
+## 0.6.4 — Canvas-cropped table recording
+
+- **Crop in a canvas instead of the compositor.** Recording now captures the
+  whole current browser tab and paints the table's crop region into an opaque
+  `<canvas>`, then records that canvas stream. Element/Region Capture could
+  leave stale or white compositor tiles where transformed seats, shadows and
+  filtered layers crossed the capture boundary; a full-frame canvas repaint per
+  frame removes them.
+- **Native source-pixel density.** The crop is taken from the shared video's
+  real pixel dimensions rather than CSS pixels, so high-DPI displays no longer
+  downscale cards into a soft image. The bitrate ceiling rises to 32 Mbps and
+  the target frame rate to 60 fps to match.
+- **Sturdier lifecycle.** The tab-share video, canvas, painters and both media
+  streams are torn down through one `disposeTableRecording` path on stop, error
+  and page unload, and capture is rejected unless the shared surface is a
+  browser tab.
+
 ## 0.6.3 — Icon-only Restart
 
 - **Restart is icon-only.** The `↻` control now matches the icon-only

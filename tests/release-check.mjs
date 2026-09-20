@@ -79,7 +79,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.6.3') throw new Error('Expected release version 0.6.3');
+if (pkg.version !== '0.6.4') throw new Error('Expected release version 0.6.4');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -179,12 +179,16 @@ if (!index.includes('id="pauseBtn" class="button ghost top-action icon-only-acti
 if (!index.includes('id="stopBtn" class="button danger top-action icon-only-action')) throw new Error('Stop must be an icon-only header control');
 // 0.6.3 — icon-only Restart header control.
 if (!index.includes('id="seatsBtn" class="button ghost top-action icon-only-action')) throw new Error('Restart must be an icon-only header control');
+// 0.6.4 — canvas-cropped table recording.
+if (!app.includes('function createTableRecordingCanvas') || !app.includes('function paintTableRecordingFrame') || !app.includes('function tableCropSourceRect')) throw new Error('Canvas-cropped table recording missing');
+if (!app.includes('function disposeTableRecording') || !app.includes('function stopTableRecordingPainter') || !app.includes('requestVideoFrameCallback')) throw new Error('Table recording painter/teardown missing');
+if (!app.includes("displaySurface !== 'browser'")) throw new Error('Recording must require sharing this browser tab');
 if (!css.includes('.table-hud') || !css.includes('.tests-dialog')) throw new Error('Table HUD/tests UI polish missing');
 if (!css.includes('0.2.8 — viewport-fit table') || !css.includes('grid-template-columns:minmax(0,1fr) clamp(270px,25vw,360px)')) throw new Error('0.2.8 viewport-fit table layout missing');
 if (!app.includes('const renderMemo') || !app.includes('activeInspectorTab') || !app.includes('schedulePersist()') || !app.includes('publicStatsCacheHand')) throw new Error('0.2.8 render/persistence optimization missing');
 if (!app.includes('decisionTelemetryHtml') || !index.includes('id="decisionHand"') || !index.includes('id="decisionOptionCount"')) throw new Error('Stable decision instrument / feed telemetry UI missing');
 if (!css.includes('0.2.13 — spectator dashboard polish')) throw new Error('Spectator dashboard polish missing');
-if (!index.includes('id="recordBtn"') || !app.includes('startTableRecording') || !app.includes('restrictCaptureToTable')) throw new Error('0.2.14 table recording UI/runtime missing');
+if (!index.includes('id="recordBtn"') || !app.includes('startTableRecording') || !app.includes('createTableRecordingCanvas') || !app.includes('tableCropSourceRect')) throw new Error('0.2.14 table recording UI/runtime missing');
 if (!app.includes('displayModelName') || !app.includes("'Tournament winner'") || !css.includes('0.2.14 — stable spectator panel')) throw new Error('0.2.14 spectator identity/winner UI missing');
 
 if (!index.includes('id="testsParticipants"') || !index.includes('Decision sanity suite')) throw new Error('0.2.15 decision suite explainer/participants UI missing');
@@ -204,7 +208,7 @@ if (!index.includes('<script src="./arena-env.js"></script>') || !existsSync(joi
 const launcher = readFileSync(join(root,'bin','pokertools-arena.mjs'),'utf8');
 if (!launcher.includes("urlPath === '/arena-env.js'") || !launcher.includes('OPENAI_PLAYER${i}') || !launcher.includes("resolve(process.cwd(), '.env')")) throw new Error('0.2.22 launcher .env auto-bootstrap missing');
 if (!app.includes('function injectedEnvironmentConfig') || !app.includes("connection.apiKey || ''")) throw new Error('0.2.22 browser env bootstrap missing');
-if (!app.includes('function recordingVideoBitrate') || !app.includes('24_000_000') || !app.includes("frameRate: { ideal: 60, max: 60 }")) throw new Error('0.2.22 high-quality recording preset missing');
+if (!app.includes('function recordingVideoBitrate') || !app.includes('32_000_000') || !app.includes("frameRate: { ideal: 60, max: 60 }")) throw new Error('0.2.22 high-quality recording preset missing');
 if (!css.includes('0.2.22 — persistent felt branding + separate in-table action line') || !css.includes('.poker-table.action-message-visible .table-brand-stage .table-brand')) throw new Error('0.2.22 persistent felt branding missing');
 
 // 0.3.0 — hierarchical decision architecture + Strategy/Raw benchmark modes.

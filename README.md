@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.6.3.** The icon-actions release: the Restart, Pause/Resume and Stop header controls are now icon-only, matching Settings and Tests, so the top bar stays compact while the full action name lives in the tooltip and accessible label.
+> **Current release: 0.6.4.** The table-recording release: recording now captures the whole current tab and crops the table into an opaque canvas at native source-pixel density, so saved videos are sharp, tightly framed, and free of the stale/white compositor tiles that element/region capture could leave at its boundary. Restart, Pause/Resume and Stop remain icon-only header controls.
 
 ---
 
