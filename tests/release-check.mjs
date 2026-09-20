@@ -79,7 +79,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.7.0') throw new Error('Expected release version 0.7.0');
+if (pkg.version !== '0.8.0') throw new Error('Expected release version 0.8.0');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -181,7 +181,7 @@ if (!index.includes('id="stopBtn" class="button danger top-action icon-only-acti
 if (!index.includes('id="seatsBtn" class="button ghost top-action icon-only-action')) throw new Error('Restart must be an icon-only header control');
 // 0.6.4 — canvas-cropped table recording.
 if (!app.includes('function createTableRecordingCanvas') || !app.includes('function paintTableRecordingFrame') || !app.includes('function tableCropSourceRect')) throw new Error('Canvas-cropped table recording missing');
-if (!app.includes('function disposeTableRecording') || !app.includes('function stopTableRecordingPainter') || !app.includes('function startTableRecordingPainter')) throw new Error('Table recording painter/teardown missing');
+if (!app.includes('function disposeTableRecording') || !app.includes('function stopTableRecordingVideo') || !app.includes('function startTableRecordingVideo')) throw new Error('Table recording video control/teardown missing');
 if (!app.includes("displaySurface !== 'browser'")) throw new Error('Recording must require sharing this browser tab');
 // 0.6.5 — capability-aware sampling parameters.
 if (!has('registerModelCapabilities') || !has('modelSupportsParameter') || !has('resolveTemperature')) throw new Error('Capability-aware sampling-parameter gating missing');
@@ -200,9 +200,9 @@ if (!String(pkg.scripts?.prestart || '').includes('build')) throw new Error('npm
 if (!css.includes('.table-hud') || !css.includes('.tests-dialog')) throw new Error('Table HUD/tests UI polish missing');
 // 0.6.9 — requestAnimationFrame recording scheduler, manual frames and output scaling.
 if (!app.includes('const TABLE_RECORDING_CONFIG = Object.freeze(') || !app.includes('frameRate: 30')) throw new Error('Recording config (30 fps) missing');
-if (!app.includes('function createCanvasRecordingStream') || !app.includes('canvas.captureStream(TABLE_RECORDING_CONFIG.frameRate)')) throw new Error('Canvas captureStream recording stream missing');
+if (!app.includes('function createFallbackCanvasPipeline') || !app.includes('canvas.captureStream(TABLE_RECORDING_CONFIG.frameRate)')) throw new Error('Canvas captureStream fallback recording stream missing');
 if (app.includes('.requestFrame(')) throw new Error('Manual canvas frame submission must not be used (A/V desync)');
-if (!app.includes('function fitRecordingSize') || !app.includes('maxWidth: 1920') || !app.includes('maxHeight: 1080')) throw new Error('Output scaling cap missing');
+if (!app.includes('function fitRecordingSize') || !app.includes('maxWidth: 2560') || !app.includes('maxHeight: 1440')) throw new Error('Output scaling cap missing');
 if (!app.includes("'video/webm;codecs=vp8,opus'") || !app.includes("'video/webm;codecs=vp8'")) throw new Error('VP8-first WebM codec preference missing');
 if (!app.includes('function finalizeTableRecording')) throw new Error('Centralized recorder finalization missing');
 if (!app.includes('recording.animationFrameId = requestAnimationFrame(loop)')) throw new Error('requestAnimationFrame painter scheduler missing');
@@ -219,10 +219,16 @@ for (const file of ['card-deal.mp3','board-cards.mp3','chip-bet.mp3','chip-drop.
 if (!app.includes('const TABLE_SOUND_URLS = Object.freeze(')) throw new Error('Table sound asset map missing');
 if (!app.includes('function loadTableSound') || !app.includes('function playTableSound')) throw new Error('Table sound loader/player missing');
 if (!readFileSync(join(root,'build.mjs'),'utf8').includes("'.mp3': 'dataurl'")) throw new Error('Sound assets must be inlined by the build');
-if (!app.includes('function recordingAudioTrack') || !app.includes('createMediaStreamDestination()')) throw new Error('Recording audio routing missing');
-if (!app.includes('audioDestination: recordingAudio?.destination')) throw new Error('Recording must own a fresh audio destination');
-if (!app.includes('new MediaStream([canvasTrack, audioTrack])')) throw new Error('Recording stream must mux table audio');
 if (!app.includes('audioBitsPerSecond')) throw new Error('Recording audio bitrate missing');
+// 0.8.0 — current-tab audio + timestamp-preserving A/V synchronization.
+if (!app.includes('function supportsTimestampedVideoPipeline') || !app.includes('MediaStreamTrackProcessor') || !app.includes('MediaStreamTrackGenerator')) throw new Error('Timestamp-preserving video pipeline missing');
+if (!app.includes('new VideoFrame(recording.canvas, { timestamp, duration })')) throw new Error('Recording must preserve source capture timestamps through VideoFrame');
+if (!app.includes('function startTimestampedVideoPump') || !app.includes('function startFallbackVideoPump')) throw new Error('Recording video pump missing');
+if (!app.includes('audio: true') || !app.includes("systemAudio: 'exclude'")) throw new Error('Recording must request current-tab audio only');
+if (!app.includes('captureStream.getAudioTracks()[0]')) throw new Error('Recording must use the getDisplayMedia audio track');
+if (!app.includes('outputVideoTrack') || !app.includes('new MediaStream(tracks)')) throw new Error('Recording stream must mux the capture audio track');
+if (app.includes('createMediaStreamDestination()') || app.includes('function recordingAudioTrack')) throw new Error('Recording must not re-route Web Audio into the recording');
+if (!app.includes('maxBitrate: 28_000_000')) throw new Error('0.8.0 recording bitrate range missing');
 if (!app.includes('source.connect(amp).connect(soundMaster()')) throw new Error('Table sounds must route through the recording master');
 if (!css.includes('0.2.8 — viewport-fit table') || !css.includes('grid-template-columns:minmax(0,1fr) clamp(270px,25vw,360px)')) throw new Error('0.2.8 viewport-fit table layout missing');
 if (!app.includes('const renderMemo') || !app.includes('activeInspectorTab') || !app.includes('schedulePersist()') || !app.includes('publicStatsCacheHand')) throw new Error('0.2.8 render/persistence optimization missing');
@@ -248,7 +254,7 @@ if (!index.includes('<script src="./arena-env.js"></script>') || !existsSync(joi
 const launcher = readFileSync(join(root,'bin','pokertools-arena.mjs'),'utf8');
 if (!launcher.includes("urlPath === '/arena-env.js'") || !launcher.includes('OPENAI_PLAYER${i}') || !launcher.includes("resolve(process.cwd(), '.env')")) throw new Error('0.2.22 launcher .env auto-bootstrap missing');
 if (!app.includes('function injectedEnvironmentConfig') || !app.includes("connection.apiKey || ''")) throw new Error('0.2.22 browser env bootstrap missing');
-if (!app.includes('function recordingVideoBitrate') || !app.includes('16_000_000') || !app.includes('frameRate: { ideal: TABLE_RECORDING_CONFIG.frameRate, max: TABLE_RECORDING_CONFIG.frameRate }')) throw new Error('Recording bitrate/frame-rate preset missing');
+if (!app.includes('function recordingVideoBitrate') || !app.includes('28_000_000') || !app.includes('frameRate: { ideal: TABLE_RECORDING_CONFIG.frameRate, max: TABLE_RECORDING_CONFIG.frameRate }')) throw new Error('Recording bitrate/frame-rate preset missing');
 if (!css.includes('0.2.22 — persistent felt branding + separate in-table action line') || !css.includes('.poker-table.action-message-visible .table-brand-stage .table-brand')) throw new Error('0.2.22 persistent felt branding missing');
 
 // 0.3.0 — hierarchical decision architecture + Strategy/Raw benchmark modes.

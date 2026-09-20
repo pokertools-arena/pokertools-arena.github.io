@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.7.0.** The table-audio release: the poker table now uses six normalized, role-named sound effects bundled straight into the app, and the table recorder mixes that Web Audio output into the video so recordings include the game audio.
+> **Current release: 0.8.0.** The tab-audio recording release: table recordings now capture the current tab's own audio from `getDisplayMedia()` and rebuild video frames through a timestamp-preserving `MediaStreamTrackProcessor` → `VideoFrame` pipeline, so the exported WebM keeps audio and picture on the same capture clock at up to 2560×1440.
 
 ---
 

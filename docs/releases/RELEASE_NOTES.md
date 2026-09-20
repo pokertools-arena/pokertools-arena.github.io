@@ -1,5 +1,34 @@
 # Release notes
 
+## 0.8.0 — tab-audio recording with timestamp-preserving A/V sync
+
+- **Recordings capture the current tab's own audio.** The recorder now requests
+  audio from `getDisplayMedia()` (`audio: true`, `systemAudio: 'exclude'`) and
+  muxes the returned display-media audio track straight into the `MediaRecorder`
+  stream. The previous per-recording Web Audio
+  `MediaStreamAudioDestinationNode` was removed, so the exported WebM carries the
+  tab's real output instead of a re-routed copy of the table's own cues.
+- **Timestamp-preserving video pipeline.** When the browser exposes
+  `MediaStreamTrackProcessor` / `MediaStreamTrackGenerator` / `VideoFrame`, each
+  captured source frame is cropped to the table on the canvas and re-emitted as
+  a `VideoFrame` that keeps the source capture `timestamp` and `duration`. Audio
+  and video therefore share the same capture clock.
+- **Real-time backpressure guard.** The pump reads `writer.desiredSize` and drops
+  frames while the generator is saturated, so a slow encoder cannot build a
+  delayed video queue.
+- **Fixed-rate canvas fallback kept.** Browsers without the timestamped media-
+  track APIs fall back to the existing `canvas.captureStream(30)` painter, so
+  recording still works everywhere the old path did.
+- **Higher quality ceiling.** Maximum output size rose from 1920×1080 to
+  2560×1440, the adaptive video bitrate range to 10–28 Mbps, and the audio target
+  bitrate to 192 kbps. High-quality canvas scaling, `contentHint = "detail"` for
+  UI/text, and a 30 FPS stability target are retained.
+- **More robust lifecycle.** The crop canvas is sized from the actual capture
+  video dimensions, and generated tracks, readers, writers, the capture video and
+  the source stream are all torn down on stop or failure. Pipeline errors now
+  surface as a toast when the recording is finalized instead of failing
+  silently, and the recorder chunk interval dropped to 500 ms.
+
 ## 0.7.0 — table sound effects and recorded audio
 
 - **Real sound effects replace the synthesized tones.** The table now plays six

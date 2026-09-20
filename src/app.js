@@ -97,10 +97,6 @@ function getAudioContext() {
   }
   return audioContext;
 }
-// Every cue is mixed through one master gain so the same signal can be routed
-// to the speakers and, while a table recording is running, to a MediaStream
-// audio track that is muxed into the video. This captures the real Web Audio
-// output without depending on the screen-share audio permission.
 function soundMaster() {
   const ctx = getAudioContext();
   if (!ctx) return null;
@@ -110,15 +106,6 @@ function soundMaster() {
     soundMasterGain.connect(ctx.destination);
   }
   return soundMasterGain;
-}
-function recordingAudioTrack() {
-  const ctx = getAudioContext();
-  if (!ctx || typeof ctx.createMediaStreamDestination !== 'function') return null;
-  // A fresh destination per recording. A long-lived node keeps its own clock
-  // offset, which starts the audio track ahead of the video track.
-  const destination = ctx.createMediaStreamDestination();
-  soundMaster()?.connect(destination);
-  return { destination, track: destination.stream.getAudioTracks()[0] || null };
 }
 function tone(freq, duration = 0.05, gain = 0.035, offset = 0, type = 'sine') {
   if (!soundEnabled) return;
@@ -2099,27 +2086,29 @@ function openTests() {
 
 const TABLE_RECORDING_CONFIG = Object.freeze({
   frameRate: 30,
-  maxWidth: 1920,
-  maxHeight: 1080,
-  minBitrate: 6_000_000,
-  maxBitrate: 16_000_000,
-  bitsPerPixelPerFrame: 0.14,
-  audioBitsPerSecond: 128_000,
+  maxWidth: 2560,
+  maxHeight: 1440,
+  minBitrate: 10_000_000,
+  maxBitrate: 28_000_000,
+  bitsPerPixelPerFrame: 0.20,
+  audioBitsPerSecond: 192_000,
   background: '#07090b',
 });
 
-function recorderMimeType() {
+function recorderMimeType(hasAudio = true) {
   if (!globalThis.MediaRecorder) return '';
-  for (const type of [
-    'video/webm;codecs=vp8,opus',
-    'video/webm;codecs=vp9,opus',
-    'video/webm;codecs=vp8',
-    'video/webm;codecs=vp9',
-    'video/webm',
-  ]) {
-    if (MediaRecorder.isTypeSupported?.(type)) return type;
-  }
-  return '';
+  const candidates = hasAudio
+    ? [
+        'video/webm;codecs=vp8,opus',
+        'video/webm;codecs=vp9,opus',
+        'video/webm',
+      ]
+    : [
+        'video/webm;codecs=vp8',
+        'video/webm;codecs=vp9',
+        'video/webm',
+      ];
+  return candidates.find(type => MediaRecorder.isTypeSupported?.(type)) || '';
 }
 
 function recordingVideoBitrate({ width, height, frameRate = TABLE_RECORDING_CONFIG.frameRate }) {
@@ -2139,7 +2128,7 @@ function setRecordButton(active, label = null) {
   const text = $('.action-label', els.recordBtn);
   if (icon) icon.textContent = active ? '■' : '●';
   if (text) text.textContent = label || (active ? 'Stop rec' : 'Record');
-  els.recordBtn.title = active ? 'Stop table recording and save video' : 'Record only the poker table';
+  els.recordBtn.title = active ? 'Stop table recording and save video' : 'Record poker table with current-tab audio';
   els.recordBtn.setAttribute('aria-label', els.recordBtn.title);
 }
 
@@ -2174,6 +2163,90 @@ function fitRecordingSize(sourceWidth, sourceHeight) {
   };
 }
 
+function captureViewportMetrics(sourceWidth, sourceHeight) {
+  const viewport = globalThis.visualViewport;
+  const cssWidth = Math.max(1, viewport?.width || document.documentElement.clientWidth || innerWidth || 1);
+  const cssHeight = Math.max(1, viewport?.height || document.documentElement.clientHeight || innerHeight || 1);
+  const width = Math.max(2, Number(sourceWidth) || cssWidth);
+  const height = Math.max(2, Number(sourceHeight) || cssHeight);
+  return {
+    cssWidth,
+    cssHeight,
+    sourceWidth: width,
+    sourceHeight: height,
+    scaleX: width / cssWidth,
+    scaleY: height / cssHeight,
+    offsetX: viewport?.offsetLeft || 0,
+    offsetY: viewport?.offsetTop || 0,
+  };
+}
+
+function tableCropSourceRect(sourceWidth, sourceHeight) {
+  const rect = els.pokerTable.getBoundingClientRect();
+  const metrics = captureViewportMetrics(sourceWidth, sourceHeight);
+  const leftCss = rect.left - metrics.offsetX;
+  const topCss = rect.top - metrics.offsetY;
+  const sx = clamp(Math.round(leftCss * metrics.scaleX), 0, Math.max(0, metrics.sourceWidth - 2));
+  const sy = clamp(Math.round(topCss * metrics.scaleY), 0, Math.max(0, metrics.sourceHeight - 2));
+  const sw = clamp(Math.round(rect.width * metrics.scaleX), 2, metrics.sourceWidth - sx);
+  const sh = clamp(Math.round(rect.height * metrics.scaleY), 2, metrics.sourceHeight - sy);
+  return { sx, sy, sw, sh };
+}
+
+function createTableRecordingCanvas(sourceWidth, sourceHeight) {
+  const source = tableCropSourceRect(sourceWidth, sourceHeight);
+  const output = fitRecordingSize(source.sw, source.sh);
+  const canvas = document.createElement('canvas');
+  canvas.width = output.width;
+  canvas.height = output.height;
+  const ctx = canvas.getContext('2d', { alpha: false });
+  if (!ctx) throw new Error('Canvas video recording is not available in this browser');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  return { canvas, ctx };
+}
+
+function paintTableRecordingFrame(recording, source, sourceWidth, sourceHeight) {
+  const { ctx, canvas } = recording;
+  if (!ctx || !canvas || !source) return false;
+  const crop = tableCropSourceRect(sourceWidth, sourceHeight);
+  ctx.globalCompositeOperation = 'copy';
+  ctx.fillStyle = TABLE_RECORDING_CONFIG.background;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  try {
+    ctx.drawImage(
+      source,
+      crop.sx, crop.sy, crop.sw, crop.sh,
+      0, 0, canvas.width, canvas.height,
+    );
+    return true;
+  } catch {
+    return false;
+  } finally {
+    ctx.globalCompositeOperation = 'source-over';
+  }
+}
+
+function createCaptureVideo(stream) {
+  const video = document.createElement('video');
+  video.muted = true;
+  video.playsInline = true;
+  video.autoplay = true;
+  video.setAttribute('aria-hidden', 'true');
+  Object.assign(video.style, {
+    position: 'fixed',
+    inset: '0 auto auto 0',
+    width: '2px',
+    height: '2px',
+    opacity: '0.001',
+    pointerEvents: 'none',
+    zIndex: '-1',
+  });
+  video.srcObject = stream;
+  document.body.append(video);
+  return video;
+}
+
 function waitForCaptureVideo(video, track) {
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -2201,151 +2274,143 @@ function waitForCaptureVideo(video, track) {
   });
 }
 
-function createCaptureVideo(stream) {
-  const video = document.createElement('video');
-  video.muted = true;
-  video.playsInline = true;
-  video.autoplay = true;
-  video.setAttribute('aria-hidden', 'true');
-  Object.assign(video.style, {
-    position: 'fixed',
-    left: '0',
-    top: '0',
-    width: '2px',
-    height: '2px',
-    opacity: '0.001',
-    pointerEvents: 'none',
-    zIndex: '2147483647',
-  });
-  video.srcObject = stream;
-  document.body.append(video);
-  return video;
+function supportsTimestampedVideoPipeline() {
+  return typeof globalThis.MediaStreamTrackProcessor === 'function'
+    && typeof globalThis.MediaStreamTrackGenerator === 'function'
+    && typeof globalThis.VideoFrame === 'function';
 }
 
-function captureViewportMetrics(video) {
-  const viewport = globalThis.visualViewport;
-  const cssWidth = Math.max(1, viewport?.width || document.documentElement.clientWidth || innerWidth || 1);
-  const cssHeight = Math.max(1, viewport?.height || document.documentElement.clientHeight || innerHeight || 1);
-  const sourceWidth = Math.max(2, video.videoWidth || cssWidth);
-  const sourceHeight = Math.max(2, video.videoHeight || cssHeight);
-  return {
-    cssWidth,
-    cssHeight,
-    sourceWidth,
-    sourceHeight,
-    scaleX: sourceWidth / cssWidth,
-    scaleY: sourceHeight / cssHeight,
-    offsetX: viewport?.offsetLeft || 0,
-    offsetY: viewport?.offsetTop || 0,
-  };
+function createTimestampedVideoPipeline(recording) {
+  if (!supportsTimestampedVideoPipeline()) return null;
+  try {
+    const processor = new MediaStreamTrackProcessor({ track: recording.captureTrack });
+    const generator = new MediaStreamTrackGenerator({ kind: 'video' });
+    const reader = processor.readable.getReader();
+    const writer = generator.writable.getWriter();
+    generator.contentHint = 'detail';
+    recording.processorReader = reader;
+    recording.generatorWriter = writer;
+    recording.outputVideoTrack = generator;
+    return generator;
+  } catch {
+    recording.processorReader = null;
+    recording.generatorWriter = null;
+    recording.outputVideoTrack = null;
+    return null;
+  }
 }
 
-function tableCropSourceRect(video) {
-  const rect = els.pokerTable.getBoundingClientRect();
-  const metrics = captureViewportMetrics(video);
-  const leftCss = rect.left - metrics.offsetX;
-  const topCss = rect.top - metrics.offsetY;
-  const sx = clamp(Math.round(leftCss * metrics.scaleX), 0, Math.max(0, metrics.sourceWidth - 2));
-  const sy = clamp(Math.round(topCss * metrics.scaleY), 0, Math.max(0, metrics.sourceHeight - 2));
-  const sw = clamp(Math.round(rect.width * metrics.scaleX), 2, metrics.sourceWidth - sx);
-  const sh = clamp(Math.round(rect.height * metrics.scaleY), 2, metrics.sourceHeight - sy);
-  return { sx, sy, sw, sh };
+function startTimestampedVideoPump(recording) {
+  const reader = recording.processorReader;
+  const writer = recording.generatorWriter;
+  if (!reader || !writer) return;
+  const fallbackDuration = Math.round(1_000_000 / TABLE_RECORDING_CONFIG.frameRate);
+  recording.videoPumpPromise = (async () => {
+    try {
+      while (!recording.stopping) {
+        const { value: frame, done } = await reader.read();
+        if (done || !frame) break;
+        try {
+          const width = frame.displayWidth || frame.codedWidth || recording.sourceWidth;
+          const height = frame.displayHeight || frame.codedHeight || recording.sourceHeight;
+          if (!paintTableRecordingFrame(recording, frame, width, height)) continue;
+          if (writer.desiredSize != null && writer.desiredSize <= 0) continue;
+          const timestamp = Number.isFinite(frame.timestamp) ? frame.timestamp : Math.round(performance.now() * 1000);
+          const duration = Number.isFinite(frame.duration) && frame.duration > 0 ? frame.duration : fallbackDuration;
+          const outputFrame = new VideoFrame(recording.canvas, { timestamp, duration });
+          try {
+            await writer.write(outputFrame);
+          } finally {
+            outputFrame.close();
+          }
+        } finally {
+          frame.close();
+        }
+      }
+    } catch (error) {
+      if (!recording.stopping && tableRecording === recording) {
+        recording.pipelineError = error;
+        if (recording.recorder?.state !== 'inactive') recording.recorder.stop();
+      }
+    }
+  })();
 }
 
-function createTableRecordingCanvas(video) {
-  const source = tableCropSourceRect(video);
-  const output = fitRecordingSize(source.sw, source.sh);
-  const canvas = document.createElement('canvas');
-  canvas.width = output.width;
-  canvas.height = output.height;
-  const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
-  if (!ctx) throw new Error('Canvas video recording is not available in this browser');
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  return { canvas, ctx };
-}
-
-function createCanvasRecordingStream(canvas) {
-  // Let the browser sample the canvas at a fixed rate. A manual
-  // captureStream(0) + requestFrame() stream carries no frame-rate metadata, so
-  // MediaRecorder cannot time the video track against the real-time audio track
-  // and stretches it (audio ends up ahead of the picture). A fixed rate keeps
-  // the video timeline continuous even if a paint is skipped.
-  const stream = canvas.captureStream(TABLE_RECORDING_CONFIG.frameRate);
+function createFallbackCanvasPipeline(recording) {
+  const stream = recording.canvas.captureStream(TABLE_RECORDING_CONFIG.frameRate);
   const track = stream.getVideoTracks()[0];
   if (!track) throw new Error('Could not create the table recording video track');
-  return { stream, track };
+  track.contentHint = 'detail';
+  recording.canvasStream = stream;
+  recording.outputVideoTrack = track;
+  return track;
 }
 
-function paintTableRecordingFrame(recording) {
-  const { ctx, canvas, captureVideo } = recording;
-  if (!ctx || !canvas || !captureVideo || captureVideo.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return false;
-  const source = tableCropSourceRect(captureVideo);
-  ctx.save();
-  ctx.globalCompositeOperation = 'copy';
-  ctx.fillStyle = TABLE_RECORDING_CONFIG.background;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  try {
-    ctx.drawImage(
-      captureVideo,
-      source.sx, source.sy, source.sw, source.sh,
-      0, 0, canvas.width, canvas.height,
-    );
-  } catch {
-    ctx.restore();
-    return false;
-  }
-  ctx.restore();
-  return true;
-}
-
-function startTableRecordingPainter(recording) {
+function startFallbackVideoPump(recording) {
   const frameInterval = 1000 / TABLE_RECORDING_CONFIG.frameRate;
   let previousPaint = -frameInterval;
   const loop = timestamp => {
     if (recording.stopping || tableRecording !== recording) return;
     if (timestamp - previousPaint >= frameInterval - 1) {
-      paintTableRecordingFrame(recording);
+      const video = recording.captureVideo;
+      if (video?.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        paintTableRecordingFrame(recording, video, video.videoWidth, video.videoHeight);
+      }
       previousPaint = timestamp;
     }
     recording.animationFrameId = requestAnimationFrame(loop);
   };
-  paintTableRecordingFrame(recording);
+  const video = recording.captureVideo;
+  if (video?.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+    paintTableRecordingFrame(recording, video, video.videoWidth, video.videoHeight);
+  }
   recording.animationFrameId = requestAnimationFrame(loop);
 }
 
-function stopTableRecordingPainter(recording) {
+function startTableRecordingVideo(recording) {
+  if (recording.processorReader) startTimestampedVideoPump(recording);
+  else startFallbackVideoPump(recording);
+}
+
+function stopTableRecordingVideo(recording) {
   if (!recording) return;
   if (recording.animationFrameId != null) cancelAnimationFrame(recording.animationFrameId);
   recording.animationFrameId = null;
+  try { recording.processorReader?.cancel?.(); } catch {}
+  try { recording.generatorWriter?.close?.(); } catch {}
+  recording.processorReader = null;
+  recording.generatorWriter = null;
 }
 
-function disposeTableRecording(recording, { stopCapture = true, stopCanvas = true } = {}) {
+function disposeTableRecording(recording) {
   if (!recording) return;
-  stopTableRecordingPainter(recording);
+  stopTableRecordingVideo(recording);
   try { recording.captureVideo?.pause?.(); } catch {}
   if (recording.captureVideo) {
     recording.captureVideo.srcObject = null;
     recording.captureVideo.remove();
   }
-  if (stopCanvas) recording.canvasStream?.getTracks?.().forEach(track => track.stop());
-  if (stopCapture) recording.captureStream?.getTracks?.().forEach(track => track.stop());
-  try { if (soundMasterGain && recording.audioDestination) soundMasterGain.disconnect(recording.audioDestination); } catch {}
-  try { recording.audioTrack?.stop?.(); } catch {}
+  recording.canvasStream?.getTracks?.().forEach(track => track.stop());
+  try { recording.outputVideoTrack?.stop?.(); } catch {}
+  recording.captureStream?.getTracks?.().forEach(track => track.stop());
   recording.canvas?.remove?.();
 }
 
 function finalizeTableRecording(recording, mimeType) {
   const blob = new Blob(recording.chunks, { type: recording.recorder.mimeType || mimeType || 'video/webm' });
+  const error = recording.pipelineError;
   disposeTableRecording(recording);
   if (tableRecording === recording) tableRecording = null;
   setRecordButton(false);
   if (blob.size) saveRecordingBlob(blob);
+  if (error) showActionToast(`Recording stopped: ${summarizeError(error)}`, 'fold');
 }
 
 async function startTableRecording() {
   if (tableRecording || !els.pokerTable) return;
-  if (!navigator.mediaDevices?.getDisplayMedia || !globalThis.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) {
+  const canTimestampVideo = supportsTimestampedVideoPipeline();
+  const canCanvasVideo = typeof HTMLCanvasElement.prototype.captureStream === 'function';
+  if (!navigator.mediaDevices?.getDisplayMedia || !globalThis.MediaRecorder || (!canTimestampVideo && !canCanvasVideo)) {
     showActionToast('Table recording is not supported in this browser', 'fold');
     return;
   }
@@ -2359,11 +2424,14 @@ async function startTableRecording() {
       video: {
         displaySurface: 'browser',
         frameRate: { ideal: TABLE_RECORDING_CONFIG.frameRate, max: TABLE_RECORDING_CONFIG.frameRate },
+        width: { ideal: TABLE_RECORDING_CONFIG.maxWidth },
+        height: { ideal: TABLE_RECORDING_CONFIG.maxHeight },
       },
-      audio: false,
+      audio: true,
       preferCurrentTab: true,
       selfBrowserSurface: 'include',
       surfaceSwitching: 'exclude',
+      systemAudio: 'exclude',
     });
 
     const captureTrack = captureStream.getVideoTracks()[0];
@@ -2372,50 +2440,75 @@ async function startTableRecording() {
     if (displaySurface && displaySurface !== 'browser') {
       throw new Error('Please share this browser tab, not a window or the entire screen.');
     }
+    try { captureTrack.contentHint = 'detail'; } catch {}
     try {
       await captureTrack.applyConstraints?.({
         frameRate: { ideal: TABLE_RECORDING_CONFIG.frameRate, max: TABLE_RECORDING_CONFIG.frameRate },
       });
     } catch {}
 
+    const audioTrack = captureStream.getAudioTracks()[0] || null;
+    if (audioTrack?.applyConstraints) {
+      try { await audioTrack.applyConstraints({ suppressLocalAudioPlayback: false }); } catch {}
+    }
+
     captureVideo = createCaptureVideo(captureStream);
     await captureVideo.play().catch(() => {});
     await waitForCaptureVideo(captureVideo, captureTrack);
 
-    const { canvas, ctx } = createTableRecordingCanvas(captureVideo);
-    const canvasCapture = createCanvasRecordingStream(canvas);
-    const { stream: canvasStream, track: canvasTrack } = canvasCapture;
-    try { canvasTrack.contentHint = 'detail'; } catch {}
-    // Mix the table's Web Audio output into the recording through a fresh
-    // destination owned by this recording.
-    const recordingAudio = recordingAudioTrack();
-    const audioTrack = recordingAudio?.track || null;
-    const recorderStream = audioTrack ? new MediaStream([canvasTrack, audioTrack]) : canvasStream;
+    const sourceWidth = Math.max(2, captureVideo.videoWidth || innerWidth || 2);
+    const sourceHeight = Math.max(2, captureVideo.videoHeight || innerHeight || 2);
+    const { canvas, ctx } = createTableRecordingCanvas(sourceWidth, sourceHeight);
 
     recording = {
       recorder: null,
+      recorderStream: null,
       captureStream,
       captureTrack,
       captureVideo,
       canvas,
       ctx,
-      canvasStream,
-      canvasTrack,
+      canvasStream: null,
+      outputVideoTrack: null,
+      processorReader: null,
+      generatorWriter: null,
+      videoPumpPromise: null,
+      animationFrameId: null,
+      sourceWidth,
+      sourceHeight,
       audioTrack,
-      audioDestination: recordingAudio?.destination || null,
       chunks: [],
       stopping: false,
-      animationFrameId: null,
+      pipelineError: null,
     };
 
-    const mimeType = recorderMimeType();
+    let outputVideoTrack = canTimestampVideo ? createTimestampedVideoPipeline(recording) : null;
+    if (outputVideoTrack) {
+      captureVideo.pause();
+      captureVideo.srcObject = null;
+      captureVideo.remove();
+      captureVideo = null;
+      recording.captureVideo = null;
+    } else {
+      if (!canCanvasVideo) throw new Error('This browser cannot create a recording video track');
+      outputVideoTrack = createFallbackCanvasPipeline(recording);
+    }
+
+    const tracks = [outputVideoTrack];
+    if (audioTrack) tracks.push(audioTrack);
+    const recorderStream = new MediaStream(tracks);
+    recording.recorderStream = recorderStream;
+
+    const mimeType = recorderMimeType(Boolean(audioTrack));
     const videoBitsPerSecond = recordingVideoBitrate({
       width: canvas.width,
       height: canvas.height,
       frameRate: TABLE_RECORDING_CONFIG.frameRate,
     });
-    const options = { videoBitsPerSecond, audioBitsPerSecond: TABLE_RECORDING_CONFIG.audioBitsPerSecond };
+    const options = { videoBitsPerSecond };
+    if (audioTrack) options.audioBitsPerSecond = TABLE_RECORDING_CONFIG.audioBitsPerSecond;
     if (mimeType) options.mimeType = mimeType;
+
     const recorder = new MediaRecorder(recorderStream, options);
     recording.recorder = recorder;
     tableRecording = recording;
@@ -2426,30 +2519,22 @@ async function startTableRecording() {
     recorder.addEventListener('stop', () => finalizeTableRecording(recording, mimeType), { once: true });
     recorder.addEventListener('error', event => {
       if (tableRecording !== recording) return;
+      recording.pipelineError = event.error || new Error('Recording failed');
       recording.stopping = true;
-      stopTableRecordingPainter(recording);
-      showActionToast(summarizeError(event.error || new Error('Recording failed')), 'fold');
+      stopTableRecordingVideo(recording);
       if (recorder.state !== 'inactive') recorder.stop();
-      else {
-        disposeTableRecording(recording);
-        tableRecording = null;
-        setRecordButton(false);
-      }
+      else finalizeTableRecording(recording, mimeType);
     });
     captureTrack.addEventListener('ended', () => {
-      if (tableRecording === recording && recorder.state !== 'inactive') {
-        recording.stopping = true;
-        stopTableRecordingPainter(recording);
-        recorder.stop();
-      }
+      if (tableRecording === recording && recorder.state !== 'inactive') stopTableRecording();
     }, { once: true });
 
-    startTableRecordingPainter(recording);
-    recorder.start(1000);
+    recorder.start(500);
+    startTableRecordingVideo(recording);
     setRecordButton(true);
     showActionToast(
-      `Recording · ${canvas.width}×${canvas.height} · ${TABLE_RECORDING_CONFIG.frameRate} fps${audioTrack ? ' · audio' : ''}`,
-      'check',
+      `Recording · ${canvas.width}×${canvas.height} · ${TABLE_RECORDING_CONFIG.frameRate} fps · ${audioTrack ? 'tab audio' : 'no tab audio'}`,
+      audioTrack ? 'check' : 'fold',
     );
   } catch (err) {
     if (recording) disposeTableRecording(recording);
@@ -2470,14 +2555,13 @@ function stopTableRecording() {
   const recording = tableRecording;
   if (!recording || recording.stopping) return;
   recording.stopping = true;
-  stopTableRecordingPainter(recording);
+  stopTableRecordingVideo(recording);
   if (recording.recorder.state !== 'inactive') {
+    try { recording.recorder.requestData?.(); } catch {}
     recording.recorder.stop();
     return;
   }
-  disposeTableRecording(recording);
-  if (tableRecording === recording) tableRecording = null;
-  setRecordButton(false);
+  finalizeTableRecording(recording, recording.recorder.mimeType);
 }
 
 function modelForPlayerId(playerId) {
