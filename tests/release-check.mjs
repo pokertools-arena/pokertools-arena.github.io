@@ -81,7 +81,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.10.1') throw new Error('Expected release version 0.10.1');
+if (pkg.version !== '0.11.0') throw new Error('Expected release version 0.11.0');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -197,10 +197,10 @@ if (!app.includes('function primeModelCapabilities') || !app.includes('capabilit
 if (!String(pkg.scripts?.prestart || '').includes('build')) throw new Error('npm start must build before serving dist');
 if (!css.includes('.table-hud') || !css.includes('.tests-dialog')) throw new Error('Table HUD/tests UI polish missing');
 // 0.6.9 — requestAnimationFrame recording scheduler, manual frames and output scaling.
-if (!app.includes('const TABLE_RECORDING_CONFIG = Object.freeze(') || !app.includes('frameRate: 30')) throw new Error('Recording config (30 fps) missing');
+if (!app.includes('const TABLE_RECORDING_CONFIG = Object.freeze(') || !app.includes('frameRate: 24')) throw new Error('Optimized recording config (24 fps) missing');
 if (!app.includes('function createFallbackCanvasPipeline') || !app.includes('canvas.captureStream(TABLE_RECORDING_CONFIG.frameRate)')) throw new Error('Canvas captureStream fallback recording stream missing');
 if (app.includes('.requestFrame(')) throw new Error('Manual canvas frame submission must not be used (A/V desync)');
-if (!app.includes('function fitRecordingSize') || !app.includes('maxWidth: 2560') || !app.includes('maxHeight: 1440')) throw new Error('Output scaling cap missing');
+if (!app.includes('function fitRecordingSize') || !app.includes('maxWidth: 1920') || !app.includes('maxHeight: 1080')) throw new Error('Optimized output scaling cap missing');
 if (!app.includes("'video/webm;codecs=vp8,opus'") || !app.includes("'video/webm;codecs=vp8'")) throw new Error('VP8-first WebM codec preference missing');
 if (!app.includes('function finalizeTableRecording')) throw new Error('Centralized recorder finalization missing');
 if (!app.includes('recording.animationFrameId = requestAnimationFrame(loop)')) throw new Error('requestAnimationFrame painter scheduler missing');
@@ -225,7 +225,7 @@ if (!app.includes('audio: true') || !app.includes("systemAudio: 'exclude'")) thr
 if (!app.includes('captureStream.getAudioTracks()[0]')) throw new Error('Recording must use the getDisplayMedia audio track');
 if (!app.includes('outputVideoTrack') || !app.includes('new MediaStream(tracks)')) throw new Error('Recording stream must mux the capture audio track');
 if (app.includes('createMediaStreamDestination()') || app.includes('function recordingAudioTrack')) throw new Error('Recording must not re-route Web Audio into the recording');
-if (!app.includes('maxBitrate: 28_000_000')) throw new Error('0.8.0 recording bitrate range missing');
+if (!app.includes('maxBitrate: 14_000_000')) throw new Error('Optimized recording bitrate range missing');
 if (!app.includes('source.connect(amp).connect(soundMaster()')) throw new Error('Table sounds must route through the recording master');
 if (!css.includes('0.2.8 — viewport-fit table') || !compactCss.includes('.workspace{') || !compactCss.includes('minmax(0,1fr)')) throw new Error('Viewport-fit table layout missing');
 if (!app.includes('const renderMemo') || !app.includes('activeInspectorTab') || !app.includes('schedulePersist()') || !app.includes('publicStatsCacheHand')) throw new Error('0.2.8 render/persistence optimization missing');
@@ -251,7 +251,7 @@ if (!index.includes('<script src="./arena-env.js"></script>') || !existsSync(joi
 const launcher = readFileSync(join(root,'bin','pokertools-arena.mjs'),'utf8');
 if (!launcher.includes("urlPath === '/arena-env.js'") || !launcher.includes('OPENAI_PLAYER${i}') || !launcher.includes("resolve(process.cwd(), '.env')")) throw new Error('0.2.22 launcher .env auto-bootstrap missing');
 if (!app.includes('function injectedEnvironmentConfig') || !app.includes("connection.apiKey || ''")) throw new Error('0.2.22 browser env bootstrap missing');
-if (!app.includes('function recordingVideoBitrate') || !app.includes('28_000_000') || !app.includes('frameRate: { ideal: TABLE_RECORDING_CONFIG.frameRate, max: TABLE_RECORDING_CONFIG.frameRate }')) throw new Error('Recording bitrate/frame-rate preset missing');
+if (!app.includes('function recordingVideoBitrate') || !app.includes('14_000_000') || !app.includes('frameRate: { ideal: TABLE_RECORDING_CONFIG.frameRate, max: TABLE_RECORDING_CONFIG.frameRate }')) throw new Error('Recording bitrate/frame-rate preset missing');
 if (!css.includes('0.2.22 — persistent felt branding + separate in-table action line') || !css.includes('.poker-table.action-message-visible .table-brand-stage .table-brand')) throw new Error('0.2.22 persistent felt branding missing');
 
 // 0.3.0 — hierarchical decision architecture + Strategy/Raw benchmark modes.
@@ -321,13 +321,19 @@ if (!css.includes('0.9.3 — poker-table prototype port')) throw new Error('0.9.
 if (!index.includes('class="table-arena"') || !index.includes('id="dealerMarker"') || !index.includes('class="board-card board-card--empty"') && !app.includes('board-card--empty')) throw new Error('Template table shell and empty-card state missing');
 if (!app.includes('seat-card--pending') || !app.includes('class="empty-seat"') || !app.includes('tableActionParts')) throw new Error('Complete table seat states missing');
 if (!app.includes('function updateTableMarkers') || !app.includes("return value === 'SB' || value === 'BB' ? value : ''")) throw new Error('D/SB/BB-only table markers missing');
-if (!app.includes('function enhanceSelect') || !css.includes('.choice-menu') || !css.includes('.choice-option[aria-selected="true"]')) throw new Error('Custom select picker missing');
-if (!css.includes('.dialog-head .button, .dialog-body .button, .dialog-footer .button { min-height: 38px; }')) throw new Error('Modal button/input height alignment missing');
+if (!app.includes('function enhanceSelect') || !app.includes("picker.role = 'radiogroup'") || !css.includes('.choice-option[aria-checked="true"]')) throw new Error('Direct custom choice buttons missing');
+if (!css.includes('.dialog-head .button, .dialog-body .button, .dialog-footer .button { height: 38px; min-height: 38px; }')) throw new Error('Modal button/input height alignment missing');
 if (!css.includes('0.10.0 — complete poker-table template implementation')) throw new Error('0.10.0 CSS marker missing');
 // 0.10.1 — uncluttered felt and contained responsive branding.
 if (index.includes('id="streetLabel"') || app.includes('els.streetLabel')) throw new Error('Lobby/street block must not render on the table');
 if (!css.includes('container-type: size') || !css.includes('.table-branding { position: absolute') || !css.includes('overflow: hidden; transform: translateX(-50%)')) throw new Error('Responsive contained table branding missing');
 if (!css.includes('0.10.1 — responsive branding')) throw new Error('0.10.1 CSS marker missing');
+// 0.11.0 — direct choices, modal spacing and lower-overhead recording.
+if (css.includes('.choice-menu') || app.includes('openChoiceMenu')) throw new Error('Dropdown-style custom select remnants found');
+if (!css.includes('.compact-footer { justify-content: flex-end; }') || !css.includes('.field-icon-button, .dialog-body .remove-connection')) throw new Error('Modal action alignment/spacing missing');
+if (!app.includes("setTimeout(frame, tableRecording ? 100 : 50)") || !app.includes("imageSmoothingQuality = 'medium'") || !app.includes('recording.crop || tableCropSourceRect')) throw new Error('Recording and turn-feedback optimization missing');
+if (!css.includes('.is-recording .table-seat')) throw new Error('Recording-mode animation reduction missing');
+if (!css.includes('0.11.0 — direct choice controls')) throw new Error('0.11.0 CSS marker missing');
 
 for (const workflow of ['ci.yml','pages.yml','publish.yml','real-diagnostics.yml']) {
   if (!statSync(join(root,'.github','workflows',workflow)).isFile()) throw new Error(`Missing workflow ${workflow}`);

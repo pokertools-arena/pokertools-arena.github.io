@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.10.1.** The table-template release now keeps its branding responsive and safely contained above the playing area, removes the lobby/street block from the felt, and retains the complete player-state system, custom selection controls, and live D/SB/BB markers.
+> **Current release: 0.11.0.** The streamlined UI release replaces dropdown-style controls with direct compact choice buttons, fixes modal control spacing and action alignment, and reduces recording overhead with a lighter capture pipeline and throttled turn feedback.
 
 ---
 

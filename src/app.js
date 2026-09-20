@@ -82,7 +82,7 @@ let currentReplayEvent = null;
 const renderMemo = { status: '', table: '', decision: '', feed: '', events: '', stats: '' };
 
 function animationsAllowed() {
-  return document.visibilityState === 'visible' && !globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  return !tableRecording && document.visibilityState === 'visible' && !globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
 function getAudioContext() {
@@ -1572,7 +1572,7 @@ function clearTurnRings(keep = null) {
   for (const el of $$('.table-seat.turn-active')) if (el !== keep) el.classList.remove('turn-active');
 }
 function stopClock() {
-  if (clockTimer) { cancelAnimationFrame(clockTimer); clearInterval(clockTimer); }
+  if (clockTimer) { cancelAnimationFrame(clockTimer); clearTimeout(clockTimer); }
   clockTimer = null; activeDecisionClockId = null;
   clearTurnRings();
 }
@@ -1603,7 +1603,7 @@ function startClock(decision) {
       seat.style.setProperty('--turn', phase.ringFraction.toFixed(4));
       seat.classList.toggle('turn-low', phase.isLow);
     }
-    if (activeDecisionClockId === decision.id) clockTimer = requestAnimationFrame(frame);
+    if (activeDecisionClockId === decision.id) clockTimer = setTimeout(frame, tableRecording ? 100 : 50);
   };
   frame();
 }
@@ -2122,13 +2122,13 @@ function openTests() {
 }
 
 const TABLE_RECORDING_CONFIG = Object.freeze({
-  frameRate: 30,
-  maxWidth: 2560,
-  maxHeight: 1440,
-  minBitrate: 10_000_000,
-  maxBitrate: 28_000_000,
-  bitsPerPixelPerFrame: 0.20,
-  audioBitsPerSecond: 192_000,
+  frameRate: 24,
+  maxWidth: 1920,
+  maxHeight: 1080,
+  minBitrate: 6_000_000,
+  maxBitrate: 14_000_000,
+  bitsPerPixelPerFrame: 0.14,
+  audioBitsPerSecond: 160_000,
   background: '#07090b',
 });
 
@@ -2159,6 +2159,7 @@ function recordingVideoBitrate({ width, height, frameRate = TABLE_RECORDING_CONF
 
 function setRecordButton(active, label = null) {
   if (!els.recordBtn) return;
+  document.documentElement.classList.toggle('is-recording', active);
   els.recordBtn.classList.toggle('active', active);
   els.recordBtn.setAttribute('aria-pressed', String(active));
   const icon = $('.action-icon', els.recordBtn);
@@ -2239,14 +2240,14 @@ function createTableRecordingCanvas(sourceWidth, sourceHeight) {
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) throw new Error('Canvas video recording is not available in this browser');
   ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  return { canvas, ctx };
+  ctx.imageSmoothingQuality = 'medium';
+  return { canvas, ctx, crop: source };
 }
 
 function paintTableRecordingFrame(recording, source, sourceWidth, sourceHeight) {
   const { ctx, canvas } = recording;
   if (!ctx || !canvas || !source) return false;
-  const crop = tableCropSourceRect(sourceWidth, sourceHeight);
+  const crop = recording.crop || tableCropSourceRect(sourceWidth, sourceHeight);
   ctx.globalCompositeOperation = 'copy';
   ctx.fillStyle = TABLE_RECORDING_CONFIG.background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2350,8 +2351,8 @@ function startTimestampedVideoPump(recording) {
         try {
           const width = frame.displayWidth || frame.codedWidth || recording.sourceWidth;
           const height = frame.displayHeight || frame.codedHeight || recording.sourceHeight;
-          if (!paintTableRecordingFrame(recording, frame, width, height)) continue;
           if (writer.desiredSize != null && writer.desiredSize <= 0) continue;
+          if (!paintTableRecordingFrame(recording, frame, width, height)) continue;
           const timestamp = Number.isFinite(frame.timestamp) ? frame.timestamp : Math.round(performance.now() * 1000);
           const duration = Number.isFinite(frame.duration) && frame.duration > 0 ? frame.duration : fallbackDuration;
           const outputFrame = new VideoFrame(recording.canvas, { timestamp, duration });
@@ -2495,7 +2496,7 @@ async function startTableRecording() {
 
     const sourceWidth = Math.max(2, captureVideo.videoWidth || innerWidth || 2);
     const sourceHeight = Math.max(2, captureVideo.videoHeight || innerHeight || 2);
-    const { canvas, ctx } = createTableRecordingCanvas(sourceWidth, sourceHeight);
+    const { canvas, ctx, crop } = createTableRecordingCanvas(sourceWidth, sourceHeight);
 
     recording = {
       recorder: null,
@@ -2505,6 +2506,7 @@ async function startTableRecording() {
       captureVideo,
       canvas,
       ctx,
+      crop,
       canvasStream: null,
       outputVideoTrack: null,
       processorReader: null,
@@ -2797,96 +2799,38 @@ function downloadText(filename, text) {
 }
 
 const choicePickers = new Map();
-let openChoicePicker = null;
-
-function selectedOption(select) {
-  return [...select.options].find(option => option.value === select.value) || select.options[0] || null;
-}
 function syncChoicePicker(select) {
   const picker = choicePickers.get(select);
   if (!picker) return;
-  const option = selectedOption(select);
-  picker.trigger.textContent = option?.textContent?.trim() || 'Choose…';
-  picker.trigger.disabled = select.disabled;
-  picker.trigger.setAttribute('aria-disabled', String(select.disabled));
+  picker.replaceChildren(...[...select.options].map((option, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'choice-option';
+    button.role = 'radio';
+    button.dataset.optionIndex = String(index);
+    button.textContent = option.textContent;
+    button.disabled = select.disabled || option.disabled;
+    button.setAttribute('aria-checked', String(option.value === select.value));
+    return button;
+  }));
+  picker.dataset.optionCount = String(select.options.length);
+  picker.setAttribute('aria-disabled', String(select.disabled));
 }
 function syncChoicePickers() {
   for (const select of choicePickers.keys()) syncChoicePicker(select);
 }
-function closeChoicePicker({ focus = false } = {}) {
-  if (!openChoicePicker) return;
-  const { trigger, menu } = openChoicePicker;
-  trigger.setAttribute('aria-expanded', 'false');
-  if (typeof menu.hidePopover === 'function' && menu.matches(':popover-open')) menu.hidePopover();
-  menu.classList.remove('choice-menu-open');
-  if (focus) trigger.focus();
-  openChoicePicker = null;
-}
-function positionChoiceMenu(trigger, menu) {
-  const margin = 8, gap = 5, rect = trigger.getBoundingClientRect();
-  const width = Math.min(Math.max(rect.width, 170), 320, window.innerWidth - margin * 2);
-  menu.style.width = `${Math.round(width)}px`;
-  const height = menu.getBoundingClientRect().height;
-  let top = rect.bottom + gap;
-  if (top + height > window.innerHeight - margin && rect.top - height - gap >= margin) top = rect.top - height - gap;
-  menu.style.left = `${Math.round(clamp(rect.left, margin, window.innerWidth - width - margin))}px`;
-  menu.style.top = `${Math.round(clamp(top, margin, Math.max(margin, window.innerHeight - height - margin)))}px`;
-}
-function renderChoiceOptions(select, menu) {
-  menu.replaceChildren(...[...select.options].map((option, index) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'choice-option';
-    button.role = 'option';
-    button.dataset.optionIndex = String(index);
-    button.textContent = option.textContent;
-    button.disabled = option.disabled;
-    button.setAttribute('aria-selected', String(option.value === select.value));
-    return button;
-  }));
-}
-function openChoiceMenu(select, trigger, menu, { keyboard = false } = {}) {
-  if (select.disabled) return;
-  if (openChoicePicker?.select === select) { closeChoicePicker(); return; }
-  closeChoicePicker();
-  syncChoicePicker(select);
-  renderChoiceOptions(select, menu);
-  trigger.setAttribute('aria-expanded', 'true');
-  openChoicePicker = { select, trigger, menu };
-  if (typeof menu.showPopover === 'function') menu.showPopover();
-  else menu.classList.add('choice-menu-open');
-  positionChoiceMenu(trigger, menu);
-  if (keyboard) (menu.querySelector('[aria-selected="true"]:not(:disabled)') || menu.querySelector('.choice-option:not(:disabled)'))?.focus();
-}
 function enhanceSelect(select) {
   if (!(select instanceof HTMLSelectElement) || choicePickers.has(select)) return;
-  const picker = document.createElement('span'), trigger = document.createElement('button'), menu = document.createElement('div');
+  const picker = document.createElement('span');
   const id = select.id || select.name || `select-${choicePickers.size + 1}`;
   picker.className = 'choice-picker';
-  trigger.type = 'button';
-  trigger.className = 'choice-trigger';
-  trigger.setAttribute('aria-haspopup', 'listbox');
-  trigger.setAttribute('aria-expanded', 'false');
-  trigger.setAttribute('aria-label', select.getAttribute('aria-label') || `Choose ${id.replace(/[-_]/g, ' ')}`);
-  menu.className = 'choice-menu';
-  menu.id = `choice-menu-${id.replace(/[^a-z0-9_-]/gi, '-')}-${choicePickers.size + 1}`;
-  menu.role = 'listbox';
-  menu.setAttribute('popover', 'manual');
-  trigger.setAttribute('aria-controls', menu.id);
+  picker.role = 'radiogroup';
+  picker.setAttribute('aria-label', select.getAttribute('aria-label') || `Choose ${id.replace(/[-_]/g, ' ')}`);
   select.classList.add('native-select-enhanced');
   select.insertAdjacentElement('afterend', picker);
-  picker.append(trigger);
-  (select.closest('dialog') || document.body).append(menu);
-  choicePickers.set(select, { select, picker, trigger, menu });
+  choicePickers.set(select, picker);
   syncChoicePicker(select);
-  trigger.addEventListener('click', () => openChoiceMenu(select, trigger, menu));
-  trigger.addEventListener('keydown', event => {
-    if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) {
-      event.preventDefault();
-      openChoiceMenu(select, trigger, menu, { keyboard: true });
-    }
-  });
-  menu.addEventListener('click', event => {
+  picker.addEventListener('click', event => {
     const optionButton = event.target.closest('.choice-option');
     if (!optionButton || optionButton.disabled) return;
     const option = select.options[Number(optionButton.dataset.optionIndex)];
@@ -2894,18 +2838,17 @@ function enhanceSelect(select) {
     select.value = option.value;
     select.dispatchEvent(new Event('change', { bubbles: true }));
     syncChoicePicker(select);
-    closeChoicePicker({ focus: true });
   });
-  menu.addEventListener('keydown', event => {
-    const options = $$('.choice-option:not(:disabled)', menu);
+  picker.addEventListener('keydown', event => {
+    const options = $$('.choice-option:not(:disabled)', picker);
     const index = options.indexOf(document.activeElement);
-    if (event.key === 'Escape') { event.preventDefault(); closeChoicePicker({ focus: true }); }
-    else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    if (['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'].includes(event.key)) {
       event.preventDefault();
-      options[(index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length]?.focus();
+      const direction = ['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1;
+      const next = options[(index + direction + options.length) % options.length];
+      next?.focus(); next?.click();
     } else if (event.key === 'Home' || event.key === 'End') {
-      event.preventDefault();
-      options[event.key === 'Home' ? 0 : options.length - 1]?.focus();
+      event.preventDefault(); const next = options[event.key === 'Home' ? 0 : options.length - 1]; next?.focus(); next?.click();
     }
   });
   select.addEventListener('change', () => syncChoicePicker(select));
@@ -2913,17 +2856,15 @@ function enhanceSelect(select) {
 
 $$('select').forEach(enhanceSelect);
 new MutationObserver(records => {
-  for (const record of records) for (const node of record.addedNodes) {
-    if (!(node instanceof Element)) continue;
-    if (node.matches('select')) enhanceSelect(node);
-    $$('select', node).forEach(enhanceSelect);
+  for (const record of records) {
+    if (record.target instanceof HTMLSelectElement && choicePickers.has(record.target)) syncChoicePicker(record.target);
+    for (const node of record.addedNodes) {
+      if (!(node instanceof Element)) continue;
+      if (node.matches('select')) enhanceSelect(node);
+      $$('select', node).forEach(enhanceSelect);
+    }
   }
 }).observe(document.body, { childList: true, subtree: true });
-document.addEventListener('pointerdown', event => {
-  if (openChoicePicker && !openChoicePicker.trigger.contains(event.target) && !openChoicePicker.menu.contains(event.target)) closeChoicePicker();
-}, true);
-window.addEventListener('resize', () => closeChoicePicker(), { passive: true });
-window.addEventListener('scroll', () => closeChoicePicker(), { passive: true, capture: true });
 
 const tooltipEl = document.createElement('div');
 tooltipEl.className = 'ui-tooltip';

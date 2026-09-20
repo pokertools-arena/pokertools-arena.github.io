@@ -15,7 +15,6 @@ pushing:
 3. **Test:** `npm test`.
 4. **Commit.**
 5. **Tag:** annotated `vX.Y.Z` tag matching the bumped version.
-6. **Push:** `git push origin main` and `git push origin vX.Y.Z`.
 
 Historical release markers (older `RELEASE_NOTES` sections, version-stamped CSS
 comments such as `0.4.0 — methodology`, `docs/verification/*`) are never

@@ -1,5 +1,17 @@
 # Release notes
 
+## 0.11.0 — streamlined controls and recording
+
+- Replaced dropdown-style select popovers with direct, compact option buttons
+  that preserve native form values and support arrow-key selection.
+- Standardized modal input/action heights, added consistent spacing around
+  inline help and field actions, and aligned primary Save actions to the right.
+- Reduced table-recording work to 1080p/24 fps with a balanced bitrate,
+  cached crop geometry, medium-cost canvas smoothing and backpressure checks
+  before frame painting.
+- Throttled turn-ring updates and suppresses nonessential transitions and
+  cosmetic table animations while recording to keep captured games smooth.
+
 ## 0.10.1 — responsive felt branding
 
 - Removed the lobby/street label block from the table and its obsolete render
