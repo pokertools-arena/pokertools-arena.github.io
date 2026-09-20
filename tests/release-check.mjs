@@ -81,7 +81,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.9.1') throw new Error('Expected release version 0.9.1');
+if (pkg.version !== '0.9.2') throw new Error('Expected release version 0.9.2');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -306,6 +306,10 @@ if (!compactCss.includes('.poker-table.action-message-visible.table-brand-stage.
 if (!app.includes('replay-player-identity') || !app.includes('replay-player-stack')) throw new Error('Compact replay player rows missing');
 if (!config.includes("'HTTP-Referer': ARENA_CONFIG.connections.siteUrl") || !config.includes("'X-OpenRouter-Title': ARENA_CONFIG.connections.siteName")) throw new Error('OpenRouter attribution defaults missing');
 if (!core.includes("if (!headers['HTTP-Referer'] &&") || !core.includes("if (!headers['X-OpenRouter-Title'])")) throw new Error('OpenRouter custom attribution headers must be preserved');
+// 0.9.2 — distinct casino room, felt and wood layers.
+if (!compactCss.includes('.poker-table{position:relative') || !css.includes('#07090b 100%')) throw new Error('Dark casino-table surround missing');
+if (!compactCss.includes('.felt-ring::before{') || !compactCss.includes('.felt-ring::after{')) throw new Error('Layered felt texture missing');
+if (!css.includes('repeating-linear-gradient(96deg') || !css.includes('0 22px 38px')) throw new Error('Dimensional wood rail missing');
 
 for (const workflow of ['ci.yml','pages.yml','publish.yml','real-diagnostics.yml']) {
   if (!statSync(join(root,'.github','workflows',workflow)).isFile()) throw new Error(`Missing workflow ${workflow}`);

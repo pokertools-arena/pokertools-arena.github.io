@@ -1,5 +1,14 @@
 # Release notes
 
+## 0.9.2 — authentic casino table
+
+- Reframed the table against a dark, vignetted casino-room background so the
+  oval playing surface reads as a physical object instead of a green panel.
+- Added deep green woven felt with matte highlights, natural shading, subtle
+  wear lines, and soft tonal variation.
+- Rebuilt the rim as layered wood grain with a warm inner accent, dimensional
+  edge highlights, and deeper rail shadows under ambient overhead light.
+
 ## 0.9.1 — table clarity and replay polish
 
 - Moved dealt hole cards into each live seat's layout and added density-aware

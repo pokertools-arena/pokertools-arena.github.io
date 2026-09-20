@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.9.1.** A table-clarity release with fully visible dealt cards, readable two-line actions, clockwise timers, richer felt and wood detail, scrollable statistics, compact decision replays, and default OpenRouter attribution headers.
+> **Current release: 0.9.2.** The casino-table release adds deep green woven felt, a dimensional wood-grain rail, subtle table wear, warm overhead light, and a dark vignetted room background.
 
 ---
 
