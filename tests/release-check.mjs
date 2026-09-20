@@ -79,7 +79,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.6.9') throw new Error('Expected release version 0.6.9');
+if (pkg.version !== '0.6.10') throw new Error('Expected release version 0.6.10');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -207,6 +207,11 @@ if (!app.includes("for (const type of ['video/webm;codecs=vp8', 'video/webm;code
 if (!app.includes('function finalizeTableRecording')) throw new Error('Centralized recorder finalization missing');
 if (!app.includes('recording.animationFrameId = requestAnimationFrame(loop)')) throw new Error('requestAnimationFrame painter scheduler missing');
 if (app.includes('requestVideoFrameCallback')) throw new Error('Legacy requestVideoFrameCallback painter still present');
+// 0.6.10 — action-time default kept in sync between TIMING_DEFAULTS and the setup form.
+const actionDefault = app.match(/const TIMING_DEFAULTS = Object\.freeze\(\{[\s\S]*?actionSeconds:\s*(\d+)/);
+const actionFormValue = index.match(/name="actionSeconds"[^>]*value="(\d+)"/);
+if (!actionDefault || !actionFormValue) throw new Error('Action-time default missing');
+if (actionDefault[1] !== actionFormValue[1]) throw new Error(`Action-time default mismatch: app ${actionDefault[1]}s vs form ${actionFormValue[1]}s`);
 if (!css.includes('0.2.8 — viewport-fit table') || !css.includes('grid-template-columns:minmax(0,1fr) clamp(270px,25vw,360px)')) throw new Error('0.2.8 viewport-fit table layout missing');
 if (!app.includes('const renderMemo') || !app.includes('activeInspectorTab') || !app.includes('schedulePersist()') || !app.includes('publicStatsCacheHand')) throw new Error('0.2.8 render/persistence optimization missing');
 if (!app.includes('decisionTelemetryHtml') || !index.includes('id="decisionHand"') || !index.includes('id="decisionOptionCount"')) throw new Error('Stable decision instrument / feed telemetry UI missing');

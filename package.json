@@ -1,6 +1,6 @@
 {
   "name": "pokertools-arena",
-  "version": "0.6.9",
+  "version": "0.6.10",
   "description": "Browser-first AI poker benchmark powered by @pokertools/engine with generic OpenAI-compatible endpoints, optional OpenRouter/Jev Decisions routing, deterministic hierarchical decisions, paired fixed-state methodology, and reproducible reporting.",
   "type": "module",
   "bin": {

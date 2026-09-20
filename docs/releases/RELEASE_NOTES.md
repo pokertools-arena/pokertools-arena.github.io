@@ -1,5 +1,26 @@
 # Release notes
 
+## 0.6.10 — action-time default
+
+- **Per-move clock now defaults to 20 seconds** (`TIMING_DEFAULTS.actionSeconds`),
+  up from 12, giving each model more time before the decision timeout.
+- **The setup form no longer disagrees with the constant.** The `Action time
+  (s)` input was hard-coded to `value="12"`, and `collectSetupRaw()` reads that
+  form value first, so the constant only applied as a fallback for an empty
+  field. The input now defaults to `20`, so a default setup actually uses the
+  intended value.
+- **Drift guard.** The release check now asserts that
+  `TIMING_DEFAULTS.actionSeconds` and the form's `value` stay equal, so a future
+  change to one without the other fails the suite.
+
+### Notes
+
+- Saved setup configs and `.env`/launcher-injected settings still override the
+  default, as before; this only changes the value shown and submitted by a
+  fresh setup.
+- Removed trailing whitespace on the tournament-meta assignment (no behavior
+  change).
+
 ## 0.6.9 — recording refactor
 
 - **Independent 30 FPS painter.** Table recording no longer follows

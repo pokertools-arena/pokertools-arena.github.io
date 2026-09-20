@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.6.9.** The recording-refactor release: table recording now paints from an independent 30 FPS `requestAnimationFrame` scheduler with manual canvas frame submission (`captureStream(0)` + `requestFrame()`), a VP8-first WebM codec preference for reliable real-time encoding, output scaled to a 1920×1080 cap, and a 6–16 Mbps adaptive bitrate.
+> **Current release: 0.6.10.** The action-time-default release: the per-move clock now defaults to 20 seconds, and the setup form's `Action time` value is kept in sync with `TIMING_DEFAULTS.actionSeconds` by a release-check invariant so the two can no longer drift.
 
 ---
 
