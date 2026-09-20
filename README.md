@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.6.5.** The provider-capability release: sampling parameters are now capability-aware, so the arena omits `temperature` for models whose endpoints do not support it — fixing GPT-5-class models that previously failed every request under strict OpenRouter routing — while `require_parameters: true` still guarantees tool and JSON-Schema support.
+> **Current release: 0.6.6.** The GLM-reasoning release: GLM 4.5–5.3 are correctly detected as reasoning models, so the two-stage hierarchical family/size calls get a large enough completion budget instead of returning empty tool calls and forcing an automatic fallback. The primary Start control is now icon-only (▶) like every other header action, with its tooltip and hint text updated to match.
 
 ---
 

@@ -1,5 +1,27 @@
 # Release notes
 
+## 0.6.6 — GLM reasoning budget and icon-only Start
+
+- **GLM 4.5–5.3 are detected as reasoning models.** The name heuristic only
+  matched `glm-4`, so `z-ai/glm-5.3-flash` was given the small non-reasoning
+  completion budget. Its hidden reasoning then consumed all 320 output tokens and
+  returned an empty tool call, so every hierarchical decision failed with
+  "Model did not call choose_action_family" and was replaced by an automatic
+  fallback. The rule now covers every numbered GLM version plus its vision/turbo
+  and `latest` aliases, so the family and size stages get the 1024-token budget
+  and the excluded 256-token reasoning cap.
+- **Start is icon-only.** The primary Start control now uses the same
+  `icon-only-action` treatment as Pause/Resume, Stop, Restart, Tests and
+  Settings: just the `▶` glyph, a tooltip, and the accessible label. The
+  narrow-viewport rules that re-expanded the Start label were removed, and the
+  empty-lobby hint now reads "then press ▶".
+
+### Notes
+
+- Offline coverage now also asserts the reasoning-model detection for GLM 4.5,
+  4.6, 4.7, 5, 5.3, 5v-turbo and `latest` in
+  `tests/unit/model-capabilities-tests.mjs`.
+
 ## 0.6.5 — Capability-aware sampling parameters
 
 - **`temperature` is sent only when the model supports it.** OpenRouter requests

@@ -1456,7 +1456,7 @@ function renderStatus(s) {
   else if (s?.table && s?.status === 'FINISHED' && s?.winner) els.tournamentMeta.textContent = `Winner · ${displayModelName(s.winner.model || '')} · ${fmt(s.winner.stack)} chips · ${s.table.handNumber} hands`;
   else if (s?.table && s?.status === 'PAUSED') els.tournamentMeta.textContent = `Paused · Hand ${s.table.handNumber} · Level ${Number(s.table.blindLevel || 0) + 1} · ${s.table.playersRemaining ?? s.config?.players.length ?? 0}/${s.table.startingPlayers ?? s.config?.players.length ?? 0} left`;
   else if (s?.table) els.tournamentMeta.textContent = `Hand ${s.table.handNumber} · Level ${Number(s.table.blindLevel || 0) + 1} · ${s.table.playersRemaining ?? s.config?.players.length ?? 0}/${s.table.startingPlayers ?? s.config?.players.length ?? 0} left`; 
-  else els.tournamentMeta.textContent = 'Seat 2–10 models, then press Start';
+  else els.tournamentMeta.textContent = 'Seat 2–10 models, then press ▶';
 }
 function renderTable(s) {
   const running = ['RUNNING', 'PAUSED'].includes(s?.status);

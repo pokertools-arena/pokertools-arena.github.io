@@ -173,7 +173,7 @@ export function isJevModel(model) {
 }
 export function isReasoningModel(model) {
   const id = String(model || '').toLowerCase();
-  return /(?:^|[\/._:-])(qwen3|qwq|deepseek-(?:r1|v3)|magistral|glm-4|gpt-oss|nemotron|reason(?:ing)?|thinking|o1|o3|o4)(?:$|[\/._:-])/.test(id);
+  return /(?:^|[\/._:-])(qwen3|qwq|deepseek-(?:r1|v3)|magistral|glm-(?:\d+[a-z]*|latest|flash-latest)|gpt-oss|nemotron|reason(?:ing)?|thinking|o1|o3|o4)(?:$|[\/._:-])/.test(id);
 }
 export function effectiveProtocol(agent, connection) {
   if (isOpenRouterConnection(connection) && isJevModel(agent?.model)) return 'jev_decisions';
