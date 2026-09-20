@@ -58,13 +58,14 @@ for (const id of ['string-model', 'no-params', 'bad-params']) {
 // 6. Reasoning detection covers every current GLM version and its vision/turbo
 // variants; a missed detection leaves the completion budget too small for the
 // hidden reasoning, which returns an empty tool call and forces a fallback.
-for (const id of ['z-ai/glm-4.5', 'z-ai/glm-4.6', 'z-ai/glm-4.7-flash', 'z-ai/glm-5', 'z-ai/glm-5.3-flash', 'z-ai/glm-5v-turbo', 'z-ai/glm-latest']) {
+for (const id of ['z-ai/glm-4.5', 'z-ai/glm-4.6', 'z-ai/glm-4.7-flash', 'z-ai/glm-5', 'z-ai/glm-5.3-flash', 'z-ai/glm-5v-turbo', 'z-ai/glm-latest', 'deepseek/deepseek-r1', 'deepseek/deepseek-v3.1', 'deepseek/deepseek-v4.1-flash']) {
   assert.equal(isReasoningModel(id), true, `${id} must be treated as a reasoning model`);
 }
 assert.equal(isReasoningModel('google/gemma-4-26b-a4b-it'), false, 'gemma is not a reasoning model');
-assert.equal(isReasoningModel('deepseek/deepseek-v4.1-flash'), false, 'deepseek v4 flash is not detected by name');
 const glmBody = bodyFor('z-ai/glm-5.3-flash', 0.3, 'tool');
-assert.equal(glmBody.max_tokens, 1024, 'reasoning models get the larger completion budget');
+assert.equal(glmBody.max_tokens, 2048, 'reasoning models get the larger completion budget');
 assert.deepEqual(glmBody.reasoning, { max_tokens: 256, exclude: true }, 'reasoning must be capped and excluded');
+const deepseekBody = bodyFor('deepseek/deepseek-v4.1-flash', 0.3, 'tool');
+assert.equal(deepseekBody.max_tokens, 2048, 'deepseek v4 gets the reasoning completion budget');
 
 console.log('model-capabilities-test: capability-aware temperature PASS');

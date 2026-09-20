@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.6.7.** The launcher/dev-UX release: `npm run start` (and `start:chrome`) now build `dist/` before serving it, so the local launcher can no longer run a stale bundle. The browser primes each OpenRouter model's supported-parameter metadata at startup, extending the 0.6.5 capability gating to seats started from `.env` or saved setup. The inspector's Recent decisions now scroll inside a fixed panel instead of being clipped.
+> **Current release: 0.6.8.** The reasoning-reliability release: DeepSeek v4 (like GLM 4.5–5.3 before it) is now detected as a reasoning model and gets a 2048-token budget, and any stage truncated by that limit is retried once with a larger budget and lower reasoning effort — so a stochastic reasoner no longer forces an automatic fallback.
 
 ---
 

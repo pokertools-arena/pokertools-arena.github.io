@@ -72,14 +72,14 @@ if (!app.includes('Number.isSafeInteger(value)') || !app.includes("Unable to bui
 if (!app.includes('openSetup({ preserveError = false } = {})') || !app.includes('openSetup({ preserveError: true })')) throw new Error('Visible startup-error handling missing');
 if (!app.includes('buildPublicTournamentMemory')) throw new Error('Shared public tournament memory missing');
 if (!has('Fail closed. A failed player view must never fall back')) throw new Error('Fail-closed player masking missing');
-if (!has('isReasoningModel(agent.model) ? 1024 : 320')) throw new Error('Reasoning-model completion budget fix missing');
-if (!has('body.reasoning = { max_tokens: 256, exclude: true }')) throw new Error('OpenRouter reasoning cap missing');
+if (!has('isReasoningModel(agent.model) ? 2048 : 320')) throw new Error('Reasoning-model completion budget fix missing');
+if (!has('{ max_tokens: 256, exclude: true }')) throw new Error('OpenRouter reasoning cap missing');
 if (!readFileSync(join(root,'build.mjs'),'utf8').includes("filter: /^(?:node:)?crypto$/")) throw new Error('Browser crypto resolver missing from build');
 if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser crypto shim missing');
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.6.7') throw new Error('Expected release version 0.6.7');
+if (pkg.version !== '0.6.8') throw new Error('Expected release version 0.6.8');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -189,6 +189,9 @@ if (!has('resolveTemperature(agent.model')) throw new Error('Temperature gating 
 if (!has('require_parameters: true')) throw new Error('Strict OpenRouter parameter routing must be preserved');
 // 0.6.6 — GLM reasoning detection and icon-only Start control.
 if (!has('glm-(?:\\d+[a-z]*|latest|flash-latest)')) throw new Error('GLM reasoning-model detection missing');
+// 0.6.8 — DeepSeek v4 reasoning detection and a larger reasoning budget.
+if (!has('deepseek-[rv]\\d')) throw new Error('DeepSeek reasoning-model detection missing');
+if (!has('truncatedError') || !has('truncated→retry')) throw new Error('Truncated reasoning-stage retry missing');
 if (!index.includes('id="startTopBtn" class="button primary top-action icon-only-action')) throw new Error('Start must be an icon-only header control');
 // 0.6.7 — build-before-start, browser capability priming, scrollable decision feed.
 if (!index.includes('class="panel-block decision-feed-panel"') || !css.includes('.decision-feed{flex:1 1 auto;min-height:0;overflow-y:auto')) throw new Error('Scrollable Recent decisions panel missing');

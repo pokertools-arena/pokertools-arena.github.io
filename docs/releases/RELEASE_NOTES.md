@@ -1,5 +1,33 @@
 # Release notes
 
+## 0.6.8 — DeepSeek reasoning budget
+
+- **DeepSeek v4 is detected as a reasoning model.** The name heuristic only
+  matched `deepseek-r1`/`deepseek-v3`, so `deepseek/deepseek-v4.1-flash` was
+  given the small non-reasoning budget. Its hidden reasoning consumed all 320
+  output tokens and returned an empty tool call, so aggressive hierarchical
+  decisions failed with "Model did not call choose_action_family" and fell back
+  automatically. The rule now covers `deepseek-[rv]<n>` (r1, v3, v4, …).
+- **Larger reasoning budget.** Reasoning models now get `max_tokens: 2048`
+  instead of 1024. DeepSeek v4's second (size) stage can spend well over 1024
+  tokens on hidden reasoning before emitting a tool call; measured over repeated
+  samples, 1024 failed intermittently while 2048 passed consistently.
+- **Truncated stages are retried.** A reasoning model can still exhaust any fixed
+  allowance on hidden reasoning (DeepSeek v4 does so roughly a quarter of the
+  time on the size stage). When a stage returns no tool call because it hit the
+  token limit (`finish_reason: length`), the arena now retries that stage once
+  with a 4096-token budget and `reasoning: { effort: 'low' }` instead of forcing
+  an automatic fallback. Five consecutive end-to-end DeepSeek decisions passed
+  after this change.
+
+### Notes
+
+- The `reasoning` request parameter remains name-gated (not catalogue-gated):
+  OpenRouter advertises `reasoning` support for almost every model, so treating
+  that as a signal made models such as Gemma over-reason and exhaust the budget.
+- Offline coverage asserts the DeepSeek r1/v3/v4 detection, the 2048 budget and
+  the truncated-stage retry (via a stubbed fetch).
+
 ## 0.6.7 — Launcher builds, browser capability priming, scrollable decisions
 
 - **`npm run start` builds first.** The launcher serves the prebuilt `dist/`

@@ -282,6 +282,36 @@ function headsUp(stacks = [10000, 10000]) {
   } finally { globalThis.fetch = originalFetch; }
 }
 
+// 11d. A truncated reasoning stage is retried once with a larger budget and
+//      lower reasoning effort instead of forcing an automatic fallback.
+{
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    const body = JSON.parse(options.body);
+    calls.push(body);
+    const toolName = body.tools?.[0]?.function?.name;
+    if (calls.length === 1) {
+      return new Response(JSON.stringify({ choices: [{ finish_reason: 'length', message: { content: '' } }] }), { status: 200 });
+    }
+    return new Response(JSON.stringify({
+      choices: [{ finish_reason: 'tool_calls', message: { tool_calls: [{ function: { name: toolName, arguments: JSON.stringify({ decisionId: 'd', actionFamily: 'check' }) } }] } }],
+    }), { status: 200 });
+  };
+  try {
+    const connection = { id: 'c', name: 'OpenRouter', kind: 'openrouter', baseUrl: 'https://openrouter.ai/api/v1', apiKey: 'test-key', headers: '' };
+    const agent = { model: 'deepseek/deepseek-v4.1-flash', protocol: 'tool', temperature: 0.3, provider: '' };
+    const result = await decideHierarchical({ agent, connection, state: RIVER_PROBE.state, legalActions: RIVER_PROBE.state.legalActions, decisionId: 'd', timeoutMs: 45000 });
+    assert.equal(calls.length, 2, 'a truncated stage must be retried exactly once');
+    assert.equal(calls[0].max_tokens, 2048, 'reasoning models start with the larger budget');
+    assert.equal(calls[1].max_tokens, 4096, 'the truncation retry must raise the budget');
+    assert.deepEqual(calls[1].reasoning, { effort: 'low' }, 'the truncation retry must lower reasoning effort');
+    assert.equal(result.action.type, ACTION.CHECK);
+    assert.equal(result.family.choice, 'check');
+  } finally { globalThis.fetch = originalFetch; }
+  console.log('hierarchical-test: truncated-stage retry PASS');
+}
+
 // 12. Diagnostic perfect-information fixtures cannot enter tournament mode.
 {
   assert.ok(DOMINATED_SCENARIOS.every(s => s.diagnosticOnly), 'dominated fixtures must be diagnostic-only');

@@ -101,6 +101,14 @@ export function mapGet(mapish, key, fallback = 0) {
   if (mapish && typeof mapish === 'object') return mapish[key] ?? mapish[String(key)] ?? fallback;
   return fallback;
 }
+// Marks a response that produced no usable decision because the model hit its
+// token allowance (OpenRouter reports finish_reason 'length'). Callers retry
+// these once with a larger budget instead of falling back.
+export function truncatedError(finishReason, message) {
+  const error = new Error(message);
+  if (finishReason === 'length') error.truncated = true;
+  return error;
+}
 export function jsonSafe(value) {
   try {
     return JSON.parse(JSON.stringify(value, (_key, v) => v instanceof Map ? Object.fromEntries(v) : v));
@@ -173,7 +181,7 @@ export function isJevModel(model) {
 }
 export function isReasoningModel(model) {
   const id = String(model || '').toLowerCase();
-  return /(?:^|[\/._:-])(qwen3|qwq|deepseek-(?:r1|v3)|magistral|glm-(?:\d+[a-z]*|latest|flash-latest)|gpt-oss|nemotron|reason(?:ing)?|thinking|o1|o3|o4)(?:$|[\/._:-])/.test(id);
+  return /(?:^|[\/._:-])(qwen3|qwq|deepseek-[rv]\d|magistral|glm-(?:\d+[a-z]*|latest|flash-latest)|gpt-oss|nemotron|reason(?:ing)?|thinking|o1|o3|o4)(?:$|[\/._:-])/.test(id);
 }
 export function effectiveProtocol(agent, connection) {
   if (isOpenRouterConnection(connection) && isJevModel(agent?.model)) return 'jev_decisions';
@@ -903,7 +911,7 @@ export async function decideJevNative({ agent, connection, state, legalActions, 
   } finally { cancel(); }
 }
 
-export function buildOpenAICompatibleBody({ agent, connection, state, legalActions, decisionId, protocol = 'tool', instructions = null, criteria = null, representationText = null }) {
+export function buildOpenAICompatibleBody({ agent, connection, state, legalActions, decisionId, protocol = 'tool', instructions = null, criteria = null, representationText = null, maxTokens = null, reasoning = null }) {
   const isOpenRouter = isOpenRouterConnection(connection);
   const criteriaKeys = criteria ? Object.keys(criteria) : null;
   const useChoice = Boolean(criteriaKeys?.length);
@@ -925,7 +933,7 @@ export function buildOpenAICompatibleBody({ agent, connection, state, legalActio
       { role: 'system', content: 'You are one seat in an autonomous poker benchmark. Commit exactly one legal move.' },
       { role: 'user', content: userContent },
     ],
-    max_tokens: isReasoningModel(agent.model) ? 1024 : 320,
+    max_tokens: maxTokens ?? (isReasoningModel(agent.model) ? 2048 : 320),
   };
   const temperature = resolveTemperature(agent.model, agent.temperature);
   if (temperature !== undefined) body.temperature = temperature;
@@ -940,7 +948,7 @@ export function buildOpenAICompatibleBody({ agent, connection, state, legalActio
   }
   if (isOpenRouter) {
     body.provider = agent.provider ? { only: [agent.provider], allow_fallbacks: false, require_parameters: true } : { allow_fallbacks: true, require_parameters: true };
-    if (isReasoningModel(agent.model)) body.reasoning = { max_tokens: 256, exclude: true };
+    if (isReasoningModel(agent.model)) body.reasoning = reasoning ?? { max_tokens: 256, exclude: true };
   }
   return body;
 }
@@ -952,21 +960,23 @@ export async function decideOpenAICompatible({ agent, connection, state, legalAc
   const capabilityKey = `${normalizeBaseUrl(connection.baseUrl)}|${agent.model}|${agent.provider || 'auto'}|tool`;
   const isOpenRouter = isOpenRouterConnection(connection);
   const cachedProtocol = requestedProtocol === 'tool' && isOpenRouter && !criteria ? protocolCapabilityCache.get(capabilityKey) : null;
-  const buildBody = protocol => buildOpenAICompatibleBody({ agent, connection, state, legalActions, decisionId, protocol, instructions, criteria, representationText });
+  const buildBody = (protocol, override = {}) => buildOpenAICompatibleBody({ agent, connection, state, legalActions, decisionId, protocol, instructions, criteria, representationText, maxTokens: override.maxTokens ?? null, reasoning: override.reasoning ?? null });
 
-  async function execute(protocol) {
-    const body = buildBody(protocol);
+  async function execute(protocol, override = {}) {
+    const body = buildBody(protocol, override);
     const { payload, incidents, retryCount } = await fetchJsonWithRetry(completionsUrl(connection.baseUrl), {
       method: 'POST', headers: makeHeaders(connection), body: JSON.stringify(body), signal,
     }, { maxRetries: 1 });
     const message = payload?.choices?.[0]?.message;
+    const finishReason = payload?.choices?.[0]?.finish_reason;
     let obj;
     if (protocol === 'tool') {
       const call = message?.tool_calls?.find(item => item?.function?.name === 'play_poker_action');
-      if (!call) throw new Error('Model did not call play_poker_action');
+      if (!call) throw truncatedError(finishReason, 'Model did not call play_poker_action');
       try { obj = JSON.parse(call.function.arguments); } catch { throw new Error('Tool arguments were not valid JSON'); }
     } else {
       const content = stripCodeFence(extractTextContent(message));
+      if (!content) throw truncatedError(finishReason, 'Model returned no decision content');
       try { obj = JSON.parse(content); } catch { throw new Error(`Model response was not valid JSON: ${content.slice(0, 180)}`); }
     }
     return { obj, payload, incidents, retryCount, protocol };
@@ -976,6 +986,7 @@ export async function decideOpenAICompatible({ agent, connection, state, legalAc
     let actualProtocol = cachedProtocol || requestedProtocol;
     let protocolFallback = cachedProtocol === 'json_schema' ? 'tool→json_schema (cached)' : null;
     let protocolFallbackTriggered = false;
+    let truncationRetry = false;
     let result;
     try {
       result = await execute(actualProtocol);
@@ -986,6 +997,12 @@ export async function decideOpenAICompatible({ agent, connection, state, legalAc
         protocolFallback = 'tool→json_schema';
         protocolFallbackTriggered = true;
         result = await execute(actualProtocol);
+      } else if (err?.truncated) {
+        // A reasoning model can exhaust its allowance on hidden reasoning and
+        // return nothing. Retry once with a larger budget and a lower reasoning
+        // effort rather than forcing an automatic fallback.
+        truncationRetry = true;
+        result = await execute(actualProtocol, { maxTokens: 4096, reasoning: { effort: 'low' } });
       } else throw err;
     }
     const normalized = normalizeDecisionObject(result.obj, legalActions, decisionId);
@@ -1000,6 +1017,7 @@ export async function decideOpenAICompatible({ agent, connection, state, legalAc
         endpoint: connection.name,
         protocolFallback,
         protocolFallbackTriggered,
+        truncationRetry,
         retryCount: result.retryCount,
         incidents: result.incidents,
       },
@@ -1151,11 +1169,11 @@ async function requestJevStage({ connection, model, state, questionKey, question
 
 async function requestChatStage({ agent, connection, schema, toolName, systemPrompt, userPrompt, signal, requestedProtocol, temperature }) {
   const isOpenRouter = isOpenRouterConnection(connection);
-  const buildBody = protocol => {
+  const buildBody = (protocol, override = {}) => {
     const body = {
       model: agent.model,
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-      max_tokens: isReasoningModel(agent.model) ? 1024 : 320,
+      max_tokens: override.maxTokens ?? (isReasoningModel(agent.model) ? 2048 : 320),
     };
     const resolvedTemperature = resolveTemperature(agent.model, temperature);
     if (resolvedTemperature !== undefined) body.temperature = resolvedTemperature;
@@ -1170,25 +1188,28 @@ async function requestChatStage({ agent, connection, schema, toolName, systemPro
     }
     if (isOpenRouter) {
       body.provider = agent.provider ? { only: [agent.provider], allow_fallbacks: false, require_parameters: true } : { allow_fallbacks: true, require_parameters: true };
-      if (isReasoningModel(agent.model)) body.reasoning = { max_tokens: 256, exclude: true };
+      if (isReasoningModel(agent.model)) body.reasoning = override.reasoning ?? { max_tokens: 256, exclude: true };
     }
     return body;
   };
   const capabilityKey = `${normalizeBaseUrl(connection.baseUrl)}|${agent.model}|${agent.provider || 'auto'}|${toolName}`;
   const cachedProtocol = requestedProtocol === 'tool' && isOpenRouter ? protocolCapabilityCache.get(capabilityKey) : null;
-  const execute = async protocol => {
+  const execute = async (protocol, override = {}) => {
     const started = performance.now();
     const { payload, incidents, retryCount } = await fetchJsonWithRetry(completionsUrl(connection.baseUrl), {
-      method: 'POST', headers: makeHeaders(connection), body: JSON.stringify(buildBody(protocol)), signal,
+      method: 'POST', headers: makeHeaders(connection), body: JSON.stringify(buildBody(protocol, override)), signal,
     }, { maxRetries: 1 });
     const message = payload?.choices?.[0]?.message;
+    const finishReason = payload?.choices?.[0]?.finish_reason;
     let obj;
     if (protocol === 'tool') {
       const call = message?.tool_calls?.find(item => item?.function?.name === toolName);
-      if (!call) throw new Error(`Model did not call ${toolName}`);
+      if (!call) throw truncatedError(finishReason, `Model did not call ${toolName}`);
       try { obj = JSON.parse(call.function.arguments); } catch { throw new Error('Tool arguments were not valid JSON'); }
     } else {
-      obj = JSON.parse(stripCodeFence(extractTextContent(message)));
+      const content = stripCodeFence(extractTextContent(message));
+      if (!content) throw truncatedError(finishReason, `Model returned no ${toolName} content`);
+      obj = JSON.parse(content);
     }
     return { obj, protocol, latencyMs: Math.round(performance.now() - started), model: payload?.model || agent.model, usage: payload?.usage ?? null, incidents, retryCount };
   };
@@ -1201,6 +1222,12 @@ async function requestChatStage({ agent, connection, schema, toolName, systemPro
       protocolCapabilityCache.set(capabilityKey, 'json_schema');
       const result = await execute('json_schema');
       return { ...result, protocolFallback: 'tool→json_schema' };
+    }
+    if (err?.truncated) {
+      // Retry once with a larger budget and lower reasoning effort instead of
+      // letting a truncated reasoning stage force an automatic fallback.
+      const result = await execute(actual, { maxTokens: 4096, reasoning: { effort: 'low' } });
+      return { ...result, protocolFallback: 'truncated→retry' };
     }
     throw err;
   }
