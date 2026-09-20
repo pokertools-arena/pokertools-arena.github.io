@@ -21,7 +21,7 @@ for (const file of files) {
   if (/\p{Script=Cyrillic}/u.test(text)) throw new Error(`Cyrillic text found in ${file.slice(root.length + 1)}`);
 }
 
-for (const file of ['src/app.js','src/lib/decision-core.js','src/benchmark/scenarios.js','build.mjs','bin/pokertools-arena.mjs','tests/integration/pokertools-integration.mjs','tests/integration/launcher-port-retry.mjs','tests/unit/decision-scenarios.mjs','tests/unit/decision-diagnostics.mjs','tests/unit/hierarchical-decision-tests.mjs','tests/unit/methodology-tests.mjs','tests/unit/paired-architecture-tests.mjs','tests/unit/size-bucket-tests.mjs','tests/unit/archive-content.mjs','tests/unit/report-consistency.mjs','tests/real/real-decision-diagnostics.mjs','tests/analysis/diagnostics-analyze.mjs','tools/diagnostics/scenarios.js','tools/diagnostics/representations.js','tools/diagnostics/harness.js','tools/diagnostics/corpus.js','tools/diagnostics/stats.js','tools/diagnostics/counters.js','tools/diagnostics/paired.js','tools/diagnostics/report.js','tools/diagnostics/size-buckets.js','tools/release/archive.mjs']) {
+for (const file of ['src/app.js','src/lib/decision-core.js','src/benchmark/scenarios.js','build.mjs','bin/pokertools-arena.mjs','tests/integration/pokertools-integration.mjs','tests/integration/launcher-port-retry.mjs','tests/unit/decision-scenarios.mjs','tests/unit/decision-diagnostics.mjs','tests/unit/hierarchical-decision-tests.mjs','tests/unit/methodology-tests.mjs','tests/unit/paired-architecture-tests.mjs','tests/unit/size-bucket-tests.mjs','tests/unit/model-capabilities-tests.mjs','tests/unit/archive-content.mjs','tests/unit/report-consistency.mjs','tests/real/real-decision-diagnostics.mjs','tests/analysis/diagnostics-analyze.mjs','tools/diagnostics/scenarios.js','tools/diagnostics/representations.js','tools/diagnostics/harness.js','tools/diagnostics/corpus.js','tools/diagnostics/stats.js','tools/diagnostics/counters.js','tools/diagnostics/paired.js','tools/diagnostics/report.js','tools/diagnostics/size-buckets.js','tools/release/archive.mjs']) {
   const result = spawnSync(process.execPath, ['--check', join(root, file)], { encoding:'utf8' });
   if (result.status !== 0) throw new Error(result.stderr || `Syntax check failed: ${file}`);
 }
@@ -79,7 +79,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.6.4') throw new Error('Expected release version 0.6.4');
+if (pkg.version !== '0.6.5') throw new Error('Expected release version 0.6.5');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -183,6 +183,10 @@ if (!index.includes('id="seatsBtn" class="button ghost top-action icon-only-acti
 if (!app.includes('function createTableRecordingCanvas') || !app.includes('function paintTableRecordingFrame') || !app.includes('function tableCropSourceRect')) throw new Error('Canvas-cropped table recording missing');
 if (!app.includes('function disposeTableRecording') || !app.includes('function stopTableRecordingPainter') || !app.includes('requestVideoFrameCallback')) throw new Error('Table recording painter/teardown missing');
 if (!app.includes("displaySurface !== 'browser'")) throw new Error('Recording must require sharing this browser tab');
+// 0.6.5 — capability-aware sampling parameters.
+if (!has('registerModelCapabilities') || !has('modelSupportsParameter') || !has('resolveTemperature')) throw new Error('Capability-aware sampling-parameter gating missing');
+if (!has('resolveTemperature(agent.model')) throw new Error('Temperature gating not wired into request bodies');
+if (!has('require_parameters: true')) throw new Error('Strict OpenRouter parameter routing must be preserved');
 if (!css.includes('.table-hud') || !css.includes('.tests-dialog')) throw new Error('Table HUD/tests UI polish missing');
 if (!css.includes('0.2.8 — viewport-fit table') || !css.includes('grid-template-columns:minmax(0,1fr) clamp(270px,25vw,360px)')) throw new Error('0.2.8 viewport-fit table layout missing');
 if (!app.includes('const renderMemo') || !app.includes('activeInspectorTab') || !app.includes('schedulePersist()') || !app.includes('publicStatsCacheHand')) throw new Error('0.2.8 render/persistence optimization missing');

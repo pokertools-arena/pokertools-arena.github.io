@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.6.4.** The table-recording release: recording now captures the whole current tab and crops the table into an opaque canvas at native source-pixel density, so saved videos are sharp, tightly framed, and free of the stale/white compositor tiles that element/region capture could leave at its boundary. Restart, Pause/Resume and Stop remain icon-only header controls.
+> **Current release: 0.6.5.** The provider-capability release: sampling parameters are now capability-aware, so the arena omits `temperature` for models whose endpoints do not support it — fixing GPT-5-class models that previously failed every request under strict OpenRouter routing — while `require_parameters: true` still guarantees tool and JSON-Schema support.
 
 ---
 

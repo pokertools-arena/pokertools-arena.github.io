@@ -10,6 +10,7 @@ import {
   describeAction, tryCandidate, legalActionCandidates, fallbackAction,
   serializeForAgent, assertDecisionState, extractTextContent, stripCodeFence, normalizeDecisionObject, pokerPrompt,
   decideOpenAICompatible, decideJevDecisions, decideJevNative, decide, decideHierarchical, protocolCapabilityCache,
+  registerModelCapabilities,
   actionCriteria, heroHandSummary,
   BENCHMARK_MODES, DECISION_ARCHITECTURES, DEFAULT_BENCHMARK_MODE, DEFAULT_DECISION_ARCHITECTURE,
   REPRESENTATION_MODES, DEFAULT_REPRESENTATION_MODE, DECISION_ARCHITECTURE_VERSION,
@@ -1007,6 +1008,7 @@ async function testConnectionRow(row) {
       const response = await fetch(modelsUrl(connection.baseUrl), { method: 'GET', headers: makeHeaders(connection) });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload?.error?.message ?? payload?.message ?? `HTTP ${response.status}`);
+      registerModelCapabilities(Array.isArray(payload?.data) ? payload.data : []);
       const count = Array.isArray(payload?.data) ? payload.data.length : '?';
       status.textContent = `Connected · ${count} models`;
       status.className = 'connection-status tiny good-text';
@@ -1079,6 +1081,7 @@ async function refreshSeatModelCatalog({ force = false } = {}) {
     const response = await fetch(modelsUrl(connection.baseUrl), { method: 'GET', headers: makeHeaders(connection) });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload?.error?.message ?? payload?.message ?? `HTTP ${response.status}`);
+    registerModelCapabilities(Array.isArray(payload?.data) ? payload.data : []);
     const catalogModels = Array.isArray(payload?.data) ? payload.data.map(model => ({ id: model?.id, name: model?.name || model?.id })).filter(model => model.id) : [];
     const models = isOpenRouterConnection(connection) ? mergeOpenRouterModelCatalog(catalogModels) : catalogModels;
     modelCatalogCache.set(key, models);

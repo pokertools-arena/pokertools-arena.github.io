@@ -24,7 +24,7 @@ import {
   decide, decideHierarchical, applyBenchmarkMode, BENCHMARK_MODES,
   familyForActionType, aggressiveSizesForState, probabilityStats,
 } from '../../src/lib/decision-core.js';
-import { resolveConfig, redact, adapterProtocol } from '../../tools/diagnostics/env.js';
+import { resolveConfig, redact, adapterProtocol, primeModelCapabilities } from '../../tools/diagnostics/env.js';
 import { ACTION_CORPUS, corpusForCategories } from '../../tools/diagnostics/corpus.js';
 import { FRAGMENTATION_SCENARIOS, FRAGMENTATION_HIERARCHICAL_SCENARIOS } from '../../tools/diagnostics/scenarios.js';
 import { runPairedCorpus, analyzePaired, analyzeFragmentation, deriveSizeId } from '../../tools/diagnostics/paired.js';
@@ -183,6 +183,8 @@ console.log(`Models: ${selected.map(m => m.model).join(', ')} · seed ${opts.see
 if (existingPaired.length) console.log(`Resuming: ${existingPaired.length} paired decision(s) already checkpointed.`);
 if (opts.fragmentation && existingFrag.length) console.log(`Resuming: ${existingFrag.length} fragmentation decision(s) already checkpointed.`);
 if (opts.dryRun) process.exit(0);
+
+await primeModelCapabilities(config.connection);
 
 const startedAt = new Date();
 const controller = new AbortController();

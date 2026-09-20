@@ -113,6 +113,39 @@ export function jsonSafe(value) {
 // straight to JSON Schema. Shared so browser and diagnostics behave identically.
 export const protocolCapabilityCache = new Map();
 
+// OpenRouter advertises a per-model `supported_parameters` list. Requests are
+// routed with `require_parameters: true`, which hard-fails when a sent parameter
+// has no supporting endpoint — as happened with GPT-5-class models that dropped
+// `temperature`. Optional sampling parameters are therefore only sent when the
+// catalogue says the model supports them. Unknown models keep the prior default
+// so behaviour is unchanged when no catalogue has been loaded.
+export const modelSupportedParameters = new Map();
+export const DEFAULT_TEMPERATURE = 0.3;
+
+export function registerModelCapabilities(models = []) {
+  for (const entry of models ?? []) {
+    const id = typeof entry === 'string' ? entry : entry?.id;
+    const parameters = typeof entry === 'object' && entry ? entry.supported_parameters : null;
+    if (!id || !Array.isArray(parameters)) continue;
+    modelSupportedParameters.set(String(id), new Set(parameters.map(String)));
+  }
+}
+
+export function modelSupportsParameter(model, parameter) {
+  const supported = modelSupportedParameters.get(String(model || ''));
+  if (!supported) return null; // unknown: preserve historical behaviour
+  return supported.has(String(parameter));
+}
+
+// Returns the temperature to send, or undefined when the model's endpoints do
+// not support the parameter. Only optional sampling parameters are gated this
+// way; structural parameters (tools, response_format, max_tokens) stay enforced
+// by `require_parameters`.
+export function resolveTemperature(model, requested) {
+  if (modelSupportsParameter(model, 'temperature') === false) return undefined;
+  return Number.isFinite(Number(requested)) ? Number(requested) : DEFAULT_TEMPERATURE;
+}
+
 // Process-local counters for the diagnostics harness. They make the real
 // request/retry counts explicit without changing any request behaviour.
 export const diagnosticsCounters = { requests: 0, retries: 0, rateLimits: 0, providerErrors: 0 };
@@ -892,9 +925,10 @@ export function buildOpenAICompatibleBody({ agent, connection, state, legalActio
       { role: 'system', content: 'You are one seat in an autonomous poker benchmark. Commit exactly one legal move.' },
       { role: 'user', content: userContent },
     ],
-    temperature: Number.isFinite(Number(agent.temperature)) ? Number(agent.temperature) : 0.3,
     max_tokens: isReasoningModel(agent.model) ? 1024 : 320,
   };
+  const temperature = resolveTemperature(agent.model, agent.temperature);
+  if (temperature !== undefined) body.temperature = temperature;
   if (protocol === 'tool') {
     body.tools = [{ type: 'function', function: { name: 'play_poker_action', description: 'Commit exactly one legal poker action for the current decision.', parameters: schema } }];
     body.tool_choice = { type: 'function', function: { name: 'play_poker_action' } };
@@ -1121,9 +1155,10 @@ async function requestChatStage({ agent, connection, schema, toolName, systemPro
     const body = {
       model: agent.model,
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-      temperature: Number.isFinite(Number(temperature)) ? Number(temperature) : 0.3,
       max_tokens: isReasoningModel(agent.model) ? 1024 : 320,
     };
+    const resolvedTemperature = resolveTemperature(agent.model, temperature);
+    if (resolvedTemperature !== undefined) body.temperature = resolvedTemperature;
     if (protocol === 'tool') {
       body.tools = [{ type: 'function', function: { name: toolName, description: `Submit the ${toolName.replaceAll('_', ' ')}.`, parameters: schema } }];
       body.tool_choice = { type: 'function', function: { name: toolName } };

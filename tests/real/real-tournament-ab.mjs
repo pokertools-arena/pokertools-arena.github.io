@@ -29,7 +29,7 @@ import {
   aggregateActionProbabilitiesByFamily, probabilityStats, isAggressiveType,
   BENCHMARK_MODES, DECISION_ARCHITECTURES, DEFAULT_REPRESENTATION_MODE,
 } from '../../src/lib/decision-core.js';
-import { resolveConfig, redact, adapterProtocol } from '../../tools/diagnostics/env.js';
+import { resolveConfig, redact, adapterProtocol, primeModelCapabilities } from '../../tools/diagnostics/env.js';
 
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 
@@ -201,6 +201,8 @@ console.log(`Tournament A/B: ${models.map(m => m.model).join(', ')}`);
 console.log(`Structure: stack ${opts.starting}, blinds ${opts.sb}/${opts.bb}, hands/level ${opts.handsPerLevel}, multiplier ${opts.multiplier}`);
 console.log(`Architectures: ${opts.architectures.join(', ')} · hands ${opts.hands} · cap ${opts.cap} decisions/architecture`);
 if (opts.dryRun) process.exit(0);
+
+await primeModelCapabilities(config.connection);
 
 const runs = {};
 let totalDecisions = 0;

@@ -3,7 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isJevModel, isOpenRouterConnection } from '../../src/lib/decision-core.js';
+import { isJevModel, isOpenRouterConnection, modelsUrl, makeHeaders, registerModelCapabilities } from '../../src/lib/decision-core.js';
 
 export function parseDotEnv(text) {
   const out = {};
@@ -63,6 +63,23 @@ export async function resolveConfig({ cwd = process.cwd(), env = process.env } =
 }
 
 export function adapterProtocol(model) { return isJevModel(model) ? 'jev_decisions' : 'chat'; }
+
+// Best-effort capability priming for the shared decision core: OpenRouter
+// advertises per-model `supported_parameters`, which lets requests omit
+// optional parameters (currently `temperature`) that a model's endpoints do not
+// support while `require_parameters: true` keeps structural parameters honest.
+// Any failure is silent; requests then keep the historical default.
+export async function primeModelCapabilities(connection, { fetchImpl = globalThis.fetch } = {}) {
+  if (!connection?.baseUrl || typeof fetchImpl !== 'function') return false;
+  try {
+    const response = await fetchImpl(modelsUrl(connection.baseUrl), { method: 'GET', headers: makeHeaders(connection) });
+    if (!response?.ok) return false;
+    const payload = await response.json().catch(() => ({}));
+    const models = Array.isArray(payload?.data) ? payload.data : [];
+    registerModelCapabilities(models);
+    return models.length > 0;
+  } catch { return false; }
+}
 
 export function redact(text, apiKey) {
   if (!apiKey) return String(text ?? '');

@@ -1,5 +1,30 @@
 # Release notes
 
+## 0.6.5 — Capability-aware sampling parameters
+
+- **`temperature` is sent only when the model supports it.** OpenRouter requests
+  are routed with `require_parameters: true`, which hard-fails when any sent
+  parameter has no supporting endpoint. GPT-5-class models dropped `temperature`,
+  so every request to them returned "No endpoints found that can handle the
+  requested parameters". The shared decision core now consults OpenRouter's
+  per-model `supported_parameters` and omits `temperature` for models that do not
+  advertise it.
+- **Structural parameters stay strictly enforced.** `tools`, `response_format`
+  (strict JSON Schema) and `max_tokens` are still sent with
+  `require_parameters: true`, so the tool / JSON-Schema contract is never
+  silently downgraded to an endpoint that ignores it. Models with no catalogue
+  entry keep the previous default behaviour.
+- **Capabilities are primed wherever a catalogue is loaded.** The browser seat
+  editor and connection test register the catalogue with the decision core, and
+  the real-API diagnostics, paired-corpus and tournament runners prime it once at
+  startup. If the catalogue is unavailable, requests are unchanged.
+
+### Notes
+
+- Offline coverage: `tests/unit/model-capabilities-tests.mjs` proves temperature
+  gating, structural-parameter preservation and tolerance of malformed catalogue
+  entries.
+
 ## 0.6.4 — Canvas-cropped table recording
 
 - **Crop in a canvas instead of the compositor.** Recording now captures the

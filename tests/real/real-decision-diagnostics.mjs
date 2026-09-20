@@ -40,7 +40,7 @@ import {
   questionAblationTable, probabilityMassTable, architectureComparisonTable,
   jevFamilyTelemetryTable, fragmentationTable, resolveActionForScenario,
 } from '../../tools/diagnostics/harness.js';
-import { resolveConfig, redact, adapterProtocol } from '../../tools/diagnostics/env.js';
+import { resolveConfig, redact, adapterProtocol, primeModelCapabilities } from '../../tools/diagnostics/env.js';
 
 const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 
@@ -369,6 +369,8 @@ if (opts.fromJson) {
     console.error('OPENAI_API_KEY is missing; refusing to make real requests.');
     process.exit(1);
   }
+
+  await primeModelCapabilities(config.connection);
 
   process.on('SIGINT', () => { aborted = true; console.error('\nInterrupted — writing partial report…'); });
   const controller = new AbortController();
