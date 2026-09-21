@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.18.0.** This maintenance release centralizes environment parsing and benchmark constants, makes release artifacts reproducible, fixes archive and cache-version drift, and improves keyboard and screen-reader behavior.
+> **Current release: 0.18.1.** The npm package now includes the shared `.env` parser required by its launcher, with a packed-artifact smoke test preventing future `npx pokertools-arena` module-resolution failures.
 
 ---
 

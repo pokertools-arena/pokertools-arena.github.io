@@ -1,5 +1,13 @@
 # Release notes
 
+## 0.18.1 — npm launcher packaging fix
+
+- Added `tools/shared/` to the npm package allowlist so
+  `npx pokertools-arena` can resolve the launcher's shared `.env` parser.
+- Added a packed-artifact integration test that builds the actual npm tarball,
+  verifies the imported module is present, extracts it, and runs the packaged
+  launcher with `--help`.
+
 ## 0.18.0 — maintainability, release integrity, and accessibility
 
 - Centralized `.env` parsing so the launcher and diagnostics interpret quoted

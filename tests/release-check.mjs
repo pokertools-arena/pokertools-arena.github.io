@@ -100,12 +100,13 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.18.0') throw new Error('Expected release version 0.18.0');
+if (pkg.version !== '0.18.1') throw new Error('Expected release version 0.18.1');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
 if (pkg.bin?.['pokertools-arena'] !== 'bin/pokertools-arena.mjs') throw new Error('npm binary missing');
 if (!pkg.files?.includes('dist/')) throw new Error('npm package must include dist/');
+if (!pkg.files?.includes('tools/shared/')) throw new Error('npm package must include shared launcher utilities');
 if (pkg.repository?.url !== 'git+https://github.com/pokertools-arena/pokertools-arena.github.io.git') throw new Error('Canonical repository metadata mismatch');
 if (pkg.homepage !== 'https://pokertools-arena.github.io/') throw new Error('Canonical GitHub Pages homepage mismatch');
 
