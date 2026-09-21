@@ -12,6 +12,7 @@ pushing:
    - `docs/diagnostics/summary.json` and `docs/diagnostics/SUMMARY.md`
    - `README.md` "Current release" line
    - `docs/releases/RELEASE_NOTES.md` (new section at the top)
+   - generated asset query versions in `dist/index.html` (via `build.mjs`)
 3. **Test:** `npm test`.
 4. **Commit.**
 5. **Tag:** annotated `vX.Y.Z` tag matching the bumped version.

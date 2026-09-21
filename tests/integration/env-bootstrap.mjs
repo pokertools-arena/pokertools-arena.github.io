@@ -8,7 +8,7 @@ const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
 const cwd = await mkdtemp(join(tmpdir(), 'pokertools-arena-env-'));
 await writeFile(join(cwd, '.env'), [
   'OPENAI_BASE_URL=https://openrouter.ai/api/v1',
-  'OPENAI_API_KEY="test-key-not-real"',
+  'OPENAI_API_KEY="test\\tkey-not-real"',
   'OPENAI_PLAYER1=google/gemma-4-26b-a4b-it',
   'OPENAI_PLAYER2=qwen/qwen3.8-flash',
   'OPENAI_PLAYER3=typesafe/jev-1.13',
@@ -39,7 +39,7 @@ try {
   const jsonText = js.match(/window\.__POKERTOOLS_ENV__ = (.*);/)?.[1];
   const config = JSON.parse(jsonText || 'null');
   if (config?.connections?.[0]?.baseUrl !== 'https://openrouter.ai/api/v1') throw new Error('Base URL was not loaded from .env');
-  if (config?.connections?.[0]?.apiKey !== 'test-key-not-real') throw new Error('API key was not loaded from .env');
+  if (config?.connections?.[0]?.apiKey !== 'test\tkey-not-real') throw new Error('Quoted .env escapes were not parsed correctly');
   if (config?.players?.length !== 3) throw new Error('Expected 3 players from .env');
   if (config.players[2].protocol !== 'jev_decisions') throw new Error('Jev .env player was not auto-routed to Decisions');
   console.log('env-bootstrap: PASS');

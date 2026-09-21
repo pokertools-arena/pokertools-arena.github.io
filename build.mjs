@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const root = dirname(fileURLToPath(import.meta.url));
 const src = join(root, 'src');
 const dist = join(root, 'dist');
+const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 
@@ -44,7 +45,9 @@ await copyFile(join(src, 'assets', 'favicon.svg'), join(dist, 'favicon.svg'));
 await copyFile(join(src, 'assets', 'og-image.png'), join(dist, 'og-image.png'));
 await copyFile(join(src, 'assets', 'og-image.svg'), join(dist, 'og-image.svg'));
 await copyFile(join(src, 'env', 'arena-env.js'), join(dist, 'arena-env.js'));
-const html = await readFile(join(src, 'index.html'), 'utf8');
+const htmlTemplate = await readFile(join(src, 'index.html'), 'utf8');
+const html = htmlTemplate.replaceAll('__VERSION__', version);
+if (html.includes('__VERSION__')) throw new Error('Build did not replace every version placeholder');
 await writeFile(join(dist, 'index.html'), html);
 
 const css = await readFile(join(dist, 'styles.css'), 'utf8');

@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.17.1.** A mid-hand all-in no longer aborts the tournament: the decision-context player count now tracks non-eliminated seats instead of stacks, and any context failure falls back to a deterministic safe action so the game continues.
+> **Current release: 0.18.0.** This maintenance release centralizes environment parsing and benchmark constants, makes release artifacts reproducible, fixes archive and cache-version drift, and improves keyboard and screen-reader behavior.
 
 ---
 
@@ -83,6 +83,9 @@ The CLI starts a tiny local static server and opens the browser. It exists only 
 | `--chrome` | off | Open Google Chrome specifically. |
 | `--no-open` | off | Do not launch a browser. |
 | `--no-env` | off | Ignore `.env` bootstrap. |
+| `--autostart` | off | Start the configured tournament after launch. |
+| `--starting-stack <n>` | `3000` | Override the chip stack for `.env` seats. |
+| `--max-decisions <n>` | unlimited | Stop after this many model decisions. |
 | `--help`, `-h` | — | Print usage. |
 
 ### Option B — single HTML file
@@ -120,6 +123,8 @@ OPENAI_PLAYER1=google/gemma-4-26b-a4b-it
 OPENAI_PLAYER2=qwen/qwen3.8-flash
 OPENAI_PLAYER3=typesafe/jev-1.13
 OPENAI_STARTING_STACK=3000
+OPENAI_AUTOSTART=0
+OPENAI_MAX_DECISIONS=0
 ```
 
 | Variable | Notes |
@@ -128,6 +133,8 @@ OPENAI_STARTING_STACK=3000
 | `OPENAI_API_KEY` | Optional for local/unauthenticated endpoints. |
 | `OPENAI_PLAYER1` … `OPENAI_PLAYER10` | Each value seats one model; Jev models auto-route to Decisions on OpenRouter. |
 | `OPENAI_STARTING_STACK` | Chip stack per seat (minimum 100, default 3000). |
+| `OPENAI_AUTOSTART` | Set to `1`, `true`, `yes`, or `on` to start automatically. |
+| `OPENAI_MAX_DECISIONS` | Optional tournament decision limit (`0` means unlimited). |
 
 See [`.env.example`](./.env.example).
 

@@ -68,8 +68,8 @@ function ci(cell) {
   const interval = cell?.ci95?.low != null ? cell.ci95 : (cell?.low != null ? cell : null);
   return interval ? `${pct(interval.low)}–${pct(interval.high)}` : '—';
 }
-function proportionCell(label, cell) {
-  return `${label} ${cell.successes}/${cell.trials} (${pct(cell.rate)})`;
+function proportionCell(cell) {
+  return `${cell.successes}/${cell.trials} (${pct(cell.rate)})`;
 }
 
 export function renderSummaryMarkdown(summary) {
@@ -97,9 +97,9 @@ export function renderSummaryMarkdown(summary) {
   lines.push('');
   lines.push(table(['Architecture', 'Family accuracy', 'Sizing (given family)', 'Final accuracy', 'n'], (s.strict ?? []).map(row => [
     row.architecture,
-    proportionCell('', row.family),
-    row.sizingGivenCorrectFamily ? proportionCell('', row.sizingGivenCorrectFamily) : '—',
-    row.final ? proportionCell('', row.final) : '—',
+    proportionCell(row.family),
+    row.sizingGivenCorrectFamily ? proportionCell(row.sizingGivenCorrectFamily) : '—',
+    row.final ? proportionCell(row.final) : '—',
     row.family?.trials ?? 0,
   ])));
   lines.push('');

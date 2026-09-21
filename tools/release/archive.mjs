@@ -24,11 +24,14 @@ export const REQUIRED_FILES = [
   'tools/diagnostics/env.js', 'tools/diagnostics/harness.js', 'tools/diagnostics/representations.js',
   'tools/diagnostics/scenarios.js', 'tools/diagnostics/corpus.js', 'tools/diagnostics/stats.js',
   'tools/diagnostics/paired.js', 'tools/diagnostics/report.js', 'tools/diagnostics/size-buckets.js',
+  'tools/shared/dotenv.mjs',
   'tools/release/archive.mjs',
   'tests/README.md', 'tests/release-check.mjs',
   'tests/unit/decision-scenarios.mjs', 'tests/unit/decision-diagnostics.mjs',
   'tests/unit/hierarchical-decision-tests.mjs', 'tests/unit/methodology-tests.mjs',
   'tests/unit/paired-architecture-tests.mjs', 'tests/unit/size-bucket-tests.mjs',
+  'tests/unit/tournament-safety-tests.mjs', 'tests/unit/model-capabilities-tests.mjs',
+  'tests/unit/streaming-reasoning-tests.mjs',
   'tests/unit/archive-content.mjs', 'tests/unit/report-consistency.mjs',
   'tests/integration/pokertools-integration.mjs', 'tests/integration/env-bootstrap.mjs',
   'tests/integration/launcher-port-retry.mjs',
@@ -39,10 +42,11 @@ export const REQUIRED_FILES = [
   'docs/diagnostics/SUMMARY.md', 'docs/diagnostics/summary.json',
   'docs/legal/THIRD_PARTY_NOTICES.md',
   '.github/workflows/ci.yml', '.github/workflows/pages.yml', '.github/workflows/publish.yml',
+  '.github/workflows/real-diagnostics.yml',
 ];
 
 export const EXCLUDED_PATTERNS = [
-  '.env', '.env.local', '.env.*', 'node_modules', 'logs', 'dist', '.git', '.DS_Store',
+  '.env', '.env.local', 'node_modules', 'logs', 'dist', '.git', '.DS_Store',
   '.release-inline-check.mjs', '*.tgz', '*.tar.gz', 'pokertools-arena.html', '*.log',
 ];
 
@@ -55,7 +59,7 @@ export function assertArchiveInputs(root) {
 
 export function verifyArchiveEntries(entries) {
   const leaks = entries.filter(entry => (
-    /(^|\/)\.env(\.local|\.\w+)?$/.test(entry) ||
+    /(^|\/)\.env(?:\.local|\.(?!example$)\w+)?$/.test(entry) ||
     /(^|\/)node_modules(\/|$)/.test(entry) ||
     /(^|\/)logs(\/|$)/.test(entry) ||
     /(^|\/)dist(\/|$)/.test(entry) ||

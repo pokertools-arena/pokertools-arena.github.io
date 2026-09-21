@@ -1,10 +1,4 @@
-const POLICY = Object.freeze({
-  private: 'hero hole cards only',
-  public: 'board, pot, blinds, stacks, positions, current-hand actions, recent public hand history, public player statistics, and legal actions',
-  excluded: 'opponent hole cards, other agents reasoning, model outputs, API/provider metadata, hidden deck state, and future cards',
-});
-
-const OBJECTIVE = 'Choose exactly one legal action that best maximizes tournament chip EV from the supplied state. Use only the information in this state and only an actionId present in legalActions.';
+import { DECISION_CONTEXT_VERSION, DECISION_OBJECTIVE, INFORMATION_POLICY } from '../lib/decision-core.js';
 
 function action(id, type, description, amount = null) { return { id, type, amount, description }; }
 // Production serializeForAgent always includes this derived object. The legacy
@@ -30,9 +24,9 @@ function withBetting(state) {
 }
 function baseState(overrides = {}) {
   return withBetting({
-    contextVersion: 3,
-    informationPolicy: POLICY,
-    objective: OBJECTIVE,
+    contextVersion: DECISION_CONTEXT_VERSION,
+    informationPolicy: INFORMATION_POLICY,
+    objective: DECISION_OBJECTIVE,
     game: 'No-Limit Texas Holdem tournament',
     memoryPolicy: {
       currentHand: 'all public model actions in the current hand before this decision',

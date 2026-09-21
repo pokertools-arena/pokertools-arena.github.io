@@ -21,7 +21,7 @@ for (const file of files) {
   if (/\p{Script=Cyrillic}/u.test(text)) throw new Error(`Cyrillic text found in ${file.slice(root.length + 1)}`);
 }
 
-for (const file of ['src/app.js','src/config/arena-config.js','src/lib/decision-core.js','src/benchmark/scenarios.js','build.mjs','bin/pokertools-arena.mjs','tests/integration/pokertools-integration.mjs','tests/integration/launcher-port-retry.mjs','tests/unit/decision-scenarios.mjs','tests/unit/decision-diagnostics.mjs','tests/unit/hierarchical-decision-tests.mjs','tests/unit/tournament-safety-tests.mjs','tests/unit/methodology-tests.mjs','tests/unit/paired-architecture-tests.mjs','tests/unit/size-bucket-tests.mjs','tests/unit/model-capabilities-tests.mjs','tests/unit/streaming-reasoning-tests.mjs','tests/unit/archive-content.mjs','tests/unit/report-consistency.mjs','tests/real/real-decision-diagnostics.mjs','tests/analysis/diagnostics-analyze.mjs','tools/diagnostics/scenarios.js','tools/diagnostics/representations.js','tools/diagnostics/harness.js','tools/diagnostics/corpus.js','tools/diagnostics/stats.js','tools/diagnostics/counters.js','tools/diagnostics/paired.js','tools/diagnostics/report.js','tools/diagnostics/size-buckets.js','tools/release/archive.mjs']) {
+for (const file of ['src/app.js','src/config/arena-config.js','src/lib/decision-core.js','src/benchmark/scenarios.js','build.mjs','bin/pokertools-arena.mjs','tests/integration/pokertools-integration.mjs','tests/integration/launcher-port-retry.mjs','tests/unit/decision-scenarios.mjs','tests/unit/decision-diagnostics.mjs','tests/unit/hierarchical-decision-tests.mjs','tests/unit/tournament-safety-tests.mjs','tests/unit/methodology-tests.mjs','tests/unit/paired-architecture-tests.mjs','tests/unit/size-bucket-tests.mjs','tests/unit/model-capabilities-tests.mjs','tests/unit/streaming-reasoning-tests.mjs','tests/unit/archive-content.mjs','tests/unit/report-consistency.mjs','tests/real/real-decision-diagnostics.mjs','tests/analysis/diagnostics-analyze.mjs','tools/diagnostics/scenarios.js','tools/diagnostics/representations.js','tools/diagnostics/harness.js','tools/diagnostics/corpus.js','tools/diagnostics/stats.js','tools/diagnostics/counters.js','tools/diagnostics/paired.js','tools/diagnostics/report.js','tools/diagnostics/size-buckets.js','tools/shared/dotenv.mjs','tools/release/archive.mjs']) {
   const result = spawnSync(process.execPath, ['--check', join(root, file)], { encoding:'utf8' });
   if (result.status !== 0) throw new Error(result.stderr || `Syntax check failed: ${file}`);
 }
@@ -100,7 +100,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.17.1') throw new Error('Expected release version 0.17.1');
+if (pkg.version !== '0.18.0') throw new Error('Expected release version 0.18.0');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -182,7 +182,9 @@ if (!app.includes('function eventMatchesView(') || !app.includes('function event
 if (!index.includes('viewport-fit=cover')) throw new Error('Safe-area viewport meta missing');
 if (!compactCss.includes('.sr-only{')) throw new Error('sr-only utility missing');
 // 0.6.1 — rail seat layout + build resilience.
-if (!/src="\.\/app\.js\?v=[^"]*"/.test(index) || !/href="\.\/styles\.css\?v=[^"]*"/.test(index)) throw new Error('Asset cache-busting query strings missing');
+if (!index.includes('./app.js?v=__VERSION__') || !index.includes('./styles.css?v=__VERSION__')) throw new Error('Source asset version placeholders missing');
+const builtIndex = readFileSync(join(dist, 'index.html'), 'utf8');
+if (!builtIndex.includes(`./app.js?v=${pkg.version}`) || !builtIndex.includes(`./styles.css?v=${pkg.version}`)) throw new Error('Built asset versions must match package.json');
 if (!readFileSync(join(root,'build.mjs'),'utf8').includes('could not inline')) throw new Error('Single-file build must fail loudly when inlining misses');
 if (!compactCss.includes('@media(min-width:960px){')) throw new Error('Inspector-first grid must be authoritative at >=960px');
 if (!app.includes('const feedArchive = eventArchive(s);')) throw new Error('Feed must read spectator text from the full archive');

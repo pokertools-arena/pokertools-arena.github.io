@@ -41,6 +41,7 @@ console.log('report-consistency: renderer PASS');
   assertSummaryConsistent(summary);
   assert.equal(summary.version, JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version, 'summary version must match package.json');
   const committed = readFileSync(mdPath, 'utf8');
+  assert.equal(committed, renderSummaryMarkdown(summary), 'SUMMARY.md must exactly match the canonical renderer');
   for (const fragment of expectedTotalsFragments(summary)) {
     assert.ok(committed.includes(fragment), `SUMMARY.md is stale: missing "${fragment}"`);
   }

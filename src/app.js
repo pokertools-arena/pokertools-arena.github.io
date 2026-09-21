@@ -6,21 +6,20 @@ import {
 } from './config/arena-config.js';
 import {
   ACTION, RECENT_PUBLIC_HANDS,
-  asNumber, round, clamp, summarizeError, ArenaRequestError, requestErrorCategory, decisionErrorCategory,
-  retryDelayMs, sleepWithSignal, fetchJsonWithRetry, isUnsupportedToolChoiceError, mapGet, jsonSafe,
-  normalizeBaseUrl, completionsUrl, openRouterDecisionsUrl, isOpenRouterConnection, isJevModel,
-  effectiveProtocol, modelsUrl, parseHeaders, makeHeaders, combineAbort,
+  asNumber, round, clamp, summarizeError, decisionErrorCategory, jsonSafe,
+  normalizeBaseUrl, completionsUrl, isOpenRouterConnection, isJevModel,
+  effectiveProtocol, modelsUrl, parseHeaders, makeHeaders,
   playerCards, playerStack, playersStillInTournament, playersWithChips, currentBet, totalPot, potChipBreakdown, positionForSeat, tableMarkerSeats,
-  describeAction, tryCandidate, legalActionCandidates, fallbackAction,
+  describeAction, legalActionCandidates, fallbackAction,
   serializeForAgent, assertDecisionState, extractTextContent, stripCodeFence,
-  decideOpenAICompatible, decideJevDecisions, decideJevNative, decide, decideHierarchical, protocolCapabilityCache,
+  decide, decideHierarchical,
   registerModelCapabilities,
   heroHandSummary,
   BENCHMARK_MODES, DECISION_ARCHITECTURES, DEFAULT_BENCHMARK_MODE, DEFAULT_DECISION_ARCHITECTURE,
   REPRESENTATION_MODES, DEFAULT_REPRESENTATION_MODE, DECISION_ARCHITECTURE_VERSION,
   legalAggressiveSizes, buildHierarchicalDecision, familyCriteria, sizeCriteria,
-  applyBenchmarkMode, renderDecisionState, aggregateActionProbabilitiesByFamily, probabilityStats, SIZE_LABELS,
-  isAggressiveType, familyForActionType, FAMILY_LABELS, decisionClockPhase, isReasoningModel, wantsReasoning,
+  applyBenchmarkMode, aggregateActionProbabilitiesByFamily, SIZE_LABELS,
+  isAggressiveType, decisionClockPhase, isReasoningModel, wantsReasoning,
   reasoningEffortsFor, defaultReasoningEffort, requiresReasoning,
 } from './lib/decision-core.js';
 // Table sound effects. esbuild inlines these as data URLs at build time (see
@@ -774,7 +773,7 @@ class TournamentDirector {
   // instead of looping forever.
   async recoverHand(triggerError) {
     this.currentDecision = null;
-    if (this.handComplete()) { this.broadcast(); return; }
+    if (this.handComplete()) { this.completeHand(); this.broadcast(); return; }
     this.logEvent('HAND_RECOVERY', { handNumber: this.handNumber, street: this.engine?.state?.street ?? null, error: summarizeError(triggerError) });
     this.broadcast();
     let guard = 0;
@@ -1153,14 +1152,6 @@ function addConnectionRow(connection = {}) {
     const defaultOpenRouterHeaders = defaultExtraHeaders('openrouter');
     if (event.target.value === 'openrouter' && !headersInput.value.trim()) headersInput.value = defaultOpenRouterHeaders;
     if (event.target.value !== 'openrouter' && headersInput.value.trim() === defaultOpenRouterHeaders) headersInput.value = '';
-    refreshSeatConnectionSelect();
-  });
-  $('[data-field=kind]', row).addEventListener('change', () => {
-    const kind = $('[data-field=kind]', row).value;
-    const url = $('[data-field=baseUrl]', row);
-    if (kind === 'typesafe' && (!url.value || url.value.includes('openrouter.ai'))) url.value = CONNECTION_PRESETS.typesafe;
-    if (kind === 'openrouter' && (!url.value || url.value.includes('typesafe.ai'))) url.value = CONNECTION_PRESETS.openrouter;
-    if (kind === 'openai' && (!url.value || url.value.includes('typesafe.ai'))) url.value = CONNECTION_PRESETS.openai;
     refreshSeatConnectionSelect();
   });
   $('.remove-connection', row).addEventListener('click', () => {
@@ -3164,6 +3155,7 @@ const choicePickers = new Map();
 function syncChoicePicker(select) {
   const picker = choicePickers.get(select);
   if (!picker) return;
+  const focusedIndex = document.activeElement?.closest?.('.choice-option')?.dataset.optionIndex;
   picker.replaceChildren(...[...select.options].map((option, index) => {
     const button = document.createElement('button');
     button.type = 'button';
@@ -3172,11 +3164,14 @@ function syncChoicePicker(select) {
     button.dataset.optionIndex = String(index);
     button.textContent = option.textContent;
     button.disabled = select.disabled || option.disabled;
-    button.setAttribute('aria-checked', String(option.value === select.value));
+    const checked = option.value === select.value;
+    button.setAttribute('aria-checked', String(checked));
+    button.tabIndex = checked ? 0 : -1;
     return button;
   }));
   picker.dataset.optionCount = String(select.options.length);
   picker.setAttribute('aria-disabled', String(select.disabled));
+  if (focusedIndex != null) picker.querySelector(`[data-option-index="${focusedIndex}"]`)?.focus();
 }
 function syncChoicePickers() {
   for (const select of choicePickers.keys()) syncChoicePicker(select);
@@ -3189,6 +3184,8 @@ function enhanceSelect(select) {
   picker.role = 'radiogroup';
   picker.setAttribute('aria-label', select.getAttribute('aria-label') || `Choose ${id.replace(/[-_]/g, ' ')}`);
   select.classList.add('native-select-enhanced');
+  select.tabIndex = -1;
+  select.setAttribute('aria-hidden', 'true');
   select.insertAdjacentElement('afterend', picker);
   choicePickers.set(select, picker);
   syncChoicePicker(select);

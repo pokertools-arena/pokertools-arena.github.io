@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: '24'
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       - name: Test and build
         run: npm test
       - name: Configure Pages

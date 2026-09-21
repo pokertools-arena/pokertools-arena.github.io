@@ -53,7 +53,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="./styles.css?v=0.14.0" />
+  <link rel="stylesheet" href="./styles.css?v=__VERSION__" />
 </head>
 <body>
   <div class="app-shell">
@@ -100,7 +100,7 @@
               </div>
               <div class="decision-actions-head"><span id="decisionActionLabel">Legal actions</span><span class="mono muted" id="decisionActionHint">Choose one</span></div>
               <div id="legalActions" class="legal-actions"></div>
-              <div id="decisionReasoning" class="decision-reasoning hidden" aria-live="polite" aria-label="Model reasoning"></div>
+              <div id="decisionReasoning" class="decision-reasoning hidden" aria-live="off" aria-label="Model reasoning"></div>
             </div>
           </section>
           <section class="panel-block decision-feed-panel"><div class="panel-title-row"><div class="panel-title">Decision history</div><div id="decisionFeedSummary" class="panel-caption">Newest first</div></div><div id="decisionFeed" class="decision-feed"></div></section>
@@ -117,7 +117,7 @@
               <label class="log-filter"><span class="sr-only">Filter event type</span><select id="logFilter"><option value="all">All events</option><option value="decisions">Decisions</option><option value="hands">Hands</option><option value="system">System</option><option value="errors">Errors</option></select></label>
               <button id="logClear" class="button ghost small-button log-clear" type="button" title="Clear log filters">Clear</button>
             </div>
-            <div id="eventLog" class="event-log" aria-label="Tournament event log" aria-live="polite"></div>
+            <div id="eventLog" class="event-log" aria-label="Tournament event log"></div>
           </section>
         </div>
         <div id="tab-stats" class="tab-panel" role="tabpanel" aria-labelledby="tabButton-stats" hidden><section class="panel-block grow"><div class="panel-title">Models</div><div id="statsGrid" class="stats-grid"></div></section></div>
@@ -189,11 +189,11 @@
     </footer>
   </div>
 
-  <dialog id="setupDialog" class="setup-dialog">
+  <dialog id="setupDialog" class="setup-dialog" aria-labelledby="setupDialogTitle">
     <form id="setupForm" method="dialog">
       <div class="dialog-head">
         <div class="dialog-title-row">
-          <h2>Settings</h2>
+          <h2 id="setupDialogTitle">Settings</h2>
           <button class="info-button" type="button" aria-label="About settings" data-tip="API keys stay in this browser tab and are never written to saved configuration or tournament logs.">i</button>
         </div>
         <button id="closeSetup" type="button" class="icon-button" aria-label="Close settings"><svg class="icon-glyph" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
@@ -271,7 +271,7 @@
     </form>
   </dialog>
 
-  <dialog id="seatDialog" class="seat-dialog">
+  <dialog id="seatDialog" class="seat-dialog" aria-labelledby="seatDialogTitle">
     <form id="seatForm" method="dialog">
       <div class="dialog-head">
         <div class="dialog-title-row">
@@ -319,11 +319,11 @@
     </form>
   </dialog>
 
-  <dialog id="testsDialog" class="tests-dialog">
+  <dialog id="testsDialog" class="tests-dialog" aria-labelledby="testsDialogTitle">
     <div class="tests-shell">
       <div class="dialog-head tests-dialog-head">
         <div>
-          <div class="dialog-title-row"><h2>Decision sanity suite</h2><button class="info-button" type="button" aria-label="About decision tests" data-tip="A small comprehension and reliability check. It is intentionally not a GTO solver, Elo score, or tournament-strength ranking.">i</button></div>
+          <div class="dialog-title-row"><h2 id="testsDialogTitle">Decision sanity suite</h2><button class="info-button" type="button" aria-label="About decision tests" data-tip="A small comprehension and reliability check. It is intentionally not a GTO solver, Elo score, or tournament-strength ranking.">i</button></div>
           <div class="dialog-subtitle">The same 10 fixed poker spots are sent independently to every seated model.</div>
         </div>
         <button id="closeTests" type="button" class="icon-button" aria-label="Close tests"><svg class="icon-glyph" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
@@ -352,7 +352,7 @@
   </dialog>
 
 
-  <dialog id="replayDialog" class="replay-dialog">
+  <dialog id="replayDialog" class="replay-dialog" aria-labelledby="replayTitle">
     <div class="replay-shell">
       <div class="dialog-head">
         <div>
@@ -420,6 +420,6 @@
   </template>
 
   <script src="./arena-env.js"></script>
-  <script type="module" src="./app.js?v=0.14.0"></script>
+  <script type="module" src="./app.js?v=__VERSION__"></script>
 </body>
 </html>

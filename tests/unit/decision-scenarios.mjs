@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { DECISION_SANITY_SCENARIOS } from '../../src/benchmark/scenarios.js';
+import { DECISION_CONTEXT_VERSION } from '../../src/lib/decision-core.js';
 
 assert.equal(DECISION_SANITY_SCENARIOS.length, 10, 'suite must contain exactly 10 scenarios');
 assert.equal(new Set(DECISION_SANITY_SCENARIOS.map(s => s.id)).size, 10, 'scenario ids must be unique');
@@ -7,7 +8,7 @@ for (const scenario of DECISION_SANITY_SCENARIOS) {
   assert.ok(scenario.title && scenario.note && scenario.category);
   assert.ok(Array.isArray(scenario.expectedTypes) && scenario.expectedTypes.length > 0);
   const state = scenario.state;
-  assert.equal(state.contextVersion, 3);
+  assert.equal(state.contextVersion, DECISION_CONTEXT_VERSION);
   assert.equal(state.game, 'No-Limit Texas Holdem tournament');
   assert.equal(state.hero.cards.length, 2);
   assert.ok(Array.isArray(state.publicPlayerStats));

@@ -31,7 +31,7 @@ try {
   const { entries, sizeBytes } = buildArchive({ root, outPath });
   assert.ok(sizeBytes > 0);
   verifyArchiveEntries(entries);
-  for (const required of ['package.json', 'src/app.js', 'src/lib/decision-core.js', 'tools/release/archive.mjs', 'docs/diagnostics/SUMMARY.md']) {
+  for (const required of ['package.json', '.env.example', 'src/app.js', 'src/lib/decision-core.js', 'tools/release/archive.mjs', 'docs/diagnostics/SUMMARY.md']) {
     assert.ok(entries.some(entry => entry.replace(/^\.\//, '') === required), `archive must contain ${required}`);
   }
   for (const forbidden of ['.env', '.env.local', 'dist/app.js', 'pokertools-arena.html']) {

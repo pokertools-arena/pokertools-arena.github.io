@@ -5,7 +5,7 @@
 //
 // Options:
 //   --hands N        hands per architecture (default 12)
-//   --cap N          hard cap on model decisions per architecture (default 160)
+//   --cap N          hard cap on model decisions per architecture (default and maximum 50)
 //   --delay MS       delay between decisions (default 150)
 //   --timeout MS     per-decision timeout (default 45000)
 //   --starting N     starting stack (default 10000)
@@ -188,7 +188,7 @@ async function runTournament({ architect, models, config, opts, onDecision }) {
 }
 
 const opts = parseArgs(process.argv.slice(2));
-if (opts.help) { console.log('Usage: node tests/real/real-tournament-ab.mjs [--hands 12] [--cap 160] [--models a,b] [--architecture flat,hierarchical] [--dry-run]'); process.exit(0); }
+if (opts.help) { console.log('Usage: node tests/real/real-tournament-ab.mjs [--hands 12] [--cap 50] [--models a,b] [--architecture flat,hierarchical] [--dry-run]'); process.exit(0); }
 const config = await resolveConfig({ cwd: process.cwd() });
 if (!config.models.length) { console.error('No models configured. Set OPENAI_PLAYER1.. in .env.'); process.exit(1); }
 const selected = config.models.filter(m => !opts.models || opts.models.some(f => m.model.includes(f)));

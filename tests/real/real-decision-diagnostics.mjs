@@ -5,7 +5,7 @@
 //
 // Options:
 //   --reps N              repetitions per model × scenario × representation (default 5)
-//   --cap N               hard cap on total model requests (default 240)
+//   --cap N               hard cap on total model requests (default and maximum 50)
 //   --delay MS            delay between requests (default 150)
 //   --timeout MS          per-request timeout (default 45000)
 //   --temperature T       chat-model temperature (default 0.3)
@@ -287,7 +287,7 @@ function buildPlan({ experiments, adapters, hierarchicalAdapters, opts }) {
 // ---------------------------------------------------------------------------
 const opts = parseArgs(process.argv.slice(2));
 if (opts.help) {
-  console.log('Usage: node tests/real/real-decision-diagnostics.mjs [--reps 5] [--cap 240] [--models a,b] [--experiments strict,...] [--layers A,B,D,E,P] [--dry-run] [--from-json FILE]');
+  console.log('Usage: node tests/real/real-decision-diagnostics.mjs [--reps 5] [--cap 50] [--models a,b] [--experiments strict,...] [--layers A,B,D,E,P] [--dry-run] [--from-json FILE]');
   process.exit(0);
 }
 

@@ -4,6 +4,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, dirname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
+import { parseDotEnv } from '../tools/shared/dotenv.mjs';
 
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const root = join(packageRoot, 'dist');
@@ -24,29 +25,6 @@ const envOverrides = {
   OPENAI_MAX_DECISIONS: valueAfter('--max-decisions', null),
   OPENAI_AUTOSTART: args.includes('--autostart') ? '1' : null,
 };
-
-function parseDotEnv(text) {
-  const out = {};
-  for (const rawLine of String(text || '').split(/\r?\n/)) {
-    let line = rawLine.trim();
-    if (!line || line.startsWith('#')) continue;
-    if (line.startsWith('export ')) line = line.slice(7).trim();
-    const eq = line.indexOf('=');
-    if (eq <= 0) continue;
-    const key = line.slice(0, eq).trim();
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
-    let value = line.slice(eq + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      const quote = value[0];
-      value = value.slice(1, -1);
-      if (quote === '"') value = value.replace(/\n/g, '\n').replace(/\r/g, '\r').replace(/\t/g, '\t').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-    } else {
-      value = value.replace(/\s+#.*$/, '').trim();
-    }
-    out[key] = value;
-  }
-  return out;
-}
 
 async function loadArenaEnv() {
   if (!useEnv) return { source: null, values: {} };

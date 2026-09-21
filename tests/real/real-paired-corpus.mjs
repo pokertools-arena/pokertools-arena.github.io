@@ -5,7 +5,7 @@
 //
 // Options:
 //   --reps N          repetitions per model × state × architecture (default 10)
-//   --cap N           hard cap on poker decisions (default 1200)
+//   --cap N           hard cap on poker decisions (default and maximum 50)
 //   --delay MS        delay between decisions (default 120)
 //   --timeout MS      per-decision timeout (default 45000)
 //   --seed N          deterministic interleaving seed (default 20260919)
@@ -154,7 +154,7 @@ async function runFragmentation({ adapters, opts, completedKeys = new Set(), onR
 
 const opts = parseArgs(process.argv.slice(2));
 if (opts.help) {
-  console.log('Usage: node tests/real/real-paired-corpus.mjs [--reps 10] [--cap 1200] [--fragmentation] [--frag-reps N] [--models a,b] [--out DIR] [--dry-run]');
+  console.log('Usage: node tests/real/real-paired-corpus.mjs [--reps 10] [--cap 50] [--fragmentation] [--frag-reps N] [--models a,b] [--out DIR] [--dry-run]');
   console.log('Re-runnable: each decision is checkpointed to <out>/paired-rows.jsonl and <out>/frag-rows.jsonl; an interrupted run resumes from the checkpoint.');
   process.exit(0);
 }

@@ -1,5 +1,20 @@
 # Release notes
 
+## 0.18.0 — maintainability, release integrity, and accessibility
+
+- Centralized `.env` parsing so the launcher and diagnostics interpret quoted
+  escapes identically, with integration coverage for escaped values.
+- Replaced hand-maintained asset cache versions and benchmark context constants
+  with their canonical package and decision-core values.
+- Fixed source archives to include `.env.example` and expanded the required-file
+  manifest to cover newer tests, workflows, and shared utilities.
+- Removed dead imports and duplicate provider-change logic, corrected completed
+  hand recovery, and tightened generated-report consistency checks.
+- Improved dialog naming, custom-select keyboard focus, roving tab stops, and
+  live-region behavior for assistive technology.
+- Switched CI installs to `npm ci` and aligned CLI/benchmark documentation with
+  the behavior actually enforced by the code.
+
 ## 0.17.1 — mid-hand all-in no longer aborts the tournament
 
 - Fixed a regression where a single all-in mid-hand ended the whole tournament
