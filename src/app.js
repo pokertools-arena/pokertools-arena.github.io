@@ -1427,7 +1427,7 @@ function seatPositionOnFelt(seat, slot, tableRect, feltRect, density, lobby) {
   const feltLeft = feltRect.left - tableRect.left;
   const feltTop = feltRect.top - tableRect.top;
   const centerX = feltLeft + feltRect.width / 2;
-  const centerY = feltTop + feltRect.height / 2;
+  const centerY = feltTop + feltRect.height / 2 - (lobby ? 30 : 20);
 
   const scaleByDensity = {
     roomy: [1.22, 1.34],

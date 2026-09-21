@@ -393,7 +393,7 @@ button.event-row:hover { border-radius: 8px; background: var(--surface-2); }
 .table-seat .seat-stack, .table-seat .seat-bb { justify-self: end; color: rgb(236 241 238 / 88%); line-height: 1; font-weight: 900; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .table-seat .seat-stack { grid-area: stack; font-size: 11px; }
 .table-seat .seat-bb { grid-area: bb; color: rgb(205 215 210 / 78%); font-size: 9px; }
-.table-seat .seat-stack:not(.seat-stack--pending)::before { width: .68em; aspect-ratio: 1; margin-right: .34em; display: inline-block; border-radius: 50%; background: #d9b658; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 42%), inset 0 0 0 2.5px rgb(0 0 0 / 18%), 0 1px 1px rgb(0 0 0 / 25%); content: ""; vertical-align: -.04em; }
+.table-seat .seat-stack:not(.seat-stack--pending)::before { content: none; }
 .table-seat .seat-card--pending { border-color: rgb(229 199 102 / 22%); background: #171917; }
 .table-seat .seat-stack--pending { padding: 3px 5px; border-radius: 999px; background: rgb(200 170 88 / 8%); color: rgb(231 217 166 / 72%); box-shadow: inset 0 0 0 1px rgb(200 170 88 / 12%); font-size: 8px; letter-spacing: .055em; }
 .table-seat .seat-bb--pending { color: rgb(192 205 199 / 42%); }

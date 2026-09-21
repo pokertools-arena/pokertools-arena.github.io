@@ -1,5 +1,15 @@
 # Release notes
 
+## 0.16.1 — seat-ring offset and chip-dot removal
+
+- `seatPositionOnFelt` now lifts the seat ellipse to clear the table furniture:
+  30px in the pre-game lobby and 20px during live play. The `lobby` argument on
+  `layoutTableSeats` keeps the two states independent, so the live ring settles
+  at its own offset once the tournament starts.
+- The live seat stack no longer renders the gold chip dot before the chip count
+  (`.seat-stack::before` reduced to `content: none`). Lobby "WAITING" seats are
+  unaffected because the rule only targets `.seat-stack:not(.seat-stack--pending)`.
+
 ## 0.16.0 — live decision history and reasoning opt-in
 
 - Decision history now pins a live row for the seat that is currently deciding.

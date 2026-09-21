@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.16.0.** Decision history now pins a live row for the seat that is currently deciding, streaming its reasoning tail until the move settles, and any seat can opt in to raw reasoning capture.
+> **Current release: 0.16.1.** The seat ring is lifted to clear the table furniture — 30px in the pre-game lobby and 20px during live play — and the seat stack no longer draws a chip dot next to the chip count.
 
 ---
 
