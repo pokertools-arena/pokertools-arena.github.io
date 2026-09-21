@@ -10,7 +10,7 @@ import {
   retryDelayMs, sleepWithSignal, fetchJsonWithRetry, isUnsupportedToolChoiceError, mapGet, jsonSafe,
   normalizeBaseUrl, completionsUrl, openRouterDecisionsUrl, isOpenRouterConnection, isJevModel,
   effectiveProtocol, modelsUrl, parseHeaders, makeHeaders, combineAbort,
-  playerCards, playerStack, currentBet, totalPot, clockwiseSeats, POSITION_TABLE, positionForSeat,
+  playerCards, playerStack, currentBet, totalPot, potChipBreakdown, positionForSeat, tableMarkerSeats,
   describeAction, tryCandidate, legalActionCandidates, fallbackAction,
   serializeForAgent, assertDecisionState, extractTextContent, stripCodeFence,
   decideOpenAICompatible, decideJevDecisions, decideJevNative, decide, decideHierarchical, protocolCapabilityCache,
@@ -448,25 +448,8 @@ function tableCardHtml(card, kind = 'board') {
   const red = suit === '♥' || suit === '♦';
   return `<span class="playing-card ${kind === 'hole' ? 'hole-card' : 'board-card'} ${red ? 'red' : ''}" data-rank="${escapeHtml(rank)}" data-suit="${escapeHtml(suit)}" aria-label="${escapeHtml(rank + suit)}"></span>`;
 }
-function integerGcd(values) {
-  const gcd = (a, b) => { while (b) [a, b] = [b, a % b]; return Math.abs(a); };
-  return values.map(value => Math.abs(Math.round(Number(value) || 0))).filter(Boolean).reduce(gcd, 0) || 1;
-}
 function potChipsHtml(pot, { smallBlind = 0, bigBlind = 0, ante = 0 } = {}) {
-  let remaining = Math.max(0, Math.round(Number(pot) || 0));
-  if (!remaining) return '';
-  const base = integerGcd([smallBlind, bigBlind, ante]);
-  const denominations = [
-    { color: 'gold', value: base * 100 },
-    { color: 'black', value: base * 25 },
-    { color: 'blue', value: base * 5 },
-    { color: 'red', value: base },
-  ];
-  return denominations.map(({ color, value }) => {
-    const count = Math.floor(remaining / value);
-    remaining -= count * value;
-    if (!count) return '';
-    const shown = Math.min(5, count);
+  return potChipBreakdown(pot, { smallBlind, bigBlind, ante }).map(({ color, value, count, shown }) => {
     const chips = Array.from({ length: shown }, () => `<span class="pot-chip chip-${color}"></span>`).join('');
     const overflow = count > shown ? ` data-chip-count="×${count}"` : '';
     return `<span class="chip-stack"${overflow} title="${count} × ${fmt(value)} chips" aria-label="${count} ${color} chips worth ${fmt(value)} each">${chips}</span>`;
@@ -580,7 +563,7 @@ function spectatorState(engine, tournamentMeta = {}) {
       id: p.id, name: p.name, seat, stack: playerStack(p), stackBB: round(playerStack(p) / bb, 1), cards: playerCards(p), currentBet: currentBet(state, seat),
       status: p.status, position: positionForSeat(state, seat),
     } : null),
-    winners: state.winners ?? null,
+    markers: tableMarkerSeats(state), winners: state.winners ?? null,
   };
 }
 
@@ -680,7 +663,7 @@ class TournamentDirector {
     for (const player of this.config.players) {
       this.engine.sit(player.seat, player.id, player.name, this.config.startingStack);
       this.timeBanks[player.id] = this.config.timeBankSeconds * 1000;
-      this.stats[player.id] = { decisions: 0, invalid: 0, modelErrors: 0, providerErrors: 0, rateLimits: 0, timeouts: 0, autoFallbacks: 0, protocolFallbacks: 0, retries: 0, totalLatencyMs: 0, lastAction: null, lastReason: '' };
+      this.stats[player.id] = { decisions: 0, invalid: 0, modelErrors: 0, providerErrors: 0, rateLimits: 0, timeouts: 0, autoFallbacks: 0, protocolFallbacks: 0, retries: 0, totalLatencyMs: 0, lastAction: null, lastActionType: null, lastActionAmount: null, lastReason: '' };
     }
     this.logEvent('TOURNAMENT_START', { config: this.publicConfig() }); this.broadcast();
     this.runPromise = this.run().catch(err => {
@@ -714,7 +697,7 @@ class TournamentDirector {
     const eliminatedPlayerIds = this.eliminations.map(e => e.playerId);
     return {
       handNumber: this.handNumber,
-      playersRemaining: Math.max(0, startingPlayers - eliminatedPlayerIds.length),
+      playersRemaining: this.playersRemaining().length,
       startingPlayers, levelIndex: this.engine?.state?.blindLevel ?? 0, eliminatedPlayerIds,
       benchmarkMode: this.config?.benchmarkMode ?? DEFAULT_BENCHMARK_MODE,
       decisionArchitecture: this.config?.decisionArchitecture ?? DEFAULT_DECISION_ARCHITECTURE,
@@ -764,20 +747,19 @@ class TournamentDirector {
     }
   }
   pruneBustedSeats() {
+    const failures = [];
     for (const p of (this.engine?.state?.players ?? [])) {
       if (!p || playerStack(p) > 0) continue;
-      try { this.engine.stand(p.id); } catch {}
+      try { this.engine.stand(p.id); } catch (error) { failures.push(`${p.name}: ${summarizeError(error)}`); }
     }
+    if (failures.length) throw new Error(`Could not remove busted player(s): ${failures.join('; ')}`);
   }
   async startHand() {
-    await this.waitIfPaused(); this.pruneBustedSeats(); this.handNumber++;
-    for (const stat of Object.values(this.stats)) stat.lastAction = null;
+    await this.waitIfPaused(); this.pruneBustedSeats();
+    for (const stat of Object.values(this.stats)) { stat.lastAction = null; stat.lastActionType = null; stat.lastActionAmount = null; }
     this.handStartStacks = Object.fromEntries((this.engine?.state?.players ?? []).filter(Boolean).map(p => [p.id, playerStack(p)]));
-    try { this.engine.deal(); }
-    catch {
-      for (const p of (this.engine.state.players ?? [])) if (p && playerStack(p) <= 0) { try { this.engine.stand(p.id); } catch {} }
-      this.engine.deal();
-    }
+    this.engine.deal();
+    this.handNumber = this.engine.state.handNumber;
     this.logEvent('HAND_START', {
       handNumber: this.handNumber,
       buttonSeat: this.engine.state.buttonSeat,
@@ -899,7 +881,7 @@ class TournamentDirector {
     const typedReason = architecture === 'hierarchical' && result?.family
       ? `Typed decision · ${String(result.family.choice).toUpperCase()}${result.sizing ? ` ${SIZE_LABELS[result.sizing.choice] ?? result.sizing.choice}` : ''}`
       : '';
-    stats.decisions++; stats.totalLatencyMs += reportedLatency; stats.lastAction = chosen.description;
+    stats.decisions++; stats.totalLatencyMs += reportedLatency; stats.lastAction = chosen.description; stats.lastActionType = chosen.type; stats.lastActionAmount = chosen.amount ?? null;
     this.decisionCount++;
     if (this.decisionBudget > 0 && this.decisionCount >= this.decisionBudget) this.budgetReached = true;
     stats.lastReason = result?.publicReason || typedReason || (forced ? `Automatic ${chosen.description} after ${fallbackReason}.` : '');
@@ -1448,10 +1430,14 @@ function positionTableMarker(marker, seat, tangentOffset = 0) {
   marker.style.top = `${feltRect.height / 2 + dy * edgeScale + (dx / length) * tangentOffset}px`;
 }
 function updateTableMarkers() {
-  const seats = [...els.seatsLayer.querySelectorAll('.table-seat[data-position]')];
-  const dealer = seats.find(seat => tablePositionBadge(seat.dataset.position) === 'D');
-  const sb = seats.find(seat => tablePositionBadge(seat.dataset.position) === 'SB');
-  const bb = seats.find(seat => tablePositionBadge(seat.dataset.position) === 'BB');
+  const seats = [...els.seatsLayer.querySelectorAll('.table-seat[data-seat]')];
+  const markerSeat = role => {
+    const target = currentState?.table?.markers?.[role];
+    return Number.isInteger(target) ? seats.find(seat => Number(seat.dataset.seat) === target) : null;
+  };
+  const dealer = markerSeat('buttonSeat');
+  const sb = markerSeat('smallBlindSeat');
+  const bb = markerSeat('bigBlindSeat');
   const shared = dealer && dealer === sb;
   positionTableMarker(els.dealerMarker, dealer, shared ? -11 : 0);
   positionTableMarker(els.smallBlindMarker, sb, shared ? 11 : 0);
@@ -1566,24 +1552,24 @@ function renderTable(s) {
   els.pokerTable.classList.remove('lobby-mode');
   const players = table.players.filter(Boolean);
   const configuredPlayers = Array.isArray(s.config?.players) ? s.config.players : [];
-  const visualCount = Math.max(TABLE_MIN_PLAYERS, Math.min(MAX_LOBBY_SEATS, configuredPlayers.length || players.length));
+  const visualCount = Math.max(TABLE_MIN_PLAYERS, Math.min(MAX_LOBBY_SEATS, players.length));
   const eliminatedIds = new Set((s.eliminations ?? []).map(e => e.playerId));
   els.seatsLayer.innerHTML = players.map((p, i) => {
     const cfg = configuredPlayers.find(x => x.id === p.id) || {}, stat = s.stats?.[p.id] || {};
-    const configuredIndex = configuredPlayers.findIndex(x => x.id === p.id);
-    const visualIndex = configuredIndex >= 0 ? configuredIndex : i;
+    const visualIndex = i;
     const active = table.actionTo === p.seat || s.currentDecision?.playerId === p.id, isWinner = s.status === 'FINISHED' && s.winner?.playerId === p.id, busted = !isWinner && (eliminatedIds.has(p.id) || p.status === 'BUSTED'), allIn = p.status === 'ALL_IN' && !busted;
     const elimination = (s.eliminations ?? []).find(e => e.playerId === p.id);
     const actionText = s.status === 'FINISHED' ? (isWinner ? 'WINNER · 1ST' : elimination ? `${ordinal(elimination.place)} · ELIMINATED` : (stat.lastAction || '')) : (stat.lastAction || (busted ? 'ELIMINATED' : allIn ? 'ALL IN' : ''));
-    const actionKind = isWinner ? 'winner' : /raise/i.test(actionText) ? 'raise' : /bet/i.test(actionText) ? 'bet' : /call/i.test(actionText) ? 'call' : /fold/i.test(actionText) ? 'fold' : /check/i.test(actionText) ? 'check' : '';
-    const action = tableActionParts(active && s.status !== 'FINISHED' ? 'THINKING' : actionText, active ? 'thinking' : actionKind);
-    return `<div class="table-seat ${active ? 'turn-active' : ''} ${isWinner ? 'winner' : ''} ${busted ? 'busted' : ''} ${allIn ? 'all-in' : ''}" data-player-id="${escapeHtml(p.id)}" data-lobby-seat="${Number(cfg.lobbySeat ?? i)}" data-visual-index="${visualIndex}" data-visual-count="${visualCount}" data-position="${escapeHtml(p.position || '')}">
+    const actionKind = isWinner ? 'winner' : String(stat.lastActionType || '').toLowerCase();
+    const shownAction = active && s.status !== 'FINISHED' ? 'THINKING' : actionText;
+    const action = tableActionParts(shownAction, active ? 'thinking' : actionKind, active ? null : stat.lastActionAmount);
+    return `<div class="table-seat ${active ? 'turn-active' : ''} ${isWinner ? 'winner' : ''} ${busted ? 'busted' : ''} ${allIn ? 'all-in' : ''}" data-player-id="${escapeHtml(p.id)}" data-seat="${p.seat}" data-lobby-seat="${Number(cfg.lobbySeat ?? i)}" data-visual-index="${visualIndex}" data-visual-count="${visualCount}" data-position="${escapeHtml(p.position || '')}">
       <div class="seat-card">
         <i class="seat-turn" aria-hidden="true"></i><span class="seat-name">${escapeHtml(visiblePlayerName(p.name, cfg.model))}</span><span class="seat-stack">${fmt(p.stack)}</span>
         <span class="seat-model">${escapeHtml(shortModel(cfg.model))}</span><span class="seat-bb">${Number(p.stackBB || 0).toFixed(1)} BB</span>
       </div>
       <span class="hole-cards" aria-hidden="true">${[0, 1].map(k => tableCardHtml(p.cards?.[k], 'hole')).join('')}</span>
-      ${action ? `<span class="table-action ${active ? 'thinking' : actionKind}" aria-label="Latest action"><span class="table-action-icon">${action.icon}</span><span class="table-action-name">${escapeHtml(action.name)}</span>${action.value ? `<span class="table-action-value">${escapeHtml(action.value)}</span>` : ''}</span>` : ''}
+      ${action ? `<span class="table-action ${active ? 'thinking' : actionKind}" aria-label="${escapeHtml(shownAction)}"><span class="table-action-icon">${action.icon}</span><span class="table-action-name">${escapeHtml(action.name)}</span>${action.value ? `<span class="table-action-value">${escapeHtml(action.value)}</span>` : ''}</span>` : ''}
     </div>`;
   }).join('');
   layoutTableSeats();
@@ -1600,18 +1586,13 @@ function renderTable(s) {
   els.levelValue.textContent = Number(table.blindLevel ?? 0) + 1;
   els.levelValue.title = `Level ${Number(table.blindLevel ?? 0) + 1}`;
 }
-function tablePositionBadge(position) {
-  const value = String(position || '').trim().toUpperCase();
-  if (value === 'BTN' || value === 'BUTTON' || value === 'D' || value === 'DEALER') return 'D';
-  return value === 'SB' || value === 'BB' ? value : '';
-}
-function tableActionParts(text, kind = '') {
+function tableActionParts(text, kind = '', actionAmount = null) {
   const value = String(text || '').trim();
   if (!value) return null;
-  const amount = value.match(/(?:^|\s)([\d,.]+(?:K|M)?)(?:\s|$)/i)?.[1] || '';
-  const label = { thinking: 'THINKING', raise: 'RAISE', bet: 'BET', call: 'CALL', check: 'CHECK', fold: 'FOLD', winner: 'WINNER' }[kind];
-  const name = label || value.replace(amount, '').replace(/[·:\-]+$/g, '').trim() || value;
-  const icon = kind === 'fold' ? '×' : kind === 'check' ? '✓' : kind === 'call' ? '→' : kind === 'raise' ? '↗' : kind === 'bet' ? '↑' : kind === 'winner' ? '★' : '•';
+  const amount = actionAmount == null ? (value.match(/(?:^|\s)([\d,.]+(?:K|M)?)(?:\s|$)/i)?.[1] || '') : fmt(actionAmount);
+  const label = { thinking: 'THINKING', raise: 'RAISE', bet: 'BET', call: 'CALL', check: 'CHECK', fold: 'FOLD', winner: 'WINNER', all_in: 'ALL IN' }[kind];
+  const name = label || value;
+  const icon = kind === 'fold' ? '×' : kind === 'check' ? '✓' : kind === 'call' ? '→' : kind === 'raise' ? '↗' : kind === 'bet' || kind === 'all_in' ? '↑' : kind === 'winner' ? '★' : '•';
   return { icon, name, value: amount };
 }
 function clearTurnRings(keep = null) {

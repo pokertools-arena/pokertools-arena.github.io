@@ -293,14 +293,55 @@ export function totalPot(state) {
   else if (bets && typeof bets === 'object') for (const amount of Object.values(bets)) live += asNumber(amount);
   return settled + live;
 }
+export function integerGcd(values) {
+  const gcd = (a, b) => { while (b) [a, b] = [b, a % b]; return Math.abs(a); };
+  return values.map(value => Math.abs(Math.round(Number(value) || 0))).filter(Boolean).reduce(gcd, 0) || 1;
+}
+export function potChipBreakdown(pot, { smallBlind = 0, bigBlind = 0, ante = 0 } = {}) {
+  let remaining = Math.max(0, Math.round(Number(pot) || 0));
+  if (!remaining) return [];
+  const base = integerGcd([smallBlind, bigBlind, ante]);
+  const denominations = [
+    { color: 'gold', value: base * 100 },
+    { color: 'black', value: base * 25 },
+    { color: 'blue', value: base * 5 },
+    { color: 'red', value: base },
+  ];
+  // An all-in stack need not be divisible by the blind unit.
+  if (base > 1) denominations.push({ color: 'white', value: 1 });
+  return denominations.flatMap(({ color, value }) => {
+    const count = Math.floor(remaining / value);
+    remaining -= count * value;
+    return count ? [{ color, value, count, shown: Math.min(5, count) }] : [];
+  });
+}
+// This mirrors the engine's definition of a seat participating in the current
+// hand. In particular, a player who just went broke still belongs to that hand;
+// the tournament director removes that player before the next deal.
+export function handSeats(state) {
+  return (state?.players ?? []).map((player, seat) => ({ player, seat }))
+    .filter(({ player }) => player && (
+      playerStack(player) > 0
+      || player.hand != null
+      || asNumber(player.totalInvestedThisHand) > 0
+    ))
+    .map(({ seat }) => seat);
+}
+export function tableMarkerSeats(state) {
+  const seats = handSeats(state);
+  const buttonSeat = Number.isInteger(state?.buttonSeat) ? state.buttonSeat : null;
+  const bigBlindSeat = Number.isInteger(state?.bigBlindSeat) ? state.bigBlindSeat : null;
+  const maxPlayers = Math.max(1, asNumber(state?.maxPlayers, state?.players?.length || 1));
+  const smallBlindSeat = buttonSeat == null
+    ? null
+    : seats.length === 2 ? buttonSeat : (buttonSeat + 1) % maxPlayers;
+  return { buttonSeat, smallBlindSeat, bigBlindSeat, headsUp: seats.length === 2 };
+}
 export function clockwiseSeats(state) {
-  const seated = (state?.players ?? []).map((p, seat) => ({ p, seat }))
-    .filter(({ p }) => p && p.status !== 'BUSTED' && p.status !== 'SITTING_OUT')
-    .map(({ seat }) => seat).sort((a, b) => a - b);
+  const seated = handSeats(state).sort((a, b) => a - b);
   if (!seated.length || state?.buttonSeat == null) return seated;
-  const idx = seated.indexOf(state.buttonSeat);
-  if (idx < 0) return seated;
-  return [...seated.slice(idx), ...seated.slice(0, idx)];
+  const first = seated.findIndex(seat => seat >= state.buttonSeat);
+  return first < 0 ? seated : [...seated.slice(first), ...seated.slice(0, first)];
 }
 export const POSITION_TABLE = {
   2: ['BTN/SB', 'BB'], 3: ['BTN', 'SB', 'BB'], 4: ['BTN', 'SB', 'BB', 'UTG'],
@@ -310,10 +351,26 @@ export const POSITION_TABLE = {
   10: ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'UTG+2', 'MP', 'MP+1', 'HJ', 'CO'],
 };
 export function positionForSeat(state, seat) {
-  const order = clockwiseSeats(state);
-  const labels = POSITION_TABLE[order.length] ?? order.map((_, i) => i === 0 ? 'BTN' : `P${i}`);
-  const idx = order.indexOf(seat);
-  return idx >= 0 ? labels[idx] : `Seat ${seat + 1}`;
+  const playing = handSeats(state);
+  if (!playing.includes(seat)) return `Seat ${seat + 1}`;
+  const markers = tableMarkerSeats(state);
+  if (seat === markers.buttonSeat) return markers.headsUp ? 'BTN/SB' : 'BTN';
+  if (seat === markers.smallBlindSeat) return 'SB';
+  if (seat === markers.bigBlindSeat) return 'BB';
+
+  // Non-blind positions begin immediately clockwise from the engine's BB.
+  // Deriving from bigBlindSeat keeps labels correct under its dead-button rule.
+  const maxPlayers = Math.max(1, asNumber(state?.maxPlayers, state?.players?.length || 1));
+  const afterBigBlind = [];
+  for (let offset = 1; offset <= maxPlayers; offset++) {
+    const candidate = ((markers.bigBlindSeat ?? -1) + offset + maxPlayers) % maxPlayers;
+    if (playing.includes(candidate) && ![markers.buttonSeat, markers.smallBlindSeat, markers.bigBlindSeat].includes(candidate)) afterBigBlind.push(candidate);
+  }
+  const labels = afterBigBlind.length === 1 ? ['UTG']
+    : afterBigBlind.length === 2 ? ['UTG', 'CO']
+      : ['UTG', ...Array.from({ length: Math.max(0, afterBigBlind.length - 3) }, (_, i) => `MP${i ? `+${i}` : ''}`), 'HJ', 'CO'];
+  const index = afterBigBlind.indexOf(seat);
+  return index >= 0 ? labels[index] : `Seat ${seat + 1}`;
 }
 export function describeAction(type, amount, state, seat = null) {
   const bb = Math.max(1, asNumber(state.bigBlind, 1));

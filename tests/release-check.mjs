@@ -66,7 +66,7 @@ if (!has('DECISION_CONTEXT_VERSION = 3')) throw new Error('Canonical decision-co
 if (!app.includes('buildPublicPlayerStats')) throw new Error('Shared public player statistics missing');
 if (!app.includes('buildCurrentHandPublicActions')) throw new Error('Structured current-hand history missing');
 if (!has('function assertDecisionState')) throw new Error('Runtime decision-context invariants missing');
-if (!app.includes('playersRemaining: Math.max(0, startingPlayers - eliminatedPlayerIds.length)')) throw new Error('All-in-safe tournament player count missing');
+if (!app.includes('playersRemaining: this.playersRemaining().length')) throw new Error('Engine-stack tournament player count missing');
 if (!has('const aggressiveType = highestBet > 0 ? ACTION.RAISE : ACTION.BET')) throw new Error('BET/RAISE semantic de-duplication missing');
 if (!has('type === ACTION.FOLD && toCall === 0')) throw new Error('FOLD-when-CHECK dominance guard missing');
 if (!has('n <= maxTotal')) throw new Error('Aggressive action stack cap missing');
@@ -81,7 +81,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.13.1') throw new Error('Expected release version 0.13.1');
+if (pkg.version !== '0.14.0') throw new Error('Expected release version 0.14.0');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -116,7 +116,7 @@ if (!compactCss.includes('.icon-buttonsvg{') || !index.includes('class="icon-gly
 if (app.includes('decision-facts-note') || core.includes('SPECTATOR_NOTE') || css.includes('.decision-facts-note')) throw new Error('Typed-decision spectator note must not be rendered');
 if (!app.includes('function stopTableEffects(')) throw new Error('Stopping a run must cancel in-flight table effects');
 if (!app.includes("if (['STOPPED', 'ERROR'].includes(s?.status)) { stopClock(); return; }")) throw new Error('Stopped runs must not keep the decision clock running');
-if (!app.includes('for (const stat of Object.values(this.stats)) stat.lastAction = null;')) throw new Error('A new hand must clear each seat\'s last action');
+if (!app.includes('stat.lastAction = null; stat.lastActionType = null; stat.lastActionAmount = null;')) throw new Error('A new hand must clear each seat\'s structured last action');
 if (!app.includes('flyChips(pot, seatEl(playerId), 5, true)')) throw new Error('Pot-to-winner payout animation missing');
 // Header/chrome restructure: overlay actions, icon-only settings, download in Log.
 if (!index.includes('icon-only-action')) throw new Error('Settings must be an icon-only header control');
@@ -320,7 +320,7 @@ if (!css.includes('0.9.3 — poker-table prototype port')) throw new Error('0.9.
 // 0.10.0 — full template state system, custom selects and modal control polish.
 if (!index.includes('class="table-arena"') || !index.includes('id="dealerMarker"') || !index.includes('class="board-card board-card--empty"') && !app.includes('board-card--empty')) throw new Error('Template table shell and empty-card state missing');
 if (!app.includes('seat-card--pending') || !app.includes('class="empty-seat"') || !app.includes('tableActionParts')) throw new Error('Complete table seat states missing');
-if (!app.includes('function updateTableMarkers') || !app.includes("return value === 'SB' || value === 'BB' ? value : ''")) throw new Error('D/SB/BB-only table markers missing');
+if (!app.includes('function updateTableMarkers') || !app.includes("markerSeat('smallBlindSeat')") || !core.includes('export function tableMarkerSeats')) throw new Error('Engine-derived D/SB/BB table markers missing');
 if (!app.includes('function enhanceSelect') || !app.includes("picker.role = 'radiogroup'") || !css.includes('.choice-option[aria-checked="true"]')) throw new Error('Direct custom choice buttons missing');
 if (!css.includes('.dialog-head .button, .dialog-body .button, .dialog-footer .button { height: 38px; min-height: 38px; }')) throw new Error('Modal button/input height alignment missing');
 if (!css.includes('0.10.0 — complete poker-table template implementation')) throw new Error('0.10.0 CSS marker missing');
@@ -339,7 +339,7 @@ if (!app.includes("windowAudio: 'system'") || !app.includes('const audioTrack = 
 if (!app.includes('function replayProbabilityRows') || !app.includes('JEV DECISION PROBABILITIES') || !app.includes("ctx.fillText(`${percent}%`")) throw new Error('PNG probability bars/percentages missing');
 if (!app.includes('function replayLegalActionsHtml') || !css.includes('.replay-legal-option.selected')) throw new Error('Improved replay legal-action list missing');
 if (!css.includes('.replay-board .card-corner.bottom { display: none; }')) throw new Error('Replay board duplicate bottom corners still visible');
-if (!index.includes('id="potChips"') || !app.includes('function potChipsHtml') || !app.includes('integerGcd([smallBlind, bigBlind, ante])') || !css.includes('.pot-chip.chip-gold')) throw new Error('Pot-driven denomination chip rendering missing');
+if (!index.includes('id="potChips"') || !app.includes('function potChipsHtml') || !core.includes('export function potChipBreakdown') || !css.includes('.pot-chip.chip-gold') || !css.includes('.pot-chip.chip-white')) throw new Error('Exact pot-driven denomination chip rendering missing');
 if (!css.includes('0.12.0 — richer decision replay')) throw new Error('0.12.0 CSS marker missing');
 if (!app.includes('const WINNER_REVIEW_MS = 2_000') || !app.includes('Math.max(WINNER_REVIEW_MS, this.config.betweenHandsMs)')) throw new Error('Two-second winner review hold missing');
 if (!app.includes('reverse ? 5 : 3') || !app.includes('animationsAllowed({ allowDuringRecording: reverse })')) throw new Error('Visible winner pot-payout animation missing');

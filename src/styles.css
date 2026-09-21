@@ -353,7 +353,7 @@ button.event-row:hover { border-radius: 8px; background: var(--surface-2); }
 .pot-chip, .blind-chip { aspect-ratio: 1; border: 2px dashed rgb(255 255 255 / 70%); border-radius: 50%; background: #9f2f31; box-shadow: 0 2px 3px rgb(0 0 0 / 25%); }
 .pot-chip { position: absolute; left: 50%; width: clamp(13px, 1.35vw, 19px); transform: translateX(-50%); }
 .pot-chip:nth-child(1) { bottom: 0; } .pot-chip:nth-child(2) { bottom: 3px; } .pot-chip:nth-child(3) { bottom: 6px; } .pot-chip:nth-child(4) { bottom: 9px; } .pot-chip:nth-child(5) { bottom: 12px; }
-.pot-chip.chip-red { background: #9f2f31; } .pot-chip.chip-blue { background: #315e91; } .pot-chip.chip-black { background: #202324; } .pot-chip.chip-gold { background: #a68135; }
+.pot-chip.chip-white { background: #e7e2d4; border-color: #9f2f31; } .pot-chip.chip-red { background: #9f2f31; } .pot-chip.chip-blue { background: #315e91; } .pot-chip.chip-black { background: #202324; } .pot-chip.chip-gold { background: #a68135; }
 .chip-stack[data-chip-count] { margin-right: 8px; }
 .chip-stack[data-chip-count]::after { position: absolute; right: -10px; top: -4px; color: rgb(225 236 230 / 62%); content: attr(data-chip-count); font: 800 7px/1 var(--mono); }
 .game-info { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px clamp(7px, 1.35vw, 8px); font-size: clamp(7px, .9vw, 13px); line-height: 1.15; font-weight: 800; letter-spacing: .065em; text-transform: uppercase; opacity: .76; }

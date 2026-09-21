@@ -1,5 +1,21 @@
 # Release notes
 
+## 0.14.0 — engine-aligned table state
+
+- Made the PokerTools engine's button and big-blind seats authoritative for
+  table markers, including the tournament dead-button rule and the heads-up
+  dealer/small-blind combination.
+- Removed busted players before each deal through the engine API, synchronized
+  the displayed hand number and survivor count with engine state, and reflowed
+  the table as play contracts from four seats to three and then two.
+- Moved denomination calculation into the tested decision core and added unit
+  chips so visual pot stacks always sum to the exact engine pot, including odd
+  all-in remainders.
+- Preserved accepted action type and amount as structured state, keeping move
+  labels, icons, values, and accessible messages accurate above player cards.
+- Added engine integration coverage for four-, three-, and heads-up button and
+  blind transitions, positional labels, and exact pot-chip accounting.
+
 ## 0.13.1 — local recording audio recovery
 
 - Restricted the hidden muted capture preview to the video track so it cannot

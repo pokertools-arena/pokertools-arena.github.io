@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.13.1.** Recording now keeps local game audio audible by isolating the muted preview to video, explicitly disabling playback suppression, and recovering the table audio context while preserving timestamp-aligned captured audio.
+> **Current release: 0.14.0.** Table positions now follow PokerTools engine seats through four-, three-, and two-player transitions, pot chips represent exact values, and structured actions drive each player's above-card status.
 
 ---
 
