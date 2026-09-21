@@ -21,7 +21,7 @@ for (const file of files) {
   if (/\p{Script=Cyrillic}/u.test(text)) throw new Error(`Cyrillic text found in ${file.slice(root.length + 1)}`);
 }
 
-for (const file of ['src/app.js','src/config/arena-config.js','src/lib/decision-core.js','src/benchmark/scenarios.js','build.mjs','bin/pokertools-arena.mjs','tests/integration/pokertools-integration.mjs','tests/integration/launcher-port-retry.mjs','tests/unit/decision-scenarios.mjs','tests/unit/decision-diagnostics.mjs','tests/unit/hierarchical-decision-tests.mjs','tests/unit/methodology-tests.mjs','tests/unit/paired-architecture-tests.mjs','tests/unit/size-bucket-tests.mjs','tests/unit/model-capabilities-tests.mjs','tests/unit/archive-content.mjs','tests/unit/report-consistency.mjs','tests/real/real-decision-diagnostics.mjs','tests/analysis/diagnostics-analyze.mjs','tools/diagnostics/scenarios.js','tools/diagnostics/representations.js','tools/diagnostics/harness.js','tools/diagnostics/corpus.js','tools/diagnostics/stats.js','tools/diagnostics/counters.js','tools/diagnostics/paired.js','tools/diagnostics/report.js','tools/diagnostics/size-buckets.js','tools/release/archive.mjs']) {
+for (const file of ['src/app.js','src/config/arena-config.js','src/lib/decision-core.js','src/benchmark/scenarios.js','build.mjs','bin/pokertools-arena.mjs','tests/integration/pokertools-integration.mjs','tests/integration/launcher-port-retry.mjs','tests/unit/decision-scenarios.mjs','tests/unit/decision-diagnostics.mjs','tests/unit/hierarchical-decision-tests.mjs','tests/unit/methodology-tests.mjs','tests/unit/paired-architecture-tests.mjs','tests/unit/size-bucket-tests.mjs','tests/unit/model-capabilities-tests.mjs','tests/unit/streaming-reasoning-tests.mjs','tests/unit/archive-content.mjs','tests/unit/report-consistency.mjs','tests/real/real-decision-diagnostics.mjs','tests/analysis/diagnostics-analyze.mjs','tools/diagnostics/scenarios.js','tools/diagnostics/representations.js','tools/diagnostics/harness.js','tools/diagnostics/corpus.js','tools/diagnostics/stats.js','tools/diagnostics/counters.js','tools/diagnostics/paired.js','tools/diagnostics/report.js','tools/diagnostics/size-buckets.js','tools/release/archive.mjs']) {
   const result = spawnSync(process.execPath, ['--check', join(root, file)], { encoding:'utf8' });
   if (result.status !== 0) throw new Error(result.stderr || `Syntax check failed: ${file}`);
 }
@@ -75,13 +75,18 @@ if (!app.includes('openSetup({ preserveError = false } = {})') || !app.includes(
 if (!app.includes('buildPublicTournamentMemory')) throw new Error('Shared public tournament memory missing');
 if (!has('Fail closed. A failed player view must never fall back')) throw new Error('Fail-closed player masking missing');
 if (!has('isReasoningModel(agent.model) ? 2048 : 320')) throw new Error('Reasoning-model completion budget fix missing');
-if (!has('{ max_tokens: 256, exclude: true }')) throw new Error('OpenRouter reasoning cap missing');
+if (!has('{ max_tokens: 256, exclude: false }')) throw new Error('OpenRouter reasoning cap missing');
+if (!has('fetchStreamingJson') || !has("text/event-stream")) throw new Error('Streaming reasoning transport missing');
+if (!has('include_usage: true')) throw new Error('Streamed token accounting missing');
+if (!app.includes('reasoningTail') || !app.includes('capReasoning')) throw new Error('Reasoning capture missing from app');
+if (!index.includes('decisionReasoning')) throw new Error('Live reasoning panel missing from index.html');
+if (!index.includes('replayReasoning')) throw new Error('Replay reasoning panel missing from index.html');
 if (!readFileSync(join(root,'build.mjs'),'utf8').includes("filter: /^(?:node:)?crypto$/")) throw new Error('Browser crypto resolver missing from build');
 if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser crypto shim missing');
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.14.0') throw new Error('Expected release version 0.14.0');
+if (pkg.version !== '0.15.0') throw new Error('Expected release version 0.15.0');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -350,6 +355,8 @@ if (!css.includes('0.13.0 — recording audio and winner review')) throw new Err
 // 0.13.1 — muted preview isolation and local audio recovery.
 if (!app.includes('new MediaStream(stream.getVideoTracks())') || !app.includes('suppressLocalAudioPlayback: { exact: false }')) throw new Error('Muted recording preview is not isolated from audio');
 if (!app.includes('function createCaptureAudioMonitor') || !app.includes('getAudioContext()?.resume()')) throw new Error('Local recording audio recovery missing');
+// 0.15.0 — streamed model reasoning is surfaced live and kept in decision history.
+if (!css.includes('0.15.0 — streamed reasoning')) throw new Error('0.15.0 CSS marker missing');
 
 for (const workflow of ['ci.yml','pages.yml','publish.yml','real-diagnostics.yml']) {
   if (!statSync(join(root,'.github','workflows',workflow)).isFile()) throw new Error(`Missing workflow ${workflow}`);

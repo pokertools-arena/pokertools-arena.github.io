@@ -1,5 +1,26 @@
 # Release notes
 
+## 0.15.0 — streamed reasoning
+
+- Reasoning models now stream their hidden scratch work instead of having it
+  discarded. The live decision panel shows a rolling two-line tail that updates
+  while the model is still thinking, labeled by stage (action family, then size).
+- Full per-stage reasoning is persisted on each `DECISION` event, so the
+  decision history and the replay dialog keep the text that produced the move
+  instead of losing it when the response lands.
+- Reasoning is requested with the existing 256-token cap (`exclude: false`) and
+  `stream_options.include_usage`, so token counters stay exact and the reasoning
+  still counts against the same budget. Nothing about the request outcome
+  changes.
+- Added `fetchStreamingJson`, an SSE twin of `fetchJsonWithRetry` with identical
+  retry/incident semantics, that reassembles reasoning, content, split tool-call
+  arguments and usage into the same payload shape the non-streaming path uses.
+- Reasoning is display-only. It is never re-ingested into any prompt, never
+  shared between seats, and the information policy is unchanged.
+- Added `tests/unit/streaming-reasoning-tests.mjs` covering SSE reassembly, the
+  delta callback contract, the non-SSE fallback, the streamed request body and
+  end-to-end reasoning capture through `decideHierarchical`.
+
 ## 0.14.0 — engine-aligned table state
 
 - Made the PokerTools engine's button and big-blind seats authoritative for

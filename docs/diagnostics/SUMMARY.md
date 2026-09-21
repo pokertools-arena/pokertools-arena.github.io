@@ -1,4 +1,4 @@
-# pokertools-arena 0.14.0 — benchmark methodology & results
+# pokertools-arena 0.15.0 — benchmark methodology & results
 
 Generated: 2026-09-19T18:19:58.352Z
 Methodology: paired fixed-state corpus; deterministic interleaving with recorded experiment seed.
@@ -12,6 +12,8 @@ poker decisions: 79 · model calls: 97 · HTTP requests: 97 · retries: 0 · dec
 ## 1. Methodology
 
 Fixed-state paired corpus is the primary architecture comparison; every state is identical across flat and hierarchical, execution is deterministically interleaved with a recorded seed, family and sizing correctness are reported separately, and behavioral proportions carry Wilson 95% intervals. Real tournaments are end-to-end validation only.
+
+Streamed model reasoning is captured for spectators and stored beside each decision in the JSONL export. It is **display-only**: no seat ever receives another seat's reasoning, and the reasoning text is never re-ingested into a prompt, so the information policy and the paired comparison are unchanged.
 
 ## 2. Strict correctness
 

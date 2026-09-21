@@ -136,6 +136,15 @@ a { color: inherit; }
 .decision-item-head strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .decision-item-action { flex: 0 0 auto; color: var(--accent); font-weight: 700; }
 .decision-reason { margin-top: 5px; display: -webkit-box; overflow: hidden; color: var(--text-soft); font-size: 12px; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+/* 0.15.0 — streamed reasoning: live scratch work and persisted decision history. */
+/* Live streamed reasoning: raw model scratch work, visually separated from the vetted public reason. */
+.decision-reasoning { margin-top: 9px; padding: 8px 9px; border: 1px solid #3a3320; border-left: 2px solid var(--accent); border-radius: 8px; background: #191509; display: grid; gap: 4px; }
+.decision-reasoning.hidden { display: none; }
+.decision-reasoning-label { color: var(--accent); font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
+.decision-reasoning-text { display: -webkit-box; overflow: hidden; color: var(--text-soft); font-size: 11px; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.decision-reasoning-excerpt { margin-top: 6px; padding: 6px 8px; border-left: 2px solid #3a3320; border-radius: 6px; background: #14180f; display: grid; gap: 3px; color: var(--text-soft); font-size: 11px; line-height: 1.4; }
+.decision-reasoning-excerpt .decision-reasoning-label { color: var(--text-muted); }
+
 .decision-meta { margin-top: 7px; color: var(--text-muted); font-size: 9px; overflow-wrap: anywhere; }
 .decision-replay-hint { float: right; margin-left: 8px; color: var(--info); }
 .decision-item-telemetry { margin-top: 8px; }
@@ -540,6 +549,9 @@ label input, label select { margin-top: 5px; font-weight: 450; }
 .replay-action-block span { color: var(--text-muted); font-size: 9px; text-transform: uppercase; }
 .replay-action-block strong { margin-top: 2px; color: var(--accent); font-size: 17px; }
 .replay-reason { margin-top: 9px; color: var(--text-soft); font-size: 12px; }
+.replay-reasoning { margin-top: 9px; padding: 9px 10px; border: 1px solid #3a3320; border-left: 2px solid var(--accent); border-radius: 8px; background: #191509; }
+.replay-reasoning.hidden { display: none; }
+.replay-reasoning p { margin: 5px 0 0; max-height: 150px; overflow-y: auto; color: var(--text-soft); font-size: 11px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .replay-history, .replay-legal { margin-top: 10px; border-top: 1px solid var(--line); }
 .replay-history summary, .replay-legal summary { padding: 9px 0; color: var(--text-soft); font-size: 11px; font-weight: 700; }
 .replay-legal summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; }

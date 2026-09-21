@@ -88,6 +88,94 @@ export async function fetchJsonWithRetry(url, options, { maxRetries = 1 } = {}) 
     throw new ArenaRequestError(message, { status: response.status, category: requestErrorCategory(response.status), payload, incidents });
   }
 }
+// Consumes an OpenAI-compatible SSE response and reconstructs a payload shaped
+// exactly like a non-streaming completion, so callers parse one thing either way.
+// `onDelta` receives the accumulated text for each visible channel so a caller
+// can paint reasoning/content while the model is still thinking.
+async function readStreamingPayload(response, onDelta) {
+  const contentType = response.headers?.get?.('content-type') || '';
+  if (!contentType.includes('text/event-stream') || typeof response.body?.getReader !== 'function') {
+    return { payload: await response.json().catch(() => ({})), reasoning: '' };
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const toolCalls = new Map();
+  let buffer = '', content = '', reasoning = '', finishReason = null, usage = null, model = null, provider = null;
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let reasoningChanged = false, contentChanged = false;
+    let newline;
+    while ((newline = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, newline).trim();
+      buffer = buffer.slice(newline + 1);
+      if (!line.startsWith('data:')) continue;
+      const data = line.slice(5).trim();
+      if (!data || data === '[DONE]') continue;
+      let chunk;
+      try { chunk = JSON.parse(data); } catch { continue; }
+      if (chunk.model) model = chunk.model;
+      if (chunk.provider) provider = chunk.provider;
+      if (chunk.usage) usage = chunk.usage;
+      const choice = chunk.choices?.[0];
+      if (!choice) continue;
+      if (choice.finish_reason) finishReason = choice.finish_reason;
+      const delta = choice.delta || {};
+      if (typeof delta.reasoning === 'string' && delta.reasoning) { reasoning += delta.reasoning; reasoningChanged = true; }
+      if (typeof delta.content === 'string' && delta.content) { content += delta.content; contentChanged = true; }
+      for (const call of delta.tool_calls || []) {
+        const index = Number(call.index ?? 0);
+        const current = toolCalls.get(index) || { id: '', name: '', args: '' };
+        if (call.id) current.id = call.id;
+        if (call.function?.name) current.name += call.function.name;
+        if (typeof call.function?.arguments === 'string') current.args += call.function.arguments;
+        toolCalls.set(index, current);
+      }
+    }
+    // Coalesce to one delta per network chunk so the UI paints at frame rate.
+    if (reasoningChanged) onDelta?.({ channel: 'reasoning', text: reasoning });
+    if (contentChanged) onDelta?.({ channel: 'content', text: content });
+  }
+  const calls = [...toolCalls.entries()].sort((a, b) => a[0] - b[0])
+    .map(([, call]) => ({ id: call.id, type: 'function', function: { name: call.name, arguments: call.args } }));
+  return {
+    payload: {
+      model, provider, usage: usage ?? null,
+      choices: [{ finish_reason: finishReason, message: { role: 'assistant', content: content || null, ...(calls.length ? { tool_calls: calls } : {}) } }],
+    },
+    reasoning,
+  };
+}
+
+// Streaming twin of fetchJsonWithRetry: identical retry/incident semantics, but
+// it reads SSE when the server honours `stream: true`.
+export async function fetchStreamingJson(url, options, { maxRetries = 1, onDelta = null } = {}) {
+  const incidents = [];
+  for (let attempt = 0; ; attempt++) {
+    if (attempt > 0) diagnosticsCounters.retries++;
+    diagnosticsCounters.requests++;
+    let response;
+    try { response = await fetch(url, options); }
+    catch (err) {
+      if (err?.name === 'AbortError') throw err;
+      throw new ArenaRequestError(summarizeError(err), { category: 'provider', incidents });
+    }
+    if (response.ok) return { ...(await readStreamingPayload(response, onDelta)), incidents, retryCount: attempt };
+    const payload = await response.json().catch(() => ({}));
+    const message = payload?.error?.message ?? payload?.message ?? `HTTP ${response.status}`;
+    const retryable = response.status === 429 || response.status >= 500;
+    if (retryable && attempt < maxRetries) {
+      if (response.status === 429) diagnosticsCounters.rateLimits++; else diagnosticsCounters.providerErrors++;
+      incidents.push({ category: requestErrorCategory(response.status), status: response.status, message: String(message).slice(0, 180) });
+      await sleepWithSignal(retryDelayMs(response), options?.signal);
+      continue;
+    }
+    if (response.status === 429) diagnosticsCounters.rateLimits++; else if (response.status >= 500) diagnosticsCounters.providerErrors++;
+    throw new ArenaRequestError(message, { status: response.status, category: requestErrorCategory(response.status), payload, incidents });
+  }
+}
+
 export function isUnsupportedToolChoiceError(err) {
   const message = summarizeError(err);
   return [400, 404, 422].includes(Number(err?.status)) && /tool[_ -]?choice|tool call|tools?.*(?:unsupported|support)|no endpoints?.*support/i.test(message);
@@ -968,7 +1056,7 @@ export async function decideJevNative({ agent, connection, state, legalActions, 
   } finally { cancel(); }
 }
 
-export function buildOpenAICompatibleBody({ agent, connection, state, legalActions, decisionId, protocol = 'tool', instructions = null, criteria = null, representationText = null, maxTokens = null, reasoning = null }) {
+export function buildOpenAICompatibleBody({ agent, connection, state, legalActions, decisionId, protocol = 'tool', instructions = null, criteria = null, representationText = null, maxTokens = null, reasoning = null, stream = false }) {
   const isOpenRouter = isOpenRouterConnection(connection);
   const criteriaKeys = criteria ? Object.keys(criteria) : null;
   const useChoice = Boolean(criteriaKeys?.length);
@@ -1005,25 +1093,32 @@ export function buildOpenAICompatibleBody({ agent, connection, state, legalActio
   }
   if (isOpenRouter) {
     body.provider = agent.provider ? { only: [agent.provider], allow_fallbacks: false, require_parameters: true } : { allow_fallbacks: true, require_parameters: true };
-    if (isReasoningModel(agent.model)) body.reasoning = reasoning ?? { max_tokens: 256, exclude: true };
+    if (isReasoningModel(agent.model)) body.reasoning = reasoning ?? { max_tokens: 256, exclude: false };
   }
+  if (stream) { body.stream = true; body.stream_options = { include_usage: true }; }
   return body;
 }
 
-export async function decideOpenAICompatible({ agent, connection, state, legalActions, decisionId, timeoutMs, abortSignal, pauseClock, protocol: protocolOverride = null, instructions = null, criteria = null, representationText = null }) {
+export async function decideOpenAICompatible({ agent, connection, state, legalActions, decisionId, timeoutMs, abortSignal, pauseClock, protocol: protocolOverride = null, instructions = null, criteria = null, representationText = null, onDelta = null }) {
   const { signal, cancel } = combineAbort(timeoutMs, abortSignal, pauseClock);
   const started = performance.now();
   const requestedProtocol = protocolOverride || agent.protocol;
   const capabilityKey = `${normalizeBaseUrl(connection.baseUrl)}|${agent.model}|${agent.provider || 'auto'}|tool`;
   const isOpenRouter = isOpenRouterConnection(connection);
   const cachedProtocol = requestedProtocol === 'tool' && isOpenRouter && !criteria ? protocolCapabilityCache.get(capabilityKey) : null;
-  const buildBody = (protocol, override = {}) => buildOpenAICompatibleBody({ agent, connection, state, legalActions, decisionId, protocol, instructions, criteria, representationText, maxTokens: override.maxTokens ?? null, reasoning: override.reasoning ?? null });
+  const buildBody = (protocol, override = {}) => buildOpenAICompatibleBody({ agent, connection, state, legalActions, decisionId, protocol, instructions, criteria, representationText, maxTokens: override.maxTokens ?? null, reasoning: override.reasoning ?? null, stream: Boolean(onDelta) });
+
+  const request = body => {
+    const options = { method: 'POST', headers: makeHeaders(connection), body: JSON.stringify(body), signal };
+    const url = completionsUrl(connection.baseUrl);
+    return onDelta
+      ? fetchStreamingJson(url, options, { maxRetries: 1, onDelta: delta => onDelta({ stage: 'flat', ...delta }) })
+      : fetchJsonWithRetry(url, options, { maxRetries: 1 });
+  };
 
   async function execute(protocol, override = {}) {
     const body = buildBody(protocol, override);
-    const { payload, incidents, retryCount } = await fetchJsonWithRetry(completionsUrl(connection.baseUrl), {
-      method: 'POST', headers: makeHeaders(connection), body: JSON.stringify(body), signal,
-    }, { maxRetries: 1 });
+    const { payload, incidents, retryCount, reasoning } = await request(body);
     const message = payload?.choices?.[0]?.message;
     const finishReason = payload?.choices?.[0]?.finish_reason;
     let obj;
@@ -1036,7 +1131,7 @@ export async function decideOpenAICompatible({ agent, connection, state, legalAc
       if (!content) throw truncatedError(finishReason, 'Model returned no decision content');
       try { obj = JSON.parse(content); } catch { throw new Error(`Model response was not valid JSON: ${content.slice(0, 180)}`); }
     }
-    return { obj, payload, incidents, retryCount, protocol };
+    return { obj, payload, incidents, retryCount, protocol, reasoning };
   }
 
   try {
@@ -1068,6 +1163,7 @@ export async function decideOpenAICompatible({ agent, connection, state, legalAc
       latencyMs: Math.round(performance.now() - started),
       model: result.payload?.model || agent.model,
       usage: result.payload?.usage ?? null,
+      reasoning: result.reasoning ?? null,
       meta: {
         method: result.protocol,
         requestedMethod: requestedProtocol,
@@ -1224,7 +1320,7 @@ async function requestJevStage({ connection, model, state, questionKey, question
   };
 }
 
-async function requestChatStage({ agent, connection, schema, toolName, systemPrompt, userPrompt, signal, requestedProtocol, temperature }) {
+async function requestChatStage({ agent, connection, schema, toolName, systemPrompt, userPrompt, signal, requestedProtocol, temperature, onDelta = null }) {
   const isOpenRouter = isOpenRouterConnection(connection);
   const buildBody = (protocol, override = {}) => {
     const body = {
@@ -1245,17 +1341,20 @@ async function requestChatStage({ agent, connection, schema, toolName, systemPro
     }
     if (isOpenRouter) {
       body.provider = agent.provider ? { only: [agent.provider], allow_fallbacks: false, require_parameters: true } : { allow_fallbacks: true, require_parameters: true };
-      if (isReasoningModel(agent.model)) body.reasoning = override.reasoning ?? { max_tokens: 256, exclude: true };
+      if (isReasoningModel(agent.model)) body.reasoning = override.reasoning ?? { max_tokens: 256, exclude: false };
     }
+    if (onDelta) { body.stream = true; body.stream_options = { include_usage: true }; }
     return body;
   };
   const capabilityKey = `${normalizeBaseUrl(connection.baseUrl)}|${agent.model}|${agent.provider || 'auto'}|${toolName}`;
   const cachedProtocol = requestedProtocol === 'tool' && isOpenRouter ? protocolCapabilityCache.get(capabilityKey) : null;
   const execute = async (protocol, override = {}) => {
     const started = performance.now();
-    const { payload, incidents, retryCount } = await fetchJsonWithRetry(completionsUrl(connection.baseUrl), {
-      method: 'POST', headers: makeHeaders(connection), body: JSON.stringify(buildBody(protocol, override)), signal,
-    }, { maxRetries: 1 });
+    const options = { method: 'POST', headers: makeHeaders(connection), body: JSON.stringify(buildBody(protocol, override)), signal };
+    const url = completionsUrl(connection.baseUrl);
+    const { payload, incidents, retryCount, reasoning } = onDelta
+      ? await fetchStreamingJson(url, options, { maxRetries: 1, onDelta })
+      : await fetchJsonWithRetry(url, options, { maxRetries: 1 });
     const message = payload?.choices?.[0]?.message;
     const finishReason = payload?.choices?.[0]?.finish_reason;
     let obj;
@@ -1268,7 +1367,7 @@ async function requestChatStage({ agent, connection, schema, toolName, systemPro
       if (!content) throw truncatedError(finishReason, `Model returned no ${toolName} content`);
       obj = JSON.parse(content);
     }
-    return { obj, protocol, latencyMs: Math.round(performance.now() - started), model: payload?.model || agent.model, usage: payload?.usage ?? null, incidents, retryCount };
+    return { obj, protocol, latencyMs: Math.round(performance.now() - started), model: payload?.model || agent.model, usage: payload?.usage ?? null, incidents, retryCount, reasoning };
   };
   let actual = cachedProtocol || requestedProtocol;
   let protocolFallback = cachedProtocol ? 'cached json_schema' : null;
@@ -1294,7 +1393,7 @@ async function requestChatStage({ agent, connection, schema, toolName, systemPro
 export async function decideHierarchical({
   agent, connection, state, legalActions, decisionId, timeoutMs, abortSignal, pauseClock,
   representationText = null, jevState = null, representationMode = DEFAULT_REPRESENTATION_MODE, protocol: protocolOverride = null,
-  sizesForFamily = null, onStage = null,
+  sizesForFamily = null, onStage = null, onDelta = null,
 }) {
   if (!connection) throw new Error(`Connection not found: ${agent.connectionId}`);
   const protocol = protocolOverride || effectiveProtocol(agent, connection);
@@ -1331,6 +1430,7 @@ export async function decideHierarchical({
         agent, connection, schema, toolName: 'choose_action_family',
         systemPrompt: 'You are one seat in an autonomous poker benchmark. Choose exactly one legal action family.',
         userPrompt, signal, requestedProtocol: protocol, temperature: agent.temperature,
+        onDelta: onDelta ? delta => onDelta({ stage: 'family', index: 1, of: 2, ...delta }) : null,
       });
       familyResult = { ...result, choice: normalizeFamilyChoice(result.obj, families, decisionId) };
     }
@@ -1364,6 +1464,7 @@ export async function decideHierarchical({
           agent, connection, schema, toolName: 'choose_bet_size',
           systemPrompt: `You are one seat in an autonomous poker benchmark. The action family ${familyResult.choice.toUpperCase()} is fixed. Choose exactly one legal size.`,
           userPrompt, signal, requestedProtocol: protocol, temperature: agent.temperature,
+          onDelta: onDelta ? delta => onDelta({ stage: 'size', index: 2, of: 2, family: familyResult.choice, ...delta }) : null,
         });
         sizingResult = { ...result, choice: normalizeSizeChoice(result.obj, sizes, decisionId) };
       }
@@ -1390,6 +1491,7 @@ export async function decideHierarchical({
       publicReason: '',
       model: familyResult.model || agent.model,
       usage: usage.total_tokens ? usage : (familyResult.usage ?? null),
+      reasoning: { family: familyResult.reasoning ?? null, sizing: sizingResult?.reasoning ?? null },
       meta: {
         decisionArchitecture: DECISION_ARCHITECTURE_VERSION,
         method: isJev ? (protocol === 'jev_native' ? 'jev-native-hierarchical' : 'openrouter-decisions-hierarchical') : `${familyResult.protocol ?? protocol}-hierarchical`,

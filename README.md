@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.14.0.** Table positions now follow PokerTools engine seats through four-, three-, and two-player transitions, pot chips represent exact values, and structured actions drive each player's above-card status.
+> **Current release: 0.15.0.** Model reasoning now streams into the live decision panel and is kept beside every decision in history and replays, without changing what any seat can see.
 
 ---
 
@@ -59,7 +59,7 @@ Models only select from arena-generated legal action families and sizes, and eve
 | **Protocols** | Tool call, strict JSON Schema, prompt JSON, Jev Decisions, native Jev |
 | **Fairness** | One canonical `DecisionState` per decision, fail-closed hole-card masking, deterministic legal actions |
 | **Hierarchy** | Two-stage family → size decisions shared by every model and adapter |
-| **Observability** | Live decision panel, typed telemetry, latency/error counters, JSONL export |
+| **Observability** | Live decision panel, streamed model reasoning, typed telemetry, latency/error counters, JSONL export |
 | **Replay** | Per-decision snapshots with hero cards, board, stacks, public history, legal menu |
 | **Sharing** | Local 1080×1350 PNG replay cards, table-only WebM recording, native share sheet |
 | **Benchmarks** | In-app sanity suite plus offline and real-API diagnostics with a paired fixed-state corpus |

@@ -39,14 +39,14 @@ const els = {
   startTopBtn: $('#startTopBtn'), seatsBtn: $('#seatsBtn'), soundBtn: $('#soundBtn'), recordBtn: $('#recordBtn'), exportBtn: $('#exportBtn'), setupBtn: $('#setupBtn'), testsBtn: $('#testsBtn'), pauseBtn: $('#pauseBtn'), stopBtn: $('#stopBtn'),
   statusDot: $('#statusDot'), statusLabel: $('#statusLabel'), tournamentMeta: $('#tournamentMeta'),
   pokerTable: $('#pokerTable'), tableArena: $('#tableArena'), seatsLayer: $('#seatsLayer'), fxLayer: $('#fxLayer'), actionToast: $('#actionToast'), board: $('#board'), potChips: $('#potChips'), dealerMarker: $('#dealerMarker'), smallBlindMarker: $('#smallBlindMarker'), bigBlindMarker: $('#bigBlindMarker'), potValue: $('#potValue'), blindsValue: $('#blindsValue'), anteValue: $('#anteValue'), handValue: $('#handValue'), levelValue: $('#levelValue'),
-  decisionPanelTitle: $('#decisionPanelTitle'), decisionEmpty: $('#decisionEmpty'), decisionCard: $('#decisionCard'), decisionPlayer: $('#decisionPlayer'), decisionModel: $('#decisionModel'), decisionPhase: $('#decisionPhase'), decisionClock: $('#decisionClock'), bankClock: $('#bankClock'), decisionHand: $('#decisionHand'), decisionStreet: $('#decisionStreet'), decisionPosition: $('#decisionPosition'), decisionOptionCount: $('#decisionOptionCount'), decisionActionLabel: $('#decisionActionLabel'), decisionActionHint: $('#decisionActionHint'), legalActions: $('#legalActions'), decisionLabelHand: $('#decisionLabelHand'), decisionLabelStreet: $('#decisionLabelStreet'), decisionLabelPosition: $('#decisionLabelPosition'), decisionLabelOptions: $('#decisionLabelOptions'),
+  decisionPanelTitle: $('#decisionPanelTitle'), decisionEmpty: $('#decisionEmpty'), decisionCard: $('#decisionCard'), decisionPlayer: $('#decisionPlayer'), decisionModel: $('#decisionModel'), decisionPhase: $('#decisionPhase'), decisionClock: $('#decisionClock'), bankClock: $('#bankClock'), decisionHand: $('#decisionHand'), decisionStreet: $('#decisionStreet'), decisionPosition: $('#decisionPosition'), decisionOptionCount: $('#decisionOptionCount'), decisionActionLabel: $('#decisionActionLabel'), decisionActionHint: $('#decisionActionHint'), legalActions: $('#legalActions'), decisionReasoning: $('#decisionReasoning'), decisionLabelHand: $('#decisionLabelHand'), decisionLabelStreet: $('#decisionLabelStreet'), decisionLabelPosition: $('#decisionLabelPosition'), decisionLabelOptions: $('#decisionLabelOptions'),
   decisionFeed: $('#decisionFeed'), decisionFeedSummary: $('#decisionFeedSummary'), eventLog: $('#eventLog'), logSummary: $('#logSummary'), logTabCount: $('#logTabCount'), logSearch: $('#logSearch'), logFilter: $('#logFilter'), logClear: $('#logClear'), statsGrid: $('#statsGrid'),
   setupDialog: $('#setupDialog'), setupForm: $('#setupForm'), closeSetup: $('#closeSetup'), setupError: $('#setupError'), saveSettingsBtn: $('#saveSettingsBtn'), seatSummary: $('#seatSummary'),
   connectionsEditor: $('#connectionsEditor'), connectionRowTemplate: $('#connectionRowTemplate'), addConnectionBtn: $('#addConnectionBtn'),
   seatDialog: $('#seatDialog'), seatForm: $('#seatForm'), closeSeat: $('#closeSeat'), seatDialogTitle: $('#seatDialogTitle'), seatLockNotice: $('#seatLockNotice'),
   seatName: $('#seatName'), seatConnection: $('#seatConnection'), seatModel: $('#seatModel'), seatModelOptions: $('#seatModelOptions'), seatModelStatus: $('#seatModelStatus'), refreshModelsBtn: $('#refreshModelsBtn'), seatProtocol: $('#seatProtocol'), seatProvider: $('#seatProvider'), seatError: $('#seatError'), removeSeatBtn: $('#removeSeatBtn'), cancelSeatBtn: $('#cancelSeatBtn'), saveSeatBtn: $('#saveSeatBtn'),
   testsDialog: $('#testsDialog'), closeTests: $('#closeTests'), runTestsBtn: $('#runTestsBtn'), clearTestsBtn: $('#clearTestsBtn'), testsStatus: $('#testsStatus'), testsParticipants: $('#testsParticipants'), testsProgressLabel: $('#testsProgressLabel'), testsProgressFill: $('#testsProgressFill'), testsResults: $('#testsResults'),
-  replayDialog: $('#replayDialog'), closeReplay: $('#closeReplay'), replayTitle: $('#replayTitle'), replayBadge: $('#replayBadge'), replaySubtitle: $('#replaySubtitle'), replayOpponents: $('#replayOpponents'), replayStreet: $('#replayStreet'), replayBoard: $('#replayBoard'), replayPot: $('#replayPot'), replayHero: $('#replayHero'), replaySummary: $('#replaySummary'), replayAction: $('#replayAction'), replayReason: $('#replayReason'), replayHistory: $('#replayHistory'), replayLegal: $('#replayLegal'), replayLegalSummary: $('#replayLegalSummary'), replayShareStatus: $('#replayShareStatus'), copyReplayImage: $('#copyReplayImage'), shareReplayImage: $('#shareReplayImage'), saveReplayImage: $('#saveReplayImage'),
+  replayDialog: $('#replayDialog'), closeReplay: $('#closeReplay'), replayTitle: $('#replayTitle'), replayBadge: $('#replayBadge'), replaySubtitle: $('#replaySubtitle'), replayOpponents: $('#replayOpponents'), replayStreet: $('#replayStreet'), replayBoard: $('#replayBoard'), replayPot: $('#replayPot'), replayHero: $('#replayHero'), replaySummary: $('#replaySummary'), replayAction: $('#replayAction'), replayReason: $('#replayReason'), replayReasoning: $('#replayReasoning'), replayHistory: $('#replayHistory'), replayLegal: $('#replayLegal'), replayLegalSummary: $('#replayLegalSummary'), replayShareStatus: $('#replayShareStatus'), copyReplayImage: $('#copyReplayImage'), shareReplayImage: $('#shareReplayImage'), saveReplayImage: $('#saveReplayImage'),
 };
 
 let engineModule = null;
@@ -826,6 +826,19 @@ class TournamentDirector {
       if (incident?.category === 'rate_limit') stats.rateLimits++;
       else if (incident?.category === 'provider') stats.providerErrors++;
     };
+    // Live reasoning: streamed deltas repaint at most every 120 ms, and only a
+    // short tail rides on the live decision so broadcasts stay small. The full
+    // text is accumulated locally and persisted once the decision settles.
+    const liveReasoning = { family: '', sizing: '', flat: '' };
+    let reasoningPaintAt = 0;
+    const onDelta = info => {
+      if (this.currentDecision?.id !== decisionId) return;
+      const key = info.stage === 'size' ? 'sizing' : info.stage === 'flat' ? 'flat' : 'family';
+      if (info.channel === 'reasoning') liveReasoning[key] = info.text;
+      this.currentDecision.reasoning = { stage: info.stage, channel: info.channel, text: reasoningTail(info.text) };
+      const now = Date.now();
+      if (now - reasoningPaintAt >= 120) { reasoningPaintAt = now; this.broadcast(); }
+    };
     try {
       const before = performance.now();
       if (architecture === 'hierarchical') {
@@ -834,9 +847,10 @@ class TournamentDirector {
           abortSignal: this.abortController?.signal, pauseClock: this.currentDecision,
           representationMode: this.config.representation, sizesForFamily,
           onStage: info => { if (this.currentDecision?.id === decisionId) { this.currentDecision.stage = info; this.broadcast(); } },
+          onDelta,
         });
       } else {
-        result = await decide(agent, connection, { state: stateForAgent, legalActions, decisionId, timeoutMs: totalMs, abortSignal: this.abortController?.signal, pauseClock: this.currentDecision, representationMode: this.config.representation });
+        result = await decide(agent, connection, { state: stateForAgent, legalActions, decisionId, timeoutMs: totalMs, abortSignal: this.abortController?.signal, pauseClock: this.currentDecision, representationMode: this.config.representation, onDelta });
       }
       elapsed = Math.max(0, Math.round(performance.now() - before - pausedTotal()));
       for (const incident of result?.meta?.incidents || []) recordIncident(incident);
@@ -885,6 +899,9 @@ class TournamentDirector {
     this.decisionCount++;
     if (this.decisionBudget > 0 && this.decisionCount >= this.decisionBudget) this.budgetReached = true;
     stats.lastReason = result?.publicReason || typedReason || (forced ? `Automatic ${chosen.description} after ${fallbackReason}.` : '');
+    const reasoningLog = architecture === 'hierarchical'
+      ? { family: capReasoning(result?.reasoning?.family ?? liveReasoning.family), sizing: capReasoning(result?.reasoning?.sizing ?? liveReasoning.sizing) }
+      : { flat: capReasoning(typeof result?.reasoning === 'string' ? result.reasoning : liveReasoning.flat) };
     const decisionMeta = result?.meta ? {
       ...result.meta,
       decisionArchitecture: architecture === 'hierarchical' ? DECISION_ARCHITECTURE_VERSION : 'flat-v1',
@@ -901,7 +918,7 @@ class TournamentDirector {
       legalActions: legalActions.map(a => ({ id: a.id, type: a.type, amount: a.amount ?? null, description: a.description })),
       latencyMs: reportedLatency, primaryDecisionLatencyMs: result?.primaryDecisionLatencyMs ?? reportedLatency,
       timeBankUsedMs: Math.max(0, Math.min(bankBefore, elapsed - baseMs)), timeBankRemainingMs: this.timeBanks[agent.id],
-      publicReason: stats.lastReason, usage: result?.usage ?? null, decisionMeta,
+      publicReason: stats.lastReason, usage: result?.usage ?? null, decisionMeta, reasoning: reasoningLog,
       benchmarkMode: this.config.benchmarkMode, decisionArchitecture: architecture, representation: this.config.representation,
       replay: {
         handNumber: stateForAgent.tournament?.handNumber ?? this.handNumber,
@@ -1701,6 +1718,35 @@ function decisionTelemetryHtml(event, { limit = 4 } = {}) {
   if (facts.length) parts.push(`<div class="decision-facts">${facts.join('')}</div>`);
   return parts.join('');
 }
+// Full reasoning is persisted (capped); the live card shows only a rolling tail.
+function reasoningTail(text, limit = 420) {
+  const value = String(text || '');
+  return value.length > limit ? `…${value.slice(-limit)}` : value;
+}
+function capReasoning(text, limit = 8000) {
+  const value = String(text ?? '').trim();
+  if (!value) return null;
+  return value.length > limit ? `${value.slice(0, limit)}…` : value;
+}
+function decisionReasoningText(event) {
+  const reasoning = event?.reasoning;
+  if (!reasoning) return '';
+  return [reasoning.family, reasoning.sizing, reasoning.flat].filter(Boolean).join('\n\n');
+}
+function reasoningExcerpt(text, limit = 220) {
+  const value = String(text || '').replace(/\s+/g, ' ').trim();
+  return value.length > limit ? `${value.slice(0, limit)}…` : value;
+}
+function renderLiveReasoning(d) {
+  const node = els.decisionReasoning;
+  if (!node) return;
+  const live = d?.reasoning ?? null;
+  const text = String(live?.text || '').trim();
+  node.classList.toggle('hidden', !text);
+  if (!text) { node.innerHTML = ''; return; }
+  const label = live?.stage === 'size' ? 'Size reasoning' : live?.stage === 'flat' ? 'Reasoning' : 'Action reasoning';
+  node.innerHTML = `<span class="decision-reasoning-label">${escapeHtml(label)}${live?.channel === 'content' ? ' · answer' : ''}</span><span class="decision-reasoning-text">${escapeHtml(text)}</span>`;
+}
 function setDecisionContext({ hand = '—', street = '—', position = '—', options = '—', label = 'Legal actions', hint = 'Choose one', labels = null } = {}) {
   els.decisionHand.textContent = hand ?? '—';
   els.decisionStreet.textContent = String(street ?? '—').replaceAll('_', ' ');
@@ -1746,6 +1792,7 @@ function renderDecision(s) {
     els.decisionPlayer.textContent = displayModelName(d.model);
     els.decisionPlayer.title = d.model;
     els.decisionModel.textContent = `${d.connection || 'Connection'} · ${protocolDisplay(d.protocol)}`;
+    renderLiveReasoning(d);
     if (d.architecture === 'hierarchical') {
       const stage = d.stage ?? d.hierarchy?.stage1 ?? null;
       const families = stage?.families ?? d.hierarchy?.families ?? [];
@@ -1766,6 +1813,7 @@ function renderDecision(s) {
     return;
   }
 
+  renderLiveReasoning(null);
   stopClock();
   if (finished) {
     const winnerLast = [...(s.events || [])].reverse().find(e => e.type === 'DECISION' && e.playerId === s.winner.playerId) || last;
@@ -1838,7 +1886,9 @@ function renderFeed(s) {
     if (e.forced) infra.push('AUTO FALLBACK');
     const telemetry = decisionTelemetryHtml(e);
     const reason = explanations.get(e.decisionId) || e.publicReason || (e.decisionMeta?.family ? 'Typed decision (no text rationale)' : 'No public rationale');
-    return `<button type="button" class="decision-item decision-history-item ${e.error ? 'error' : ''}" data-decision-id="${escapeHtml(e.id)}" aria-label="Replay ${escapeHtml(displayModelName(e.configuredModel || e.resolvedModel || ''))} decision"><div class="decision-item-head"><strong title="${escapeHtml(e.configuredModel || e.resolvedModel || '')}">${escapeHtml(displayModelName(e.configuredModel || e.resolvedModel || ''))}</strong><span class="decision-item-action">${escapeHtml(e.action?.description || '—')}</span></div><div class="decision-reason">${escapeHtml(reason)}</div>${telemetry ? `<div class="decision-item-telemetry">${telemetry}</div>` : ''}<div class="decision-meta mono">${escapeHtml(e.connection || '')} · ${escapeHtml(shortModel(e.resolvedModel || e.configuredModel || ''))} · ${e.primaryDecisionLatencyMs || e.latencyMs || 0}ms${infra.length ? ` · ${escapeHtml(infra.join(' · '))}` : ''}${e.error ? ` · ${escapeHtml(e.error)}` : ''}<span class="decision-replay-hint">View hand ↗</span></div></button>`;
+    const reasoning = decisionReasoningText(e);
+    const reasoningHtml = reasoning ? `<div class="decision-reasoning-excerpt" title="${escapeHtml(reasoning)}"><span class="decision-reasoning-label">Reasoning</span>${escapeHtml(reasoningExcerpt(reasoning))}</div>` : '';
+    return `<button type="button" class="decision-item decision-history-item ${e.error ? 'error' : ''}" data-decision-id="${escapeHtml(e.id)}" aria-label="Replay ${escapeHtml(displayModelName(e.configuredModel || e.resolvedModel || ''))} decision"><div class="decision-item-head"><strong title="${escapeHtml(e.configuredModel || e.resolvedModel || '')}">${escapeHtml(displayModelName(e.configuredModel || e.resolvedModel || ''))}</strong><span class="decision-item-action">${escapeHtml(e.action?.description || '—')}</span></div><div class="decision-reason">${escapeHtml(reason)}</div>${reasoningHtml}${telemetry ? `<div class="decision-item-telemetry">${telemetry}</div>` : ''}<div class="decision-meta mono">${escapeHtml(e.connection || '')} · ${escapeHtml(shortModel(e.resolvedModel || e.configuredModel || ''))} · ${e.primaryDecisionLatencyMs || e.latencyMs || 0}ms${infra.length ? ` · ${escapeHtml(infra.join(' · '))}` : ''}${e.error ? ` · ${escapeHtml(e.error)}` : ''}<span class="decision-replay-hint">View hand ↗</span></div></button>`;
   }).join('') : '<div class="empty-state">No decisions yet.</div>';
   if (els.decisionFeedSummary) els.decisionFeedSummary.textContent = events.length ? `${events.length} most recent` : 'Newest first';
 }
@@ -2697,6 +2747,13 @@ function openDecisionReplay(eventId) {
   els.replaySubtitle.textContent = replay ? 'Exact decision snapshot captured immediately before the model acted.' : 'This older decision does not contain a replay snapshot.';
   els.replayAction.textContent = event.action?.description || event.action?.type || '—';
   els.replayReason.textContent = replayReasonText(event);
+  const reasoningText = decisionReasoningText(event);
+  if (els.replayReasoning) {
+    els.replayReasoning.classList.toggle('hidden', !reasoningText);
+    els.replayReasoning.innerHTML = reasoningText
+      ? `<span class="decision-reasoning-label">Model reasoning · raw, unvetted scratch work</span><p>${escapeHtml(reasoningText)}</p>`
+      : '';
+  }
 
   if (!replay) {
     els.replayOpponents.innerHTML = '';

@@ -65,7 +65,7 @@ for (const id of ['z-ai/glm-4.5', 'z-ai/glm-4.6', 'z-ai/glm-4.7-flash', 'z-ai/gl
 assert.equal(isReasoningModel('google/gemma-4-26b-a4b-it'), false, 'gemma is not a reasoning model');
 const glmBody = bodyFor('z-ai/glm-5.3-flash', 0.3, 'tool');
 assert.equal(glmBody.max_tokens, 2048, 'reasoning models get the larger completion budget');
-assert.deepEqual(glmBody.reasoning, { max_tokens: 256, exclude: true }, 'reasoning must be capped and excluded');
+assert.deepEqual(glmBody.reasoning, { max_tokens: 256, exclude: false }, 'reasoning must be capped and returned for display');
 const deepseekBody = bodyFor('deepseek/deepseek-v4.1-flash', 0.3, 'tool');
 assert.equal(deepseekBody.max_tokens, 2048, 'deepseek v4 gets the reasoning completion budget');
 
