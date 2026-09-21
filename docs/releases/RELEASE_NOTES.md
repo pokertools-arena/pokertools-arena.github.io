@@ -1,5 +1,16 @@
 # Release notes
 
+## 0.13.0 — recording audio and winner review
+
+- Decoupled table sound from the recording animation gate: chip, deal, board,
+  fold, check, all-in and winner cues now keep playing while a recording is in
+  progress, because sound is an event effect rather than a cosmetic animation.
+- Kept winner pot-payout chip motion visible during recordings while routine
+  chip and card motion stays suppressed to keep frame capture light.
+- Added a two-second winner-review hold between hands so winning stacks stay
+  readable in live play and in recordings, and raised the configured
+  between-hands delay to match.
+
 ## 0.12.0 — audible recordings and richer replays
 
 - Changed screen capture to request audible tab/system audio instead of

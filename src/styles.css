@@ -511,6 +511,7 @@ label input, label select { margin-top: 5px; font-weight: 450; }
 .test-state-dot.pass { background: var(--good); }
 .test-state-dot.fail { background: var(--bad); }
 
+/* 0.13.0 — recording audio and winner review. */
 /* 0.12.0 — richer decision replay and share output. */
 .replay-dialog { width: min(920px, calc(100vw - 28px)); }
 .replay-body { display: grid; grid-template-columns: minmax(310px, 1.1fr) minmax(280px, .9fr); gap: 16px; }

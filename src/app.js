@@ -60,6 +60,7 @@ let soundMasterGain = null;
 let lastVisualState = null;
 let lastProcessedEventId = null;
 const MAX_LOBBY_SEATS = TABLE_DEFAULTS.maxPlayers;
+const WINNER_REVIEW_MS = 2_000;
 let seatAssignments = Array(MAX_LOBBY_SEATS).fill(null);
 let editingSeatIndex = null;
 let seatNameAuto = false;
@@ -81,8 +82,13 @@ let tableRecording = null;
 let currentReplayEvent = null;
 const renderMemo = { status: '', table: '', decision: '', feed: '', events: '', stats: '' };
 
-function animationsAllowed() {
-  return !tableRecording && document.visibilityState === 'visible' && !globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+function effectsAllowed() {
+  return document.visibilityState === 'visible';
+}
+function animationsAllowed({ allowDuringRecording = false } = {}) {
+  return (allowDuringRecording || !tableRecording)
+    && effectsAllowed()
+    && !globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
 function getAudioContext() {
@@ -187,9 +193,13 @@ function elementCenter(el, relativeTo) {
   return { x: r.left - p.left + r.width / 2, y: r.top - p.top + r.height / 2 };
 }
 function flyChips(fromEl, toEl, count = 3, reverse = false) {
-  if (!animationsAllowed() || !els.fxLayer || !fromEl || !toEl) return;
+  // Sound is an event effect, not an animation. Keep it active while recording.
+  playTableSound('chip');
+  // Winner payouts remain visible in recordings; routine chip motion is
+  // suppressed there to keep frame capture light.
+  if (!animationsAllowed({ allowDuringRecording: reverse }) || !els.fxLayer || !fromEl || !toEl) return;
   const tight = els.pokerTable?.dataset?.density === 'tight';
-  count = Math.min(count, tight ? 2 : 3);
+  count = Math.min(count, tight ? (reverse ? 3 : 2) : (reverse ? 5 : 3));
   const from = elementCenter(fromEl, els.fxLayer), to = elementCenter(toEl, els.fxLayer);
   if (!from || !to) return;
   for (let i = 0; i < count; i++) {
@@ -202,7 +212,6 @@ function flyChips(fromEl, toEl, count = 3, reverse = false) {
       { transform: `translate3d(${to.x - from.x}px, ${to.y - from.y}px, 0) scale(.65)`, opacity: 0 },
     ], { duration: 520 + i * 55, delay: i * 45, easing: reverse ? 'cubic-bezier(.2,.8,.2,1)' : 'cubic-bezier(.2,.75,.15,1)', fill: 'forwards' }).finished.finally(() => chip.remove());
   }
-  playTableSound('chip');
 }
 function showActionToast(text, type = '') {
   if (!els.actionToast) return;
@@ -240,7 +249,6 @@ function animateNewHand(s) {
         { transform: 'translate3d(0,0,0) rotate(0deg) scale(1)', opacity: 1 }
       ], { duration: 520, delay: 34 * i, easing: 'cubic-bezier(.16,.88,.24,1)', fill: 'both' });
     });
-    if (cards.length) playTableSound('deal');
   });
 }
 function animateBoardCards(previousCount, currentCount) {
@@ -252,7 +260,6 @@ function animateBoardCards(previousCount, currentCount) {
         { transform: 'translateY(0) rotateY(0deg) scale(1)', opacity: 1 }
       ], { duration: 420, delay: i * 100, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'both' });
     });
-    playTableSound('board');
   });
 }
 function processVisualEffects(s) {
@@ -264,14 +271,21 @@ function processVisualEffects(s) {
     stopTableEffects();
     return;
   }
-  if (!animationsAllowed()) {
+  // Recording disables routine motion, but it must not disable sound/event processing.
+  if (!effectsAllowed()) {
     if (events.length) lastProcessedEventId = events.at(-1).id;
     lastVisualState = s;
     return;
   }
-  if (s?.table && (!previous?.table || s.table.handNumber !== previous.table.handNumber)) animateNewHand(s);
+  if (s?.table && (!previous?.table || s.table.handNumber !== previous.table.handNumber)) {
+    if ($$('.table-seat .playing-card', els.seatsLayer).length) playTableSound('deal');
+    animateNewHand(s);
+  }
   const prevBoard = previous?.table?.board?.length || 0, nextBoard = s?.table?.board?.length || 0;
-  if (s?.table?.handNumber === previous?.table?.handNumber) animateBoardCards(prevBoard, nextBoard);
+  if (s?.table?.handNumber === previous?.table?.handNumber && nextBoard > prevBoard) {
+    playTableSound('board');
+    animateBoardCards(prevBoard, nextBoard);
+  }
 
   let start = 0;
   if (lastProcessedEventId) { const idx = events.findIndex(e => e.id === lastProcessedEventId); start = idx >= 0 ? idx + 1 : Math.max(0, events.length - 4); }
@@ -283,8 +297,14 @@ function processVisualEffects(s) {
         flyChips(seat, pot, type === ACTION.RAISE ? 4 : 3);
         if (isAllInDecision(e)) playTableSound('allin');
       }
-      if (type === ACTION.FOLD && seat) { seat.classList.add('fold-flash'); setTimeout(() => seat.classList.remove('fold-flash'), 650); playTableSound('fold'); }
-      if (type === ACTION.CHECK && seat) { seat.classList.add('check-flash'); setTimeout(() => seat.classList.remove('check-flash'), 500); playTableSound('check'); }
+      if (type === ACTION.FOLD && seat) {
+        if (animationsAllowed()) { seat.classList.add('fold-flash'); setTimeout(() => seat.classList.remove('fold-flash'), 650); }
+        playTableSound('fold');
+      }
+      if (type === ACTION.CHECK && seat) {
+        if (animationsAllowed()) { seat.classList.add('check-flash'); setTimeout(() => seat.classList.remove('check-flash'), 500); }
+        playTableSound('check');
+      }
       // The action already lives immediately above this player's cards. Keep
       // the middle of the felt clear instead of repeating it there.
     }
@@ -740,7 +760,7 @@ class TournamentDirector {
       }
       await this.startHand(); await this.playHand(); this.completeHand(); this.broadcast();
       if (this.budgetReached) { this.logEvent('DECISION_BUDGET_REACHED', { decisions: this.decisionCount, budget: this.decisionBudget }); this.stop(); return; }
-      await this.waitIfPaused(); await sleep(this.config.betweenHandsMs);
+      await this.waitIfPaused(); await sleep(Math.max(WINNER_REVIEW_MS, this.config.betweenHandsMs));
     }
   }
   pruneBustedSeats() {

@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.12.0.** Recordings now retain timestamp-aligned tab/system audio; decision replays add clearer legal-action rows and Jev probability bars; and felt chip stacks now reflect the live pot through blind-scaled color denominations.
+> **Current release: 0.13.0.** Recordings now keep table event audio and the winner pot payout visible, with a two-second winner-review hold between hands.
 
 ---
 

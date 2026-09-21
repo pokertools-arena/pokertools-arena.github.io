@@ -15,7 +15,7 @@ const BASE_CONFIG = {
     lowTimeSeconds: 5,
     lowTimeFraction: 0.25,
     betweenActionsMs: 250,
-    betweenHandsMs: 700,
+    betweenHandsMs: 2_000,
   },
   limits: {
     startingStack: { min: 100 },

@@ -81,7 +81,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.12.0') throw new Error('Expected release version 0.12.0');
+if (pkg.version !== '0.13.0') throw new Error('Expected release version 0.13.0');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -341,6 +341,12 @@ if (!app.includes('function replayLegalActionsHtml') || !css.includes('.replay-l
 if (!css.includes('.replay-board .card-corner.bottom { display: none; }')) throw new Error('Replay board duplicate bottom corners still visible');
 if (!index.includes('id="potChips"') || !app.includes('function potChipsHtml') || !app.includes('integerGcd([smallBlind, bigBlind, ante])') || !css.includes('.pot-chip.chip-gold')) throw new Error('Pot-driven denomination chip rendering missing');
 if (!css.includes('0.12.0 — richer decision replay')) throw new Error('0.12.0 CSS marker missing');
+if (!app.includes('const WINNER_REVIEW_MS = 2_000') || !app.includes('Math.max(WINNER_REVIEW_MS, this.config.betweenHandsMs)')) throw new Error('Two-second winner review hold missing');
+if (!app.includes('reverse ? 5 : 3') || !app.includes('animationsAllowed({ allowDuringRecording: reverse })')) throw new Error('Visible winner pot-payout animation missing');
+if (!app.includes('function effectsAllowed()') || !app.includes('animationsAllowed({ allowDuringRecording = false } = {})')) throw new Error('Recording sound/effects gating missing');
+if (!app.includes("// Sound is an event effect, not an animation. Keep it active while recording.")) throw new Error('Chip sound not decoupled from recording animation gate');
+// 0.13.0 — recording keeps event audio while winner review stays visible.
+if (!css.includes('0.13.0 — recording audio and winner review')) throw new Error('0.13.0 CSS marker missing');
 
 for (const workflow of ['ci.yml','pages.yml','publish.yml','real-diagnostics.yml']) {
   if (!statSync(join(root,'.github','workflows',workflow)).isFile()) throw new Error(`Missing workflow ${workflow}`);
