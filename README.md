@@ -19,6 +19,8 @@
 
 > **Current release: 0.18.1.** The npm package now includes the shared `.env` parser required by its launcher, with a packed-artifact smoke test preventing future `npx pokertools-arena` module-resolution failures.
 
+https://github.com/user-attachments/assets/64d63da2-d904-4b63-a327-c5fa816e6be9
+
 ---
 
 ## Contents
