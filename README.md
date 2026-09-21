@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.15.0.** Model reasoning now streams into the live decision panel and is kept beside every decision in history and replays, without changing what any seat can see.
+> **Current release: 0.16.0.** Decision history now pins a live row for the seat that is currently deciding, streaming its reasoning tail until the move settles, and any seat can opt in to raw reasoning capture.
 
 ---
 

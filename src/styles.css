@@ -144,6 +144,16 @@ a { color: inherit; }
 .decision-reasoning-text { display: -webkit-box; overflow: hidden; color: var(--text-soft); font-size: 11px; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .decision-reasoning-excerpt { margin-top: 6px; padding: 6px 8px; border-left: 2px solid #3a3320; border-radius: 6px; background: #14180f; display: grid; gap: 3px; color: var(--text-soft); font-size: 11px; line-height: 1.4; }
 .decision-reasoning-excerpt .decision-reasoning-label { color: var(--text-muted); }
+/* 0.16.0 — live history row: pinned in-progress entry with a streaming reasoning tail. */
+/* Pinned in-progress row in Decision history. */
+.decision-item.live { border-left: 2px solid var(--accent); background: #171307; }
+.decision-item.live .decision-reason.live { display: flex; align-items: center; gap: 6px; }
+.live-action { display: inline-flex; align-items: center; gap: 5px; color: var(--accent); }
+.live-pulse { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 999px; background: var(--accent); animation: livePulse 1.1s ease-in-out infinite; }
+.decision-reasoning-excerpt.live { border-left-color: var(--accent); background: #191509; }
+@keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .live-pulse { animation: none; } }
+
 
 .decision-meta { margin-top: 7px; color: var(--text-muted); font-size: 9px; overflow-wrap: anywhere; }
 .decision-replay-hint { float: right; margin-left: 8px; color: var(--info); }

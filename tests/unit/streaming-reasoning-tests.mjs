@@ -8,7 +8,7 @@
 // decideHierarchical — all against a stubbed fetch, so no network is used.
 import assert from 'node:assert/strict';
 import {
-  buildOpenAICompatibleBody, fetchStreamingJson, decideHierarchical, isReasoningModel,
+  buildOpenAICompatibleBody, fetchStreamingJson, decideHierarchical, isReasoningModel, wantsReasoning,
 } from '../../src/lib/decision-core.js';
 import { diagnosticState } from '../../tools/diagnostics/scenarios.js';
 
@@ -135,6 +135,22 @@ const text = value => ({ choices: [{ index: 0, delta: value, finish_reason: null
     assert.ok(stageDeltas.some(d => d.stage === 'size' && d.channel === 'reasoning'), 'size stage deltas must be tagged');
     assert.equal(isReasoningModel('deepseek/deepseek-v4.1-flash'), true);
   } finally { globalThis.fetch = original; }
+}
+
+// 5. Per-seat opt-in: a model that is not a reasoning model by name gets the
+//    reasoning directive (and the larger completion budget) only when its seat
+//    explicitly opts in.
+{
+  const base = { connection: { kind: 'openrouter', baseUrl: 'https://openrouter.ai/api/v1' }, state: { hero: {}, betting: {} }, legalActions: [{ id: 'A0', type: 'FOLD' }], decisionId: 'd1' };
+  const off = buildOpenAICompatibleBody({ ...base, agent: { model: 'google/gemma-4-26b-a4b-it', temperature: 0.3 } });
+  assert.equal(off.reasoning, undefined, 'gemma must not request reasoning by default');
+  assert.equal(off.max_tokens, 320, 'non-reasoning default budget');
+  const on = buildOpenAICompatibleBody({ ...base, agent: { model: 'google/gemma-4-26b-a4b-it', temperature: 0.3, captureReasoning: true } });
+  assert.deepEqual(on.reasoning, { max_tokens: 256, exclude: false }, 'opt-in must request reasoning');
+  assert.equal(on.max_tokens, 2048, 'opt-in must raise the completion budget');
+  assert.equal(wantsReasoning({ model: 'google/gemma-4-26b-a4b-it' }), false, 'gemma stays opt-in by default');
+  assert.equal(wantsReasoning({ model: 'google/gemma-4-26b-a4b-it', captureReasoning: true }), true, 'opt-in must be honoured');
+  assert.equal(wantsReasoning({ model: 'deepseek/deepseek-v4.1-flash' }), true, 'named reasoning models need no opt-in');
 }
 
 console.log('streaming-reasoning: all assertions passed');

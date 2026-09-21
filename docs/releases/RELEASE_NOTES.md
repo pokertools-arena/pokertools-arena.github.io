@@ -1,5 +1,23 @@
 # Release notes
 
+## 0.16.0 — live decision history and reasoning opt-in
+
+- Decision history now pins a live row for the seat that is currently deciding.
+  It streams the same reasoning tail as the decision panel (repainting at most
+  every 120 ms), shows the current stage, street, position and elapsed time, and
+  is replaced by the normal completed row once the `DECISION` event lands.
+- The live row is driven by the feed render signature, which now includes the
+  in-progress decision identity and reasoning text so the history repaints while
+  the model is still thinking instead of only after it settles.
+- Added a per-seat **Capture raw model reasoning** toggle. It is off by default
+  and only offered for OpenAI-compatible connections. Opting in asks a
+  non-reasoning model for hidden reasoning and raises its completion budget;
+  the seat editor warns that this can be far slower (Gemma measured ~2 s → 27–48 s
+  per decision, and a family+size decision can exceed a 60 s budget) and is
+  outside the standard benchmark track. Raise the action clock before using it.
+- Reasoning capture for named reasoning models is unchanged: it is automatic and
+  needs no opt-in.
+
 ## 0.15.0 — streamed reasoning
 
 - Reasoning models now stream their hidden scratch work instead of having it

@@ -271,6 +271,12 @@ export function isReasoningModel(model) {
   const id = String(model || '').toLowerCase();
   return /(?:^|[\/._:-])(qwen3|qwq|deepseek-[rv]\d|magistral|glm-(?:\d+[a-z]*|latest|flash-latest)|gpt-oss|nemotron|reason(?:ing)?|thinking|o1|o3|o4)(?:$|[\/._:-])/.test(id);
 }
+// Per-seat opt-in. Some models are not reasoning models by name but can still be
+// asked for hidden reasoning (Gemma measurably can), at a large latency cost, so
+// it stays an explicit seat choice rather than a blanket default.
+export function wantsReasoning(agent) {
+  return isReasoningModel(agent?.model) || agent?.captureReasoning === true;
+}
 export function effectiveProtocol(agent, connection) {
   if (isOpenRouterConnection(connection) && isJevModel(agent?.model)) return 'jev_decisions';
   if (connection?.kind === 'typesafe') return 'jev_native';
@@ -1078,7 +1084,7 @@ export function buildOpenAICompatibleBody({ agent, connection, state, legalActio
       { role: 'system', content: 'You are one seat in an autonomous poker benchmark. Commit exactly one legal move.' },
       { role: 'user', content: userContent },
     ],
-    max_tokens: maxTokens ?? (isReasoningModel(agent.model) ? 2048 : 320),
+    max_tokens: maxTokens ?? (wantsReasoning(agent) ? 2048 : 320),
   };
   const temperature = resolveTemperature(agent.model, agent.temperature);
   if (temperature !== undefined) body.temperature = temperature;
@@ -1093,7 +1099,7 @@ export function buildOpenAICompatibleBody({ agent, connection, state, legalActio
   }
   if (isOpenRouter) {
     body.provider = agent.provider ? { only: [agent.provider], allow_fallbacks: false, require_parameters: true } : { allow_fallbacks: true, require_parameters: true };
-    if (isReasoningModel(agent.model)) body.reasoning = reasoning ?? { max_tokens: 256, exclude: false };
+    if (wantsReasoning(agent)) body.reasoning = reasoning ?? { max_tokens: 256, exclude: false };
   }
   if (stream) { body.stream = true; body.stream_options = { include_usage: true }; }
   return body;
@@ -1326,7 +1332,7 @@ async function requestChatStage({ agent, connection, schema, toolName, systemPro
     const body = {
       model: agent.model,
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
-      max_tokens: override.maxTokens ?? (isReasoningModel(agent.model) ? 2048 : 320),
+      max_tokens: override.maxTokens ?? (wantsReasoning(agent) ? 2048 : 320),
     };
     const resolvedTemperature = resolveTemperature(agent.model, temperature);
     if (resolvedTemperature !== undefined) body.temperature = resolvedTemperature;
@@ -1341,7 +1347,7 @@ async function requestChatStage({ agent, connection, schema, toolName, systemPro
     }
     if (isOpenRouter) {
       body.provider = agent.provider ? { only: [agent.provider], allow_fallbacks: false, require_parameters: true } : { allow_fallbacks: true, require_parameters: true };
-      if (isReasoningModel(agent.model)) body.reasoning = override.reasoning ?? { max_tokens: 256, exclude: false };
+      if (wantsReasoning(agent)) body.reasoning = override.reasoning ?? { max_tokens: 256, exclude: false };
     }
     if (onDelta) { body.stream = true; body.stream_options = { include_usage: true }; }
     return body;

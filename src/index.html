@@ -299,6 +299,11 @@
             <span class="field-label-row">Provider <button class="info-button inline-info" type="button" aria-label="About provider pinning" data-tip="Optional provider pin for APIs that support routing, such as OpenRouter. Leave blank for automatic routing.">i</button></span>
             <input id="seatProvider" placeholder="auto" />
           </label>
+          <label class="seat-reasoning-field">
+            <span class="field-label-row">Reasoning <button class="info-button inline-info" type="button" aria-label="About reasoning capture" data-tip="Requests the model's hidden thinking and shows it in the live panel, decision history and replays. It is raw, unvetted scratch work and is never shared with other seats. Slower and more expensive on models that are not normally asked to reason.">i</button></span>
+            <span class="checkbox-field"><input id="seatCaptureReasoning" type="checkbox" /> Capture raw model reasoning</span>
+            <span class="field-help seat-reasoning-help hidden">This model is not a reasoning model by default. Capturing its reasoning can be far slower (Gemma measured ~2s → 27–48s per decision) and is outside the standard benchmark track. Raise the action clock before using it.</span>
+          </label>
         </div>
       </div>
       <div id="seatError" class="setup-error hidden"></div>

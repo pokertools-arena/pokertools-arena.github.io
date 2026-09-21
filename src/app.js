@@ -20,7 +20,7 @@ import {
   REPRESENTATION_MODES, DEFAULT_REPRESENTATION_MODE, DECISION_ARCHITECTURE_VERSION,
   legalAggressiveSizes, buildHierarchicalDecision, familyCriteria, sizeCriteria,
   applyBenchmarkMode, renderDecisionState, aggregateActionProbabilitiesByFamily, probabilityStats, SIZE_LABELS,
-  isAggressiveType, familyForActionType, FAMILY_LABELS, decisionClockPhase,
+  isAggressiveType, familyForActionType, FAMILY_LABELS, decisionClockPhase, isReasoningModel, wantsReasoning,
 } from './lib/decision-core.js';
 // Table sound effects. esbuild inlines these as data URLs at build time (see
 // build.mjs), so the bundled and single-file builds both carry the audio and no
@@ -44,7 +44,7 @@ const els = {
   setupDialog: $('#setupDialog'), setupForm: $('#setupForm'), closeSetup: $('#closeSetup'), setupError: $('#setupError'), saveSettingsBtn: $('#saveSettingsBtn'), seatSummary: $('#seatSummary'),
   connectionsEditor: $('#connectionsEditor'), connectionRowTemplate: $('#connectionRowTemplate'), addConnectionBtn: $('#addConnectionBtn'),
   seatDialog: $('#seatDialog'), seatForm: $('#seatForm'), closeSeat: $('#closeSeat'), seatDialogTitle: $('#seatDialogTitle'), seatLockNotice: $('#seatLockNotice'),
-  seatName: $('#seatName'), seatConnection: $('#seatConnection'), seatModel: $('#seatModel'), seatModelOptions: $('#seatModelOptions'), seatModelStatus: $('#seatModelStatus'), refreshModelsBtn: $('#refreshModelsBtn'), seatProtocol: $('#seatProtocol'), seatProvider: $('#seatProvider'), seatError: $('#seatError'), removeSeatBtn: $('#removeSeatBtn'), cancelSeatBtn: $('#cancelSeatBtn'), saveSeatBtn: $('#saveSeatBtn'),
+  seatName: $('#seatName'), seatConnection: $('#seatConnection'), seatModel: $('#seatModel'), seatModelOptions: $('#seatModelOptions'), seatModelStatus: $('#seatModelStatus'), refreshModelsBtn: $('#refreshModelsBtn'), seatProtocol: $('#seatProtocol'), seatProvider: $('#seatProvider'), seatCaptureReasoning: $('#seatCaptureReasoning'), seatError: $('#seatError'), removeSeatBtn: $('#removeSeatBtn'), cancelSeatBtn: $('#cancelSeatBtn'), saveSeatBtn: $('#saveSeatBtn'),
   testsDialog: $('#testsDialog'), closeTests: $('#closeTests'), runTestsBtn: $('#runTestsBtn'), clearTestsBtn: $('#clearTestsBtn'), testsStatus: $('#testsStatus'), testsParticipants: $('#testsParticipants'), testsProgressLabel: $('#testsProgressLabel'), testsProgressFill: $('#testsProgressFill'), testsResults: $('#testsResults'),
   replayDialog: $('#replayDialog'), closeReplay: $('#closeReplay'), replayTitle: $('#replayTitle'), replayBadge: $('#replayBadge'), replaySubtitle: $('#replaySubtitle'), replayOpponents: $('#replayOpponents'), replayStreet: $('#replayStreet'), replayBoard: $('#replayBoard'), replayPot: $('#replayPot'), replayHero: $('#replayHero'), replaySummary: $('#replaySummary'), replayAction: $('#replayAction'), replayReason: $('#replayReason'), replayReasoning: $('#replayReasoning'), replayHistory: $('#replayHistory'), replayLegal: $('#replayLegal'), replayLegalSummary: $('#replayLegalSummary'), replayShareStatus: $('#replayShareStatus'), copyReplayImage: $('#copyReplayImage'), shareReplayImage: $('#shareReplayImage'), saveReplayImage: $('#saveReplayImage'),
 };
@@ -355,6 +355,7 @@ function injectedEnvironmentConfig() {
       model: String(player.model || ''),
       protocol: String(player.protocol || 'tool'),
       provider: String(player.provider || ''),
+      captureReasoning: Boolean(player.captureReasoning),
     })),
   };
 }
@@ -627,7 +628,7 @@ function normalizeConfig(input = {}) {
       if (!connIds.has(raw.connectionId)) throw new Error(`Connection missing for ${name}`);
       const model = String(raw.model || '').trim();
       if (!model) throw new Error(`Model missing for ${name}`);
-      return { id: `player-${lobbySeat + 1}`, seat: index, lobbySeat, name, connectionId: raw.connectionId, model, protocol: raw.protocol || 'tool', provider: String(raw.provider || '').trim(), temperature: clamp(Number(raw.temperature) || 0.3, 0, 2) };
+      return { id: `player-${lobbySeat + 1}`, seat: index, lobbySeat, name, connectionId: raw.connectionId, model, protocol: raw.protocol || 'tool', provider: String(raw.provider || '').trim(), captureReasoning: raw.captureReasoning === true, temperature: clamp(Number(raw.temperature) || 0.3, 0, 2) };
     }),
   };
 }
@@ -1181,6 +1182,7 @@ function defaultSeatDraft(seatIndex) {
     model: conn?.kind === 'typesafe' ? 'jev-latest' : '',
     protocol: conn?.kind === 'typesafe' ? 'jev_native' : 'tool',
     provider: '',
+    captureReasoning: false,
   };
 }
 function applySeatProtocolRules() {
@@ -1188,7 +1190,14 @@ function applySeatProtocolRules() {
   const kind = conn?.kind || 'openrouter';
   const openRouter = isOpenRouterConnection(conn);
   const jevViaOpenRouter = openRouter && isJevModel(els.seatModel.value);
+  const jevSeat = kind === 'typesafe' || jevViaOpenRouter;
   document.querySelector('.seat-provider-field')?.classList.toggle('hidden', !openRouter || jevViaOpenRouter);
+  document.querySelector('.seat-reasoning-field')?.classList.toggle('hidden', jevSeat);
+  if (els.seatCaptureReasoning) {
+    els.seatCaptureReasoning.disabled = jevSeat;
+    const alreadyReasoning = isReasoningModel(els.seatModel.value.trim());
+    document.querySelector('.seat-reasoning-help')?.classList.toggle('hidden', !els.seatCaptureReasoning.checked || alreadyReasoning);
+  }
   [...els.seatProtocol.options].forEach(option => {
     option.disabled = (option.value === 'jev_native' && kind !== 'typesafe') || (option.value === 'jev_decisions' && !openRouter);
   });
@@ -1229,12 +1238,14 @@ function openSeatEditor(seatIndex) {
   els.seatModel.value = draft.model || '';
   els.seatProtocol.value = draft.protocol || 'tool';
   els.seatProvider.value = draft.provider || '';
+  if (els.seatCaptureReasoning) els.seatCaptureReasoning.checked = Boolean(draft.captureReasoning);
   applySeatProtocolRules();
   syncSeatNameFromModel();
   void refreshSeatModelCatalog();
   els.seatError.classList.add('hidden');
   els.seatLockNotice.classList.toggle('hidden', !locked);
   for (const control of [els.seatName, els.seatConnection, els.seatModel, els.seatProtocol, els.seatProvider]) control.disabled = locked || (control === els.seatProvider && (!isOpenRouterConnection(connectionById(els.seatConnection.value)) || isJevModel(els.seatModel.value)));
+  if (els.seatCaptureReasoning) els.seatCaptureReasoning.disabled = locked || els.seatCaptureReasoning.disabled;
   els.saveSeatBtn.disabled = locked;
   els.removeSeatBtn.disabled = locked || !seatAssignments[seatIndex];
   if (!els.seatDialog.open) els.seatDialog.showModal();
@@ -1249,6 +1260,7 @@ function readSeatDraft() {
     model: els.seatModel.value.trim(),
     protocol: els.seatProtocol.value,
     provider: els.seatProvider.disabled ? '' : els.seatProvider.value.trim(),
+    captureReasoning: Boolean(els.seatCaptureReasoning && !els.seatCaptureReasoning.disabled && els.seatCaptureReasoning.checked),
   };
 }
 function readSeatPlayers() {
@@ -1277,6 +1289,7 @@ function restoreSeatAssignments(rows = []) {
       model: player.model || '',
       protocol: player.protocol || 'tool',
       provider: player.provider || '',
+      captureReasoning: player.captureReasoning === true,
     };
   });
   updateSeatSummary();
@@ -1873,12 +1886,34 @@ function renderDecision(s) {
     els.legalActions.innerHTML = '<span class="action-chip">Start the tournament to stream model actions here.</span>';
   }
 }
+// Pinned at the top of Decision history while a seat is deciding. It is a plain
+// div (nothing to replay yet) and is replaced by the normal completed row when
+// the DECISION event lands and currentDecision clears.
+function liveFeedRowHtml(d) {
+  const model = d.model || '';
+  const stage = d.stage?.stage === 'size'
+    ? `${String(d.stage.family || '').toUpperCase()} size`
+    : d.architecture === 'hierarchical' ? 'Action family' : 'Legal actions';
+  const reasoning = String(d.reasoning?.text || '').trim();
+  const isAnswer = d.reasoning?.channel === 'content';
+  const bodyHtml = reasoning
+    ? `<div class="decision-reasoning-excerpt live"><span class="decision-reasoning-label">${isAnswer ? 'Streaming answer' : 'Streaming reasoning'}</span>${escapeHtml(reasoningExcerpt(reasoning, 260))}</div>`
+    : '<div class="decision-reason live"><span class="live-pulse" aria-hidden="true"></span>Thinking…</div>';
+  const elapsed = d.startedAt ? Math.max(0, Date.now() - d.startedAt - (d.pausedMs || 0)) : 0;
+  return `<div class="decision-item decision-history-item live" aria-label="Live decision by ${escapeHtml(displayModelName(model))}">`
+    + `<div class="decision-item-head"><strong title="${escapeHtml(model)}">${escapeHtml(displayModelName(model))}</strong><span class="decision-item-action live-action"><span class="live-pulse" aria-hidden="true"></span>LIVE</span></div>`
+    + `<div class="decision-reason">${escapeHtml(stage)}${d.street ? ` · ${escapeHtml(String(d.street))}` : ''}${d.position ? ` · ${escapeHtml(d.position)}` : ''}</div>`
+    + bodyHtml
+    + `<div class="decision-meta mono">${escapeHtml(d.connection || '')} · ${escapeHtml(shortModel(model))} · ${(elapsed / 1000).toFixed(1)}s<span class="decision-replay-hint">streaming</span></div>`
+    + '</div>';
+}
 function renderFeed(s) {
 
   const feedArchive = eventArchive(s);
   const events = feedArchive.filter(e => e.type === 'DECISION').slice(-HISTORY_CONFIG.recentDecisions).reverse();
   const explanations = new Map(feedArchive.filter(e => e.type === 'SPECTATOR_EXPLANATION').map(e => [e.decisionId, e.text]));
-  els.decisionFeed.innerHTML = events.length ? events.map(e => {
+  const liveHtml = s?.currentDecision ? liveFeedRowHtml(s.currentDecision) : '';
+  const rowsHtml = events.map(e => {
     const infra = [];
     if (e.protocolFallback) infra.push(e.protocolFallback);
     if (e.decisionMeta?.retryCount) infra.push(`retry ${e.decisionMeta.retryCount}`);
@@ -1889,8 +1924,15 @@ function renderFeed(s) {
     const reasoning = decisionReasoningText(e);
     const reasoningHtml = reasoning ? `<div class="decision-reasoning-excerpt" title="${escapeHtml(reasoning)}"><span class="decision-reasoning-label">Reasoning</span>${escapeHtml(reasoningExcerpt(reasoning))}</div>` : '';
     return `<button type="button" class="decision-item decision-history-item ${e.error ? 'error' : ''}" data-decision-id="${escapeHtml(e.id)}" aria-label="Replay ${escapeHtml(displayModelName(e.configuredModel || e.resolvedModel || ''))} decision"><div class="decision-item-head"><strong title="${escapeHtml(e.configuredModel || e.resolvedModel || '')}">${escapeHtml(displayModelName(e.configuredModel || e.resolvedModel || ''))}</strong><span class="decision-item-action">${escapeHtml(e.action?.description || '—')}</span></div><div class="decision-reason">${escapeHtml(reason)}</div>${reasoningHtml}${telemetry ? `<div class="decision-item-telemetry">${telemetry}</div>` : ''}<div class="decision-meta mono">${escapeHtml(e.connection || '')} · ${escapeHtml(shortModel(e.resolvedModel || e.configuredModel || ''))} · ${e.primaryDecisionLatencyMs || e.latencyMs || 0}ms${infra.length ? ` · ${escapeHtml(infra.join(' · '))}` : ''}${e.error ? ` · ${escapeHtml(e.error)}` : ''}<span class="decision-replay-hint">View hand ↗</span></div></button>`;
-  }).join('') : '<div class="empty-state">No decisions yet.</div>';
-  if (els.decisionFeedSummary) els.decisionFeedSummary.textContent = events.length ? `${events.length} most recent` : 'Newest first';
+  }).join('');
+  els.decisionFeed.innerHTML = (liveHtml || rowsHtml)
+    ? `${liveHtml}${rowsHtml}`
+    : '<div class="empty-state">No decisions yet.</div>';
+  if (els.decisionFeedSummary) {
+    els.decisionFeedSummary.textContent = s?.currentDecision
+      ? `${events.length} settled · 1 live`
+      : events.length ? `${events.length} most recent` : 'Newest first';
+  }
 }
 function eventArchive(s = currentState) {
   if (director?.events?.length) return director.events;
@@ -1977,7 +2019,7 @@ function renderStats(s) {
 function tableRenderSignature(s) {
   const running = ['RUNNING', 'PAUSED'].includes(s?.status);
   if (lobbyVisible && !running) {
-    return JSON.stringify(['lobby', seatAssignments.map(p => p ? [p.name, p.model, p.protocol, p.connectionId, p.provider] : null)]);
+    return JSON.stringify(['lobby', seatAssignments.map(p => p ? [p.name, p.model, p.protocol, p.connectionId, p.provider, Boolean(p.captureReasoning)] : null)]);
   }
   const t = s?.table;
   if (!t) return JSON.stringify(['empty', s?.status || 'IDLE']);
@@ -1996,11 +2038,15 @@ function decisionRenderSignature(s) {
   return JSON.stringify([d ? [d.id, d.playerId, d.model, d.protocol, d.provider, d.startedAt, d.baseMs, d.timeBankMs, d.pausedMs || 0, Boolean(d.pausedAt), d.architecture || null, d.stage || null, d.legalActions] : null, last?.id || null, s?.status || 'IDLE', seatAssignments.filter(Boolean).length]);
 }
 function feedRenderSignature(s) {
-  return (s?.events || [])
+  const completed = (s?.events || [])
     .filter(e => e.type === 'DECISION' || e.type === 'SPECTATOR_EXPLANATION')
     .slice(-24)
-    .map(e => `${e.type}:${e.id}`)
-    .join('|');
+    .map(e => `${e.type}:${e.id}`);
+  const live = s?.currentDecision;
+  // Include the in-progress decision so the pinned live row repaints as the
+  // reasoning tail grows, then settles into the completed row when it clears.
+  if (live) completed.push(`LIVE:${live.id}:${live.stage?.stage ?? ''}:${live.reasoning?.text ?? ''}`);
+  return completed.join('|');
 }
 function eventsRenderSignature(s) { const ev = eventArchive(s); return `${ev.length}:${ev.at(-1)?.id || ''}:${logView.filter}:${logView.query}`; }
 function statsRenderSignature(s) {
@@ -3176,6 +3222,7 @@ els.seatConnection.addEventListener('change', () => { applySeatProtocolRules(); 
 els.seatModel.addEventListener('input', () => { applySeatProtocolRules(); syncSeatNameFromModel(); });
 els.seatName.addEventListener('input', () => { seatNameAuto = false; });
 els.seatProtocol.addEventListener('change', applySeatProtocolRules);
+els.seatCaptureReasoning?.addEventListener('change', applySeatProtocolRules);
 els.refreshModelsBtn?.addEventListener('click', () => void refreshSeatModelCatalog({ force: true }));
 els.removeSeatBtn.addEventListener('click', () => {
   if (editingSeatIndex == null || (director && ['RUNNING', 'PAUSED'].includes(director.status))) return;

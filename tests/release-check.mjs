@@ -74,19 +74,23 @@ if (!app.includes('Number.isSafeInteger(value)') || !app.includes("Unable to bui
 if (!app.includes('openSetup({ preserveError = false } = {})') || !app.includes('openSetup({ preserveError: true })')) throw new Error('Visible startup-error handling missing');
 if (!app.includes('buildPublicTournamentMemory')) throw new Error('Shared public tournament memory missing');
 if (!has('Fail closed. A failed player view must never fall back')) throw new Error('Fail-closed player masking missing');
-if (!has('isReasoningModel(agent.model) ? 2048 : 320')) throw new Error('Reasoning-model completion budget fix missing');
+if (!has('wantsReasoning(agent) ? 2048 : 320')) throw new Error('Reasoning-model completion budget fix missing');
+if (!has('export function wantsReasoning')) throw new Error('Per-seat reasoning opt-in helper missing');
 if (!has('{ max_tokens: 256, exclude: false }')) throw new Error('OpenRouter reasoning cap missing');
 if (!has('fetchStreamingJson') || !has("text/event-stream")) throw new Error('Streaming reasoning transport missing');
 if (!has('include_usage: true')) throw new Error('Streamed token accounting missing');
 if (!app.includes('reasoningTail') || !app.includes('capReasoning')) throw new Error('Reasoning capture missing from app');
+if (!app.includes('function liveFeedRowHtml')) throw new Error('Live in-progress decision-history row missing');
+if (!app.includes('live.id') || !app.includes('LIVE:')) throw new Error('Live feed render signature missing');
 if (!index.includes('decisionReasoning')) throw new Error('Live reasoning panel missing from index.html');
 if (!index.includes('replayReasoning')) throw new Error('Replay reasoning panel missing from index.html');
+if (!index.includes('seatCaptureReasoning')) throw new Error('Per-seat reasoning opt-in toggle missing');
 if (!readFileSync(join(root,'build.mjs'),'utf8').includes("filter: /^(?:node:)?crypto$/")) throw new Error('Browser crypto resolver missing from build');
 if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser crypto shim missing');
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.15.0') throw new Error('Expected release version 0.15.0');
+if (pkg.version !== '0.16.0') throw new Error('Expected release version 0.16.0');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -357,6 +361,8 @@ if (!app.includes('new MediaStream(stream.getVideoTracks())') || !app.includes('
 if (!app.includes('function createCaptureAudioMonitor') || !app.includes('getAudioContext()?.resume()')) throw new Error('Local recording audio recovery missing');
 // 0.15.0 — streamed model reasoning is surfaced live and kept in decision history.
 if (!css.includes('0.15.0 — streamed reasoning')) throw new Error('0.15.0 CSS marker missing');
+// 0.16.0 — a pinned live row in Decision history plus a per-seat reasoning opt-in.
+if (!css.includes('0.16.0 — live history row')) throw new Error('0.16.0 CSS marker missing');
 
 for (const workflow of ['ci.yml','pages.yml','publish.yml','real-diagnostics.yml']) {
   if (!statSync(join(root,'.github','workflows',workflow)).isFile()) throw new Error(`Missing workflow ${workflow}`);
