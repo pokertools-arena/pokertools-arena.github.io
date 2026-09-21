@@ -7,7 +7,7 @@ const BASE_CONFIG = {
     bigBlind: 50,
     ante: 5,
     handsPerLevel: 8,
-    blindMultiplier: 1.5,
+    blindMultiplier: 2,
   },
   timing: {
     actionSeconds: 30,

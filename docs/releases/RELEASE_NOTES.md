@@ -1,5 +1,11 @@
 # Release notes
 
+## 0.16.2 — blind multiplier defaults to ×2
+
+- The default `blindMultiplier` is now `2` (was `1.5`), so blinds double at each
+  level. The tournament form still exposes the field and its limits are unchanged
+  (`min 1.1`, `max 3`, `step 0.1`), so any other value can still be entered.
+
 ## 0.16.1 — seat-ring offset and chip-dot removal
 
 - `seatPositionOnFelt` now lifts the seat ellipse to clear the table furniture:

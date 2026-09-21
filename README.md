@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.16.1.** The seat ring is lifted to clear the table furniture — 30px in the pre-game lobby and 20px during live play — and the seat stack no longer draws a chip dot next to the chip count.
+> **Current release: 0.16.2.** Blind levels now advance by a default multiplier of ×2, so blinds double each level unless changed in the tournament settings.
 
 ---
 
