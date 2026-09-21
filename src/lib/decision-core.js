@@ -176,8 +176,20 @@ export async function fetchStreamingJson(url, options, { maxRetries = 1, onDelta
   }
 }
 
+// OpenRouter reports upstream provider failures as a generic "Provider returned
+// error" while the real reason sits in `error.metadata.raw`. Error handling that
+// keys off message text (the tool_choice fallback) must read that nested detail
+// or it silently stops firing for models like meta/muse-spark, whose provider
+// rejects every named tool_choice.
+export function requestErrorDetail(err) {
+  const parts = [summarizeError(err)];
+  const nested = err?.payload?.error?.metadata?.raw ?? err?.payload?.metadata?.raw;
+  if (typeof nested === 'string') parts.push(nested);
+  else if (nested) parts.push(String(JSON.stringify(nested)));
+  return parts.join(' ');
+}
 export function isUnsupportedToolChoiceError(err) {
-  const message = summarizeError(err);
+  const message = requestErrorDetail(err);
   return [400, 404, 422].includes(Number(err?.status)) && /tool[_ -]?choice|tool call|tools?.*(?:unsupported|support)|no endpoints?.*support/i.test(message);
 }
 export function mapGet(mapish, key, fallback = 0) {
@@ -216,14 +228,33 @@ export const protocolCapabilityCache = new Map();
 // catalogue says the model supports them. Unknown models keep the prior default
 // so behaviour is unchanged when no catalogue has been loaded.
 export const modelSupportedParameters = new Map();
+
+// OpenRouter also advertises a per-model `reasoning` object
+// ({ mandatory, supported_efforts, default_effort }) when the model exposes a
+// reasoning-effort control. Sending an effort the catalogue does not list is a
+// hard routing failure under `require_parameters`, and sending the wrong one is
+// how a slow reasoner burns the action clock and gets auto-folded, so the
+// catalogue is treated as the source of truth for what a seat may request.
+export const modelReasoningCapabilities = new Map();
 export const DEFAULT_TEMPERATURE = 0.3;
 
 export function registerModelCapabilities(models = []) {
   for (const entry of models ?? []) {
     const id = typeof entry === 'string' ? entry : entry?.id;
+    if (!id) continue;
     const parameters = typeof entry === 'object' && entry ? entry.supported_parameters : null;
-    if (!id || !Array.isArray(parameters)) continue;
-    modelSupportedParameters.set(String(id), new Set(parameters.map(String)));
+    if (Array.isArray(parameters)) modelSupportedParameters.set(String(id), new Set(parameters.map(String)));
+    const reasoning = typeof entry === 'object' && entry ? entry.reasoning : null;
+    if (!reasoning || typeof reasoning !== 'object') continue;
+    const efforts = Array.isArray(reasoning.supported_efforts)
+      ? reasoning.supported_efforts.map(value => String(value).trim().toLowerCase()).filter(Boolean)
+      : [];
+    const declaredDefault = String(reasoning.default_effort || '').trim().toLowerCase();
+    modelReasoningCapabilities.set(String(id), {
+      mandatory: reasoning.mandatory === true,
+      supportedEfforts: efforts,
+      defaultEffort: efforts.includes(declaredDefault) ? declaredDefault : null,
+    });
   }
 }
 
@@ -231,6 +262,43 @@ export function modelSupportsParameter(model, parameter) {
   const supported = modelSupportedParameters.get(String(model || ''));
   if (!supported) return null; // unknown: preserve historical behaviour
   return supported.has(String(parameter));
+}
+
+export function reasoningCapabilities(model) {
+  return modelReasoningCapabilities.get(String(model || '')) ?? null;
+}
+export function reasoningEffortsFor(model) {
+  return reasoningCapabilities(model)?.supportedEfforts ?? [];
+}
+export function defaultReasoningEffort(model) {
+  return reasoningCapabilities(model)?.defaultEffort ?? null;
+}
+export function requiresReasoning(model) {
+  return reasoningCapabilities(model)?.mandatory === true;
+}
+// Returns the requested effort when the model can accept it. Unknown models
+// (non-OpenRouter endpoints, or a catalogue that has not loaded yet) keep the
+// requested value so an explicit seat choice is never silently dropped.
+export function resolveReasoningEffort(model, requested) {
+  const value = String(requested || '').trim().toLowerCase();
+  if (!value) return null;
+  const capabilities = reasoningCapabilities(model);
+  if (!capabilities) return value;
+  return capabilities.supportedEfforts.includes(value) ? value : null;
+}
+// The reasoning payload for a normal request. An explicit, supported effort
+// wins; otherwise the historical completed-reasoning cap is preserved so
+// benchmark behaviour is unchanged for seats that never touch the control.
+export function reasoningOverrideFor(agent) {
+  const effort = resolveReasoningEffort(agent?.model, agent?.reasoningEffort);
+  return effort ? { effort } : { max_tokens: 256, exclude: false };
+}
+// The truncation retry lowers effort so a long reasoner can still answer inside
+// the action clock. Models that do not advertise `low` fall back to the cap.
+export function truncationReasoningOverride(model) {
+  const capabilities = reasoningCapabilities(model);
+  if (!capabilities) return { effort: 'low' };
+  return capabilities.supportedEfforts.includes('low') ? { effort: 'low' } : { max_tokens: 4096, exclude: false };
 }
 
 // Returns the temperature to send, or undefined when the model's endpoints do
@@ -275,7 +343,9 @@ export function isReasoningModel(model) {
 // asked for hidden reasoning (Gemma measurably can), at a large latency cost, so
 // it stays an explicit seat choice rather than a blanket default.
 export function wantsReasoning(agent) {
-  return isReasoningModel(agent?.model) || agent?.captureReasoning === true;
+  return isReasoningModel(agent?.model) || agent?.captureReasoning === true
+    || reasoningCapabilities(agent?.model)?.mandatory === true
+    || Boolean(resolveReasoningEffort(agent?.model, agent?.reasoningEffort));
 }
 export function effectiveProtocol(agent, connection) {
   if (isOpenRouterConnection(connection) && isJevModel(agent?.model)) return 'jev_decisions';
@@ -1099,7 +1169,7 @@ export function buildOpenAICompatibleBody({ agent, connection, state, legalActio
   }
   if (isOpenRouter) {
     body.provider = agent.provider ? { only: [agent.provider], allow_fallbacks: false, require_parameters: true } : { allow_fallbacks: true, require_parameters: true };
-    if (wantsReasoning(agent)) body.reasoning = reasoning ?? { max_tokens: 256, exclude: false };
+    if (wantsReasoning(agent)) body.reasoning = reasoning ?? reasoningOverrideFor(agent);
   }
   if (stream) { body.stream = true; body.stream_options = { include_usage: true }; }
   return body;
@@ -1160,7 +1230,7 @@ export async function decideOpenAICompatible({ agent, connection, state, legalAc
         // return nothing. Retry once with a larger budget and a lower reasoning
         // effort rather than forcing an automatic fallback.
         truncationRetry = true;
-        result = await execute(actualProtocol, { maxTokens: 4096, reasoning: { effort: 'low' } });
+        result = await execute(actualProtocol, { maxTokens: 4096, reasoning: truncationReasoningOverride(agent.model) });
       } else throw err;
     }
     const normalized = normalizeDecisionObject(result.obj, legalActions, decisionId);
@@ -1347,7 +1417,7 @@ async function requestChatStage({ agent, connection, schema, toolName, systemPro
     }
     if (isOpenRouter) {
       body.provider = agent.provider ? { only: [agent.provider], allow_fallbacks: false, require_parameters: true } : { allow_fallbacks: true, require_parameters: true };
-      if (wantsReasoning(agent)) body.reasoning = override.reasoning ?? { max_tokens: 256, exclude: false };
+      if (wantsReasoning(agent)) body.reasoning = override.reasoning ?? reasoningOverrideFor(agent);
     }
     if (onDelta) { body.stream = true; body.stream_options = { include_usage: true }; }
     return body;
@@ -1388,7 +1458,7 @@ async function requestChatStage({ agent, connection, schema, toolName, systemPro
     if (err?.truncated) {
       // Retry once with a larger budget and lower reasoning effort instead of
       // letting a truncated reasoning stage force an automatic fallback.
-      const result = await execute(actual, { maxTokens: 4096, reasoning: { effort: 'low' } });
+      const result = await execute(actual, { maxTokens: 4096, reasoning: truncationReasoningOverride(agent.model) });
       return { ...result, protocolFallback: 'truncated→retry' };
     }
     throw err;

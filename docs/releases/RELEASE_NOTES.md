@@ -1,5 +1,37 @@
 # Release notes
 
+## 0.17.0 — per-seat reasoning effort
+
+- The seat editor now exposes **Reasoning effort** for OpenRouter models whose
+  catalogue entry advertises `supported_efforts` (for example
+  `deepseek/deepseek-v4.1-flash`: `max`, `high`, `low`, default `high`). The
+  options are populated from `GET /api/v1/models`, so an effort the model does
+  not accept can never be selected, and the catalogue default is labelled in the
+  list.
+- Choosing an effort sends OpenRouter `reasoning: { effort }` for that seat.
+  Leaving it on **Arena default (capped)** keeps the existing
+  `reasoning: { max_tokens: 256, exclude: false }` request, so unmodified seats
+  and existing benchmark runs are unchanged.
+- This addresses slow reasoners that exhaust the action clock and get
+  auto-folded: a seat can drop DeepSeek-class models from their `high` default to
+  `low` and answer inside the 30 s action + 30 s time-bank budget. The chosen
+  effort is recorded on `DECISION_START` and `DECISION` events.
+- The truncation retry now lowers to an effort the catalogue actually supports
+  (falling back to the larger token cap when `low` is not offered) instead of
+  always sending `low`.
+- Models whose catalogue entry marks reasoning as `mandatory` now get the larger
+  completion budget even when their name misses the reasoning heuristic (for
+  example `meta/muse-spark-1.3-contributor`), instead of being starved by the
+  320-token default.
+- Those mandatory-reasoning models also show a warning in the seat editor when no
+  effort is selected, because the capped default does not constrain a model that
+  always reasons and it can still run past the action clock.
+- The tool-to-JSON-schema fallback now reads OpenRouter's nested provider detail
+  (`error.metadata.raw`). Providers that reject every named `tool_choice` — Meta's
+  Muse Spark endpoints only accept `"auto"` — return a generic "Provider returned
+  error", which previously hid the real reason and forced an auto-fold on every
+  hand.
+
 ## 0.16.2 — blind multiplier defaults to ×2
 
 - The default `blindMultiplier` is now `2` (was `1.5`), so blinds double at each

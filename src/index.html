@@ -304,6 +304,11 @@
             <span class="checkbox-field"><input id="seatCaptureReasoning" type="checkbox" /> Capture raw model reasoning</span>
             <span class="field-help seat-reasoning-help hidden">This model is not a reasoning model by default. Capturing its reasoning can be far slower (Gemma measured ~2s → 27–48s per decision) and is outside the standard benchmark track. Raise the action clock before using it.</span>
           </label>
+          <label class="seat-effort-field">
+            <span class="field-label-row">Reasoning effort <button class="info-button inline-info" type="button" aria-label="About reasoning effort" data-tip="How much hidden thinking the model may spend. Higher effort is smarter but slower; a slow reasoner can exhaust the action clock and be forced to fold. Options come from the OpenRouter model catalogue, and an unset value keeps the arena's fixed reasoning cap.">i</button></span>
+            <select id="seatReasoningEffort"></select>
+            <span id="seatReasoningEffortHelp" class="field-help"></span>
+          </label>
         </div>
       </div>
       <div id="seatError" class="setup-error hidden"></div>

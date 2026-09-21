@@ -21,6 +21,7 @@ import {
   legalAggressiveSizes, buildHierarchicalDecision, familyCriteria, sizeCriteria,
   applyBenchmarkMode, renderDecisionState, aggregateActionProbabilitiesByFamily, probabilityStats, SIZE_LABELS,
   isAggressiveType, familyForActionType, FAMILY_LABELS, decisionClockPhase, isReasoningModel, wantsReasoning,
+  reasoningEffortsFor, defaultReasoningEffort, requiresReasoning,
 } from './lib/decision-core.js';
 // Table sound effects. esbuild inlines these as data URLs at build time (see
 // build.mjs), so the bundled and single-file builds both carry the audio and no
@@ -44,7 +45,7 @@ const els = {
   setupDialog: $('#setupDialog'), setupForm: $('#setupForm'), closeSetup: $('#closeSetup'), setupError: $('#setupError'), saveSettingsBtn: $('#saveSettingsBtn'), seatSummary: $('#seatSummary'),
   connectionsEditor: $('#connectionsEditor'), connectionRowTemplate: $('#connectionRowTemplate'), addConnectionBtn: $('#addConnectionBtn'),
   seatDialog: $('#seatDialog'), seatForm: $('#seatForm'), closeSeat: $('#closeSeat'), seatDialogTitle: $('#seatDialogTitle'), seatLockNotice: $('#seatLockNotice'),
-  seatName: $('#seatName'), seatConnection: $('#seatConnection'), seatModel: $('#seatModel'), seatModelOptions: $('#seatModelOptions'), seatModelStatus: $('#seatModelStatus'), refreshModelsBtn: $('#refreshModelsBtn'), seatProtocol: $('#seatProtocol'), seatProvider: $('#seatProvider'), seatCaptureReasoning: $('#seatCaptureReasoning'), seatError: $('#seatError'), removeSeatBtn: $('#removeSeatBtn'), cancelSeatBtn: $('#cancelSeatBtn'), saveSeatBtn: $('#saveSeatBtn'),
+  seatName: $('#seatName'), seatConnection: $('#seatConnection'), seatModel: $('#seatModel'), seatModelOptions: $('#seatModelOptions'), seatModelStatus: $('#seatModelStatus'), refreshModelsBtn: $('#refreshModelsBtn'), seatProtocol: $('#seatProtocol'), seatProvider: $('#seatProvider'), seatCaptureReasoning: $('#seatCaptureReasoning'), seatReasoningEffort: $('#seatReasoningEffort'), seatReasoningEffortHelp: $('#seatReasoningEffortHelp'), seatError: $('#seatError'), removeSeatBtn: $('#removeSeatBtn'), cancelSeatBtn: $('#cancelSeatBtn'), saveSeatBtn: $('#saveSeatBtn'),
   testsDialog: $('#testsDialog'), closeTests: $('#closeTests'), runTestsBtn: $('#runTestsBtn'), clearTestsBtn: $('#clearTestsBtn'), testsStatus: $('#testsStatus'), testsParticipants: $('#testsParticipants'), testsProgressLabel: $('#testsProgressLabel'), testsProgressFill: $('#testsProgressFill'), testsResults: $('#testsResults'),
   replayDialog: $('#replayDialog'), closeReplay: $('#closeReplay'), replayTitle: $('#replayTitle'), replayBadge: $('#replayBadge'), replaySubtitle: $('#replaySubtitle'), replayOpponents: $('#replayOpponents'), replayStreet: $('#replayStreet'), replayBoard: $('#replayBoard'), replayPot: $('#replayPot'), replayHero: $('#replayHero'), replaySummary: $('#replaySummary'), replayAction: $('#replayAction'), replayReason: $('#replayReason'), replayReasoning: $('#replayReasoning'), replayHistory: $('#replayHistory'), replayLegal: $('#replayLegal'), replayLegalSummary: $('#replayLegalSummary'), replayShareStatus: $('#replayShareStatus'), copyReplayImage: $('#copyReplayImage'), shareReplayImage: $('#shareReplayImage'), saveReplayImage: $('#saveReplayImage'),
 };
@@ -64,6 +65,9 @@ const WINNER_REVIEW_MS = 2_000;
 let seatAssignments = Array(MAX_LOBBY_SEATS).fill(null);
 let editingSeatIndex = null;
 let seatNameAuto = false;
+// The effort select is rebuilt whenever the model catalogue resolves, so the
+// seat's intended choice is tracked separately from the live option list.
+let seatReasoningEffortDraft = '';
 let lobbyVisible = true;
 let pendingAutostart = false;
 let arenaMaxDecisions = 0;
@@ -356,6 +360,7 @@ function injectedEnvironmentConfig() {
       protocol: String(player.protocol || 'tool'),
       provider: String(player.provider || ''),
       captureReasoning: Boolean(player.captureReasoning),
+      reasoningEffort: String(player.reasoningEffort || '').trim().toLowerCase(),
     })),
   };
 }
@@ -628,7 +633,7 @@ function normalizeConfig(input = {}) {
       if (!connIds.has(raw.connectionId)) throw new Error(`Connection missing for ${name}`);
       const model = String(raw.model || '').trim();
       if (!model) throw new Error(`Model missing for ${name}`);
-      return { id: `player-${lobbySeat + 1}`, seat: index, lobbySeat, name, connectionId: raw.connectionId, model, protocol: raw.protocol || 'tool', provider: String(raw.provider || '').trim(), captureReasoning: raw.captureReasoning === true, temperature: clamp(Number(raw.temperature) || 0.3, 0, 2) };
+      return { id: `player-${lobbySeat + 1}`, seat: index, lobbySeat, name, connectionId: raw.connectionId, model, protocol: raw.protocol || 'tool', provider: String(raw.provider || '').trim(), captureReasoning: raw.captureReasoning === true, reasoningEffort: String(raw.reasoningEffort || '').trim().toLowerCase(), temperature: clamp(Number(raw.temperature) || 0.3, 0, 2) };
     }),
   };
 }
@@ -815,6 +820,7 @@ class TournamentDirector {
     }
     this.currentDecision = {
       id: decisionId, playerId: agent.id, playerName: agent.name, seat, model: agent.model, connection: connection?.name ?? agent.connectionId, provider: agent.provider || 'auto',
+      reasoningEffort: agent.reasoningEffort || null,
       protocol: effectiveProtocol(agent, connection), handNumber: this.handNumber, street: this.engine.state.street, position: positionForSeat(this.engine.state, seat),
       startedAt, baseMs, timeBankMs: bankBefore, lowTimeMs: Math.round(this.config.lowTimeSeconds * 1000), lowTimeFraction: this.config.lowTimeFraction, pausedMs: 0, pausedAt: null, architecture,
       hierarchy: hierarchy ? { families: hierarchy.families, stage1: hierarchy.stage1, stage2: hierarchy.stage2, aggressiveFamily: hierarchy.aggressiveFamily } : null,
@@ -915,6 +921,7 @@ class TournamentDirector {
       playerId: agent.id, playerName: agent.name, connection: connection?.name,
       protocol: result?.meta?.method ?? effectiveProtocol(agent, connection), requestedProtocol: effectiveProtocol(agent, connection), protocolFallback: result?.meta?.protocolFallback ?? null,
       configuredModel: agent.model, resolvedModel: result?.model ?? agent.model, provider: agent.provider || 'auto',
+      reasoningEffort: agent.reasoningEffort || null,
       action: { id: chosen.id, type: chosen.type, amount: chosen.amount, description: chosen.description }, forced,
       legalActions: legalActions.map(a => ({ id: a.id, type: a.type, amount: a.amount ?? null, description: a.description })),
       latencyMs: reportedLatency, primaryDecisionLatencyMs: result?.primaryDecisionLatencyMs ?? reportedLatency,
@@ -1129,6 +1136,7 @@ function renderModelOptions(models, currentValue = '') {
   if (currentValue && !byId.has(currentValue)) byId.set(currentValue, { id: currentValue, name: currentValue });
   const rows = [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
   els.seatModelOptions.innerHTML = rows.map(model => `<option value="${escapeHtml(model.id)}" label="${escapeHtml(model.name || model.id)}"></option>`).join('');
+  updateSeatReasoningEffortOptions();
 }
 async function refreshSeatModelCatalog({ force = false } = {}) {
   const connection = fullConnectionById(els.seatConnection?.value);
@@ -1183,7 +1191,45 @@ function defaultSeatDraft(seatIndex) {
     protocol: conn?.kind === 'typesafe' ? 'jev_native' : 'tool',
     provider: '',
     captureReasoning: false,
+    reasoningEffort: '',
   };
+}
+// The effort choices come from the model catalogue, so an unsupported value can
+// never be selected. An empty value keeps the historical request shape.
+function updateSeatReasoningEffortOptions(selected) {
+  const select = els.seatReasoningEffort;
+  if (!select) return;
+  const openRouter = isOpenRouterConnection(connectionById(els.seatConnection.value));
+  const model = els.seatModel.value.trim();
+  const efforts = openRouter ? reasoningEffortsFor(model) : [];
+  const modelDefault = efforts.length ? defaultReasoningEffort(model) : null;
+  const current = String(selected ?? seatReasoningEffortDraft ?? '').trim().toLowerCase();
+  select.innerHTML = [
+    '<option value="">Arena default (capped)</option>',
+    ...efforts.map(effort => `<option value="${escapeHtml(effort)}">${escapeHtml(effort)}${effort === modelDefault ? ' · model default' : ''}</option>`),
+  ].join('');
+  // Until the catalogue resolves, an empty option list must not discard the
+  // seat's saved choice; keep the draft so the picker restores it on rebuild.
+  if (efforts.includes(current)) {
+    select.value = current;
+    seatReasoningEffortDraft = current;
+  } else {
+    select.value = '';
+    if (!current) seatReasoningEffortDraft = '';
+  }
+  select.disabled = !efforts.length;
+  const help = els.seatReasoningEffortHelp;
+  if (!help) return;
+  help.dataset.tone = '';
+  if (!openRouter) help.textContent = 'Reasoning effort is available for OpenRouter models that advertise it.';
+  else if (!efforts.length) help.textContent = 'This model does not advertise reasoning efforts; the capped default is used.';
+  else if (!select.value && requiresReasoning(model)) {
+    // The arena cap is a token limit, not an effort; models that always reason
+    // ignore it and run at their own default, which is how they blow the clock.
+    help.textContent = `This model always reasons and ignores the capped default, so it can exceed the action clock and auto-fold. Pick an effort — ${efforts.includes('minimal') ? 'minimal' : efforts[0]} is usually fastest.`;
+    help.dataset.tone = 'bad';
+  } else if (modelDefault) help.textContent = `Model default is ${modelDefault}. Lower it when a slow reasoner runs out of action clock and auto-folds.`;
+  else help.textContent = 'Lower it when a slow reasoner runs out of action clock and auto-folds.';
 }
 function applySeatProtocolRules() {
   const conn = connectionById(els.seatConnection.value);
@@ -1193,6 +1239,7 @@ function applySeatProtocolRules() {
   const jevSeat = kind === 'typesafe' || jevViaOpenRouter;
   document.querySelector('.seat-provider-field')?.classList.toggle('hidden', !openRouter || jevViaOpenRouter);
   document.querySelector('.seat-reasoning-field')?.classList.toggle('hidden', jevSeat);
+  document.querySelector('.seat-effort-field')?.classList.toggle('hidden', jevSeat);
   if (els.seatCaptureReasoning) {
     els.seatCaptureReasoning.disabled = jevSeat;
     const alreadyReasoning = isReasoningModel(els.seatModel.value.trim());
@@ -1213,6 +1260,7 @@ function applySeatProtocolRules() {
     els.seatProvider.disabled = !openRouter;
     if (els.seatModel.value === 'jev-latest') els.seatModel.value = '';
   }
+  updateSeatReasoningEffortOptions();
 }
 function updateSeatSummary() {
   const count = seatAssignments.filter(Boolean).length;
@@ -1239,13 +1287,16 @@ function openSeatEditor(seatIndex) {
   els.seatProtocol.value = draft.protocol || 'tool';
   els.seatProvider.value = draft.provider || '';
   if (els.seatCaptureReasoning) els.seatCaptureReasoning.checked = Boolean(draft.captureReasoning);
+  seatReasoningEffortDraft = String(draft.reasoningEffort || '').trim().toLowerCase();
   applySeatProtocolRules();
+  updateSeatReasoningEffortOptions(seatReasoningEffortDraft);
   syncSeatNameFromModel();
   void refreshSeatModelCatalog();
   els.seatError.classList.add('hidden');
   els.seatLockNotice.classList.toggle('hidden', !locked);
   for (const control of [els.seatName, els.seatConnection, els.seatModel, els.seatProtocol, els.seatProvider]) control.disabled = locked || (control === els.seatProvider && (!isOpenRouterConnection(connectionById(els.seatConnection.value)) || isJevModel(els.seatModel.value)));
   if (els.seatCaptureReasoning) els.seatCaptureReasoning.disabled = locked || els.seatCaptureReasoning.disabled;
+  if (els.seatReasoningEffort) els.seatReasoningEffort.disabled = locked || els.seatReasoningEffort.disabled;
   els.saveSeatBtn.disabled = locked;
   els.removeSeatBtn.disabled = locked || !seatAssignments[seatIndex];
   if (!els.seatDialog.open) els.seatDialog.showModal();
@@ -1261,6 +1312,7 @@ function readSeatDraft() {
     protocol: els.seatProtocol.value,
     provider: els.seatProvider.disabled ? '' : els.seatProvider.value.trim(),
     captureReasoning: Boolean(els.seatCaptureReasoning && !els.seatCaptureReasoning.disabled && els.seatCaptureReasoning.checked),
+    reasoningEffort: els.seatReasoningEffort && !els.seatReasoningEffort.disabled ? els.seatReasoningEffort.value.trim().toLowerCase() : '',
   };
 }
 function readSeatPlayers() {
@@ -1290,6 +1342,7 @@ function restoreSeatAssignments(rows = []) {
       protocol: player.protocol || 'tool',
       provider: player.provider || '',
       captureReasoning: player.captureReasoning === true,
+      reasoningEffort: String(player.reasoningEffort || '').trim().toLowerCase(),
     };
   });
   updateSeatSummary();
@@ -2019,7 +2072,7 @@ function renderStats(s) {
 function tableRenderSignature(s) {
   const running = ['RUNNING', 'PAUSED'].includes(s?.status);
   if (lobbyVisible && !running) {
-    return JSON.stringify(['lobby', seatAssignments.map(p => p ? [p.name, p.model, p.protocol, p.connectionId, p.provider, Boolean(p.captureReasoning)] : null)]);
+    return JSON.stringify(['lobby', seatAssignments.map(p => p ? [p.name, p.model, p.protocol, p.connectionId, p.provider, Boolean(p.captureReasoning), p.reasoningEffort || ''] : null)]);
   }
   const t = s?.table;
   if (!t) return JSON.stringify(['empty', s?.status || 'IDLE']);
@@ -3223,6 +3276,7 @@ els.seatModel.addEventListener('input', () => { applySeatProtocolRules(); syncSe
 els.seatName.addEventListener('input', () => { seatNameAuto = false; });
 els.seatProtocol.addEventListener('change', applySeatProtocolRules);
 els.seatCaptureReasoning?.addEventListener('change', applySeatProtocolRules);
+els.seatReasoningEffort?.addEventListener('change', () => { seatReasoningEffortDraft = els.seatReasoningEffort.value; });
 els.refreshModelsBtn?.addEventListener('click', () => void refreshSeatModelCatalog({ force: true }));
 els.removeSeatBtn.addEventListener('click', () => {
   if (editingSeatIndex == null || (director && ['RUNNING', 'PAUSED'].includes(director.status))) return;

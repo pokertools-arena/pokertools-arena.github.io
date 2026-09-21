@@ -85,12 +85,16 @@ if (!app.includes('live.id') || !app.includes('LIVE:')) throw new Error('Live fe
 if (!index.includes('decisionReasoning')) throw new Error('Live reasoning panel missing from index.html');
 if (!index.includes('replayReasoning')) throw new Error('Replay reasoning panel missing from index.html');
 if (!index.includes('seatCaptureReasoning')) throw new Error('Per-seat reasoning opt-in toggle missing');
+if (!index.includes('seatReasoningEffort')) throw new Error('Per-seat reasoning-effort control missing');
+if (!has('reasoningOverrideFor') || !has('supported_efforts')) throw new Error('Reasoning-effort metadata handling missing');
+if (!has('requestErrorDetail') || !has("metadata?.raw")) throw new Error('Nested provider error detail handling missing');
+if (!has('?.mandatory === true')) throw new Error('Mandatory reasoning detection missing');
 if (!readFileSync(join(root,'build.mjs'),'utf8').includes("filter: /^(?:node:)?crypto$/")) throw new Error('Browser crypto resolver missing from build');
 if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser crypto shim missing');
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.16.2') throw new Error('Expected release version 0.16.2');
+if (pkg.version !== '0.17.0') throw new Error('Expected release version 0.17.0');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');

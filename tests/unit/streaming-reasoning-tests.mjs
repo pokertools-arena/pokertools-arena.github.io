@@ -148,6 +148,8 @@ const text = value => ({ choices: [{ index: 0, delta: value, finish_reason: null
   const on = buildOpenAICompatibleBody({ ...base, agent: { model: 'google/gemma-4-26b-a4b-it', temperature: 0.3, captureReasoning: true } });
   assert.deepEqual(on.reasoning, { max_tokens: 256, exclude: false }, 'opt-in must request reasoning');
   assert.equal(on.max_tokens, 2048, 'opt-in must raise the completion budget');
+  const effort = buildOpenAICompatibleBody({ ...base, agent: { model: 'google/gemma-4-26b-a4b-it', temperature: 0.3, captureReasoning: true, reasoningEffort: 'low' } });
+  assert.deepEqual(effort.reasoning, { effort: 'low' }, 'an explicit seat effort replaces the capped default');
   assert.equal(wantsReasoning({ model: 'google/gemma-4-26b-a4b-it' }), false, 'gemma stays opt-in by default');
   assert.equal(wantsReasoning({ model: 'google/gemma-4-26b-a4b-it', captureReasoning: true }), true, 'opt-in must be honoured');
   assert.equal(wantsReasoning({ model: 'deepseek/deepseek-v4.1-flash' }), true, 'named reasoning models need no opt-in');

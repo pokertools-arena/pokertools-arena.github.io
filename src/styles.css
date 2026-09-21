@@ -492,7 +492,7 @@ label input, label select { margin-top: 5px; font-weight: 450; }
 .split-footer { justify-content: space-between; }
 .seat-footer-actions, .replay-share-actions { display: flex; gap: 7px; }
 .seat-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.seat-model-field { grid-column: 1 / -1; }
+.seat-model-field, .seat-effort-field { grid-column: 1 / -1; }
 .model-input-wrap { margin-top: 6px; display: grid; grid-template-columns: minmax(0, 1fr) 38px; gap: 8px; }
 .model-input-wrap input { margin: 0; }
 .field-icon-button, .dialog-body .remove-connection { width: 38px; height: 38px; min-height: 38px; border-radius: 8px; }
