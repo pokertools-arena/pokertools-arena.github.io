@@ -10,7 +10,7 @@ import {
   retryDelayMs, sleepWithSignal, fetchJsonWithRetry, isUnsupportedToolChoiceError, mapGet, jsonSafe,
   normalizeBaseUrl, completionsUrl, openRouterDecisionsUrl, isOpenRouterConnection, isJevModel,
   effectiveProtocol, modelsUrl, parseHeaders, makeHeaders, combineAbort,
-  playerCards, playerStack, currentBet, totalPot, potChipBreakdown, positionForSeat, tableMarkerSeats,
+  playerCards, playerStack, playersStillInTournament, playersWithChips, currentBet, totalPot, potChipBreakdown, positionForSeat, tableMarkerSeats,
   describeAction, tryCandidate, legalActionCandidates, fallbackAction,
   serializeForAgent, assertDecisionState, extractTextContent, stripCodeFence,
   decideOpenAICompatible, decideJevDecisions, decideJevNative, decide, decideHierarchical, protocolCapabilityCache,
@@ -669,7 +669,7 @@ class TournamentDirector {
     for (const player of this.config.players) {
       this.engine.sit(player.seat, player.id, player.name, this.config.startingStack);
       this.timeBanks[player.id] = this.config.timeBankSeconds * 1000;
-      this.stats[player.id] = { decisions: 0, invalid: 0, modelErrors: 0, providerErrors: 0, rateLimits: 0, timeouts: 0, autoFallbacks: 0, protocolFallbacks: 0, retries: 0, totalLatencyMs: 0, lastAction: null, lastActionType: null, lastActionAmount: null, lastReason: '' };
+      this.stats[player.id] = { decisions: 0, invalid: 0, modelErrors: 0, providerErrors: 0, rateLimits: 0, timeouts: 0, autoFallbacks: 0, contextErrors: 0, protocolFallbacks: 0, retries: 0, totalLatencyMs: 0, lastAction: null, lastActionType: null, lastActionAmount: null, lastReason: '' };
     }
     this.logEvent('TOURNAMENT_START', { config: this.publicConfig() }); this.broadcast();
     this.runPromise = this.run().catch(err => {
@@ -697,7 +697,12 @@ class TournamentDirector {
   }
   stop() { if (['RUNNING', 'PAUSED'].includes(this.status)) { this.status = 'STOPPED'; this.abortController?.abort(); for (const resolve of this.pauseResolvers.splice(0)) resolve(); this.persistLightweight(); this.broadcast(); } }
   async waitIfPaused() { while (this.status === 'PAUSED') await new Promise(resolve => this.pauseResolvers.push(resolve)); if (this.status === 'STOPPED') throw new Error('Tournament stopped'); }
-  playersRemaining() { return (this.engine?.state?.players ?? []).map((p, seat) => ({ p, seat })).filter(({ p }) => p && playerStack(p) > 0); }
+  // Decision-context/table count: seated players that are not eliminated. Must
+  // equal `1 + non-eliminated opponents` in serializeForAgent, so it must NOT be
+  // derived from stacks — an all-in player has stack 0 mid-hand and is still in.
+  playersRemaining() { return playersStillInTournament(this.engine?.state?.players, this.eliminations.map(e => e.playerId)); }
+  // Tournament-end / place accounting: seats that can still contest chips.
+  playersWithChips() { return playersWithChips(this.engine?.state?.players); }
   tournamentMeta() {
     const startingPlayers = this.config?.players.length ?? 0;
     const eliminatedPlayerIds = this.eliminations.map(e => e.playerId);
@@ -741,16 +746,55 @@ class TournamentDirector {
   async run() {
     while (['RUNNING', 'PAUSED'].includes(this.status)) {
       await this.waitIfPaused();
-      const remaining = this.playersRemaining();
-      if (remaining.length <= 1) { this.finish(remaining[0]?.p ?? null); return; }
+      const remaining = this.playersWithChips();
+      if (remaining.length <= 1) { this.finish(remaining[0] ?? null); return; }
       if (this.handNumber > 0 && this.handNumber % this.config.handsPerLevel === 0) {
         try { this.engine.nextBlindLevel(); this.logEvent('BLINDS_UP', { level: this.engine.state.blindLevel, smallBlind: this.engine.state.smallBlind, bigBlind: this.engine.state.bigBlind, ante: this.engine.state.ante }); }
         catch (err) { this.logEvent('BLINDS_UP_FAILED', { error: summarizeError(err) }); }
       }
-      await this.startHand(); await this.playHand(); this.completeHand(); this.broadcast();
+      try {
+        await this.startHand(); await this.playHand(); this.completeHand(); this.broadcast();
+        this.handErrorStreak = 0;
+      } catch (err) {
+        if (this.status === 'STOPPED' || err?.name === 'AbortError') throw err;
+        await this.recoverHand(err);
+        this.handErrorStreak = (this.handErrorStreak || 0) + 1;
+        if (this.handErrorStreak >= 3) throw err;
+      }
       if (this.budgetReached) { this.logEvent('DECISION_BUDGET_REACHED', { decisions: this.decisionCount, budget: this.decisionBudget }); this.stop(); return; }
       await this.waitIfPaused(); await sleep(Math.max(WINNER_REVIEW_MS, this.config.betweenHandsMs));
     }
+  }
+  // Last-resort safety net for a hand. A model failure or a decision-context
+  // failure is already handled inside the hand loop; anything else that escapes
+  // (a future regression) would otherwise abort the whole tournament mid-game.
+  // Here the hand is finished with deterministic safe actions so the tournament
+  // continues. Recovery is bounded by the hand-action guard and by the caller's
+  // streak counter, so a genuinely broken engine still surfaces as an error
+  // instead of looping forever.
+  async recoverHand(triggerError) {
+    this.currentDecision = null;
+    if (this.handComplete()) { this.broadcast(); return; }
+    this.logEvent('HAND_RECOVERY', { handNumber: this.handNumber, street: this.engine?.state?.street ?? null, error: summarizeError(triggerError) });
+    this.broadcast();
+    let guard = 0;
+    while (!this.handComplete()) {
+      if (++guard > 500) throw new Error('Hand recovery guard exceeded 500 actions');
+      await this.waitIfPaused();
+      const state = this.engine.state, seat = state.actionTo;
+      if (seat == null) { if (Array.isArray(state.winners) && state.winners.length) break; await sleep(10); continue; }
+      const player = state.players?.[seat]; if (!player) break;
+      if (state.street === 'SHOWDOWN') {
+        const show = { type: ACTION.SHOW, playerId: player.id, cardIndices: [0, 1] };
+        if (this.engine.validate(show)?.valid) { this.engine.act(show); continue; }
+        const muck = { type: ACTION.MUCK, playerId: player.id };
+        if (this.engine.validate(muck)?.valid) { this.engine.act(muck); continue; }
+      }
+      if (!this.forceSafeAction(seat, { error: triggerError, errorCategory: 'recovery' })) break;
+      this.broadcast();
+    }
+    if (!this.handComplete()) throw triggerError;
+    this.completeHand(); this.broadcast();
   }
   pruneBustedSeats() {
     const failures = [];
@@ -802,22 +846,36 @@ class TournamentDirector {
   }
   async takeDecision(agent, seat, legalActions) {
     const decisionId = id(`d-h${this.handNumber}-s${seat + 1}`), baseMs = this.config.actionSeconds * 1000, bankBefore = this.timeBanks[agent.id] ?? 0, totalMs = baseMs + bankBefore;
+    const stats = this.stats[agent.id];
+    const connection = this.config.connections.find(c => c.id === agent.connectionId);
+    const architecture = this.config.decisionArchitecture === DECISION_ARCHITECTURES.FLAT ? 'flat' : 'hierarchical';
     const recentHands = buildPublicTournamentMemory(this.events, this.handNumber);
     const publicPlayerStats = buildPublicPlayerStats(this.events, this.config.players, this.handNumber);
     const actionHistory = buildCurrentHandPublicActions(this.events, this.handNumber);
-    const baseState = serializeForAgent(this.engine, seat, this.tournamentMeta(), legalActions, recentHands, publicPlayerStats, actionHistory);
-    const stateForAgent = assertDecisionState(applyBenchmarkMode(baseState, this.config.benchmarkMode)), startedAt = Date.now();
-    const connection = this.config.connections.find(c => c.id === agent.connectionId);
-    const architecture = this.config.decisionArchitecture === DECISION_ARCHITECTURES.FLAT ? 'flat' : 'hierarchical';
     const sizesForFamily = family => legalAggressiveSizes(this.engine, seat, family);
-    let hierarchy = null;
-    if (architecture === 'hierarchical') {
-      hierarchy = buildHierarchicalDecision(stateForAgent, { legalActions: stateForAgent.legalActions });
-      if (hierarchy.aggressiveFamily) {
-        const engineSizes = sizesForFamily(hierarchy.aggressiveFamily);
-        hierarchy.stage2 = { ...hierarchy.stage2, sizes: engineSizes, criteria: sizeCriteria(engineSizes) };
+    // Building the masked decision context is the only step that can fail on an
+    // unforeseen table state (for example a tournament-count invariant). It must
+    // never abort the tournament mid-hand: the failure is recorded and the hero
+    // takes a deterministic safe action, exactly like a model failure. The failed
+    // context is never sent anywhere, so masking still fails closed.
+    let stateForAgent = null, hierarchy = null;
+    try {
+      stateForAgent = assertDecisionState(applyBenchmarkMode(
+        serializeForAgent(this.engine, seat, this.tournamentMeta(), legalActions, recentHands, publicPlayerStats, actionHistory),
+        this.config.benchmarkMode,
+      ));
+      if (architecture === 'hierarchical') {
+        hierarchy = buildHierarchicalDecision(stateForAgent, { legalActions: stateForAgent.legalActions });
+        if (hierarchy.aggressiveFamily) {
+          const engineSizes = sizesForFamily(hierarchy.aggressiveFamily);
+          hierarchy.stage2 = { ...hierarchy.stage2, sizes: engineSizes, criteria: sizeCriteria(engineSizes) };
+        }
       }
+    } catch (contextError) {
+      if (!this.forceSafeAction(seat, { error: contextError, errorCategory: 'context', decisionId })) throw contextError;
+      return;
     }
+    const startedAt = Date.now();
     this.currentDecision = {
       id: decisionId, playerId: agent.id, playerName: agent.name, seat, model: agent.model, connection: connection?.name ?? agent.connectionId, provider: agent.provider || 'auto',
       reasoningEffort: agent.reasoningEffort || null,
@@ -827,7 +885,7 @@ class TournamentDirector {
       legalActions: legalActions.map(({ id: actionId, type, amount, description }) => ({ id: actionId, type, amount, description })),
     };
     this.logEvent('DECISION_START', this.currentDecision); this.broadcast();
-    const stats = this.stats[agent.id]; let result = null, error = null, errorCategory = null, elapsed = 0;
+    let result = null, error = null, errorCategory = null, elapsed = 0;
     const pausedTotal = () => (this.currentDecision?.pausedMs || 0) + (this.currentDecision?.pausedAt ? Math.max(0, Date.now() - this.currentDecision.pausedAt) : 0);
     const recordIncident = (incident) => {
       if (incident?.category === 'rate_limit') stats.rateLimits++;
@@ -955,6 +1013,52 @@ class TournamentDirector {
     }
     this.currentDecision = null;
   }
+  // Deterministic safe action for one seat, used whenever a decision cannot be
+  // produced (context failure or emergency hand recovery). It always picks a
+  // legal engine action, records a normal DECISION event so public action
+  // history, replay and stats stay complete, and marks the row `forced`. It
+  // never consults a model and never sees masked-out information.
+  // Returns the chosen action, or null when the seat has no legal action.
+  forceSafeAction(seat, { error = null, errorCategory = 'context', decisionId = null } = {}) {
+    const state = this.engine.state;
+    const player = state.players?.[seat];
+    if (!player) return null;
+    const legalActions = legalActionCandidates(this.engine, seat);
+    const chosen = fallbackAction(legalActions);
+    if (!chosen) return null;
+    this.engine.act(chosen.engineAction);
+    const agent = (this.config?.players ?? []).find(p => p.id === player.id) ?? null;
+    const connection = agent ? this.config.connections.find(c => c.id === agent.connectionId) ?? null : null;
+    const stats = this.stats?.[player.id];
+    if (stats) {
+      stats.decisions++; stats.autoFallbacks++; stats.contextErrors = (stats.contextErrors || 0) + 1;
+      stats.lastAction = chosen.description; stats.lastActionType = chosen.type; stats.lastActionAmount = chosen.amount ?? null;
+      stats.lastReason = `Automatic ${chosen.description} after ${errorCategory} error.`;
+    }
+    this.decisionCount++;
+    if (this.decisionBudget > 0 && this.decisionCount >= this.decisionBudget) this.budgetReached = true;
+    this.currentDecision = null;
+    const protocol = agent ? effectiveProtocol(agent, connection) : 'none';
+    this.logEvent('DECISION', {
+      decisionId: decisionId ?? id(`d-h${this.handNumber}-s${seat + 1}`),
+      handNumber: this.handNumber, street: state.street, position: positionForSeat(state, seat), potBefore: totalPot(state),
+      playerId: player.id, playerName: player.name, connection: connection?.name ?? agent?.connectionId ?? null,
+      protocol, requestedProtocol: protocol, protocolFallback: null,
+      configuredModel: agent?.model ?? null, resolvedModel: agent?.model ?? null, provider: agent?.provider || 'auto', reasoningEffort: agent?.reasoningEffort || null,
+      action: { id: chosen.id, type: chosen.type, amount: chosen.amount, description: chosen.description }, forced: true,
+      legalActions: legalActions.map(a => ({ id: a.id, type: a.type, amount: a.amount ?? null, description: a.description })),
+      latencyMs: 0, primaryDecisionLatencyMs: 0, timeBankUsedMs: 0, timeBankRemainingMs: this.timeBanks?.[player.id] ?? 0,
+      publicReason: stats?.lastReason ?? '', usage: null,
+      decisionMeta: { method: 'safe-fallback', decisionArchitecture: 'safe-fallback-v1', reason: errorCategory, error: error ? summarizeError(error) : null },
+      reasoning: null,
+      benchmarkMode: this.config?.benchmarkMode ?? DEFAULT_BENCHMARK_MODE,
+      decisionArchitecture: this.config?.decisionArchitecture ?? DEFAULT_DECISION_ARCHITECTURE,
+      representation: this.config?.representation ?? DEFAULT_REPRESENTATION_MODE,
+      replay: null,
+      errorCategory, error: error ? summarizeError(error) : null,
+    });
+    return chosen;
+  }
   enqueueSpectatorExplanation({ decisionId, agent, connection, stateForAgent, chosen }) {
     if (!connection || !['openai', 'openrouter'].includes(connection.kind) || isJevModel(agent.model)) return this.explanationChain;
     this.explanationChain = this.explanationChain.then(async () => {
@@ -992,7 +1096,7 @@ class TournamentDirector {
       const already = this.eliminations.some(e => e.playerId === player.id);
       return p && playerStack(p) <= 0 && !already ? { player, seat, startStack: asNumber(this.handStartStacks?.[player.id]) } : null;
     }).filter(Boolean).sort((a, b) => b.startStack - a.startStack || a.seat - b.seat);
-    const survivors = this.playersRemaining().length;
+    const survivors = this.playersWithChips().length;
     newlyEliminated.forEach((row, index) => {
       const elimination = { playerId: row.player.id, playerName: row.player.name, place: Math.max(2, survivors + 1 + index), handNumber: this.handNumber, at: Date.now() };
       this.eliminations.push(elimination); this.logEvent('ELIMINATION', elimination);
@@ -2066,7 +2170,7 @@ function renderStats(s) {
     const pc = value => `${Math.round(Number(value || 0) * 100)}%`;
     return `<div class="stat-card"><div class="stat-top"><div><div class="stat-name">${escapeHtml(visiblePlayerName(p.name, p.model))}</div><div class="stat-model mono">${escapeHtml(p.model)} · ${escapeHtml(effectiveProtocol(p, s.config.connections.find(c => c.id === p.connectionId)))}</div></div><strong>${fmt(tableP?.stack || 0)}</strong></div>
       <div class="poker-profile"><div title="Voluntarily put chips in pot"><b>${pc(poker.vpipPct)}</b><span>VPIP</span></div><div title="Preflop raise"><b>${pc(poker.pfrPct)}</b><span>PFR</span></div><div title="Aggression frequency"><b>${pc(poker.aggressionPct)}</b><span>AFq</span></div><div title="Fold when folding was legal"><b>${pc(poker.foldPct)}</b><span>FOLD</span></div><div><b>${poker.sampleHands || 0}</b><span>HANDS</span></div></div>
-      <div class="stat-values"><div class="metric"><b>${st.decisions || 0}</b><span>moves</span></div><div class="metric"><b>${avg}ms</b><span>avg</span></div><div class="metric"><b>${st.autoFallbacks || 0}</b><span>auto</span></div></div><div class="stat-reliability"><span><b>${st.modelErrors || 0}</b> model</span><span><b>${st.providerErrors || 0}</b> provider</span><span><b>${st.rateLimits || 0}</b> rate</span><span><b>${st.timeouts || 0}</b> timeout</span><span><b>${st.protocolFallbacks || 0}</b> protocol</span><span><b>${st.retries || 0}</b> retry</span></div></div>`;
+      <div class="stat-values"><div class="metric"><b>${st.decisions || 0}</b><span>moves</span></div><div class="metric"><b>${avg}ms</b><span>avg</span></div><div class="metric"><b>${st.autoFallbacks || 0}</b><span>auto</span></div></div><div class="stat-reliability"><span><b>${st.modelErrors || 0}</b> model</span><span><b>${st.providerErrors || 0}</b> provider</span><span><b>${st.rateLimits || 0}</b> rate</span><span><b>${st.timeouts || 0}</b> timeout</span><span><b>${st.contextErrors || 0}</b> context</span><span><b>${st.protocolFallbacks || 0}</b> protocol</span><span><b>${st.retries || 0}</b> retry</span></div></div>`;
   }).join('');
 }
 function tableRenderSignature(s) {

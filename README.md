@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.17.0.** Seats on OpenRouter models that advertise reasoning efforts can now pick a per-seat reasoning effort, so a slow reasoner such as DeepSeek can be lowered from its `high` default to `low` instead of exhausting the action clock and being auto-folded.
+> **Current release: 0.17.1.** A mid-hand all-in no longer aborts the tournament: the decision-context player count now tracks non-eliminated seats instead of stacks, and any context failure falls back to a deterministic safe action so the game continues.
 
 ---
 

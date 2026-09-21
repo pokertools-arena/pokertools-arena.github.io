@@ -446,6 +446,26 @@ export function playerCards(player) {
   return Array.isArray(raw) ? raw.filter(Boolean).map(String) : [];
 }
 export function playerStack(player) { return asNumber(player?.stack ?? player?.chips ?? 0); }
+// Two counts of "players still around" exist and must never be conflated:
+//
+//  - playersStillInTournament: seated players that have not been eliminated.
+//    This is the tournament field exposed to models and the table HUD. It has to
+//    equal `1 + non-eliminated opponents` in serializeForAgent. Chip-based counts
+//    are wrong here: a player who shoves all-in has stack 0 for the rest of the
+//    hand but is not eliminated until the hand settles.
+//  - playersWithChips: seats that can still contest chips. Used for
+//    tournament-end detection and hand-end survivor/place accounting, where an
+//    all-in player may have already committed every chip.
+//
+// Mixing them lets one mid-hand all-in make the decision-context invariant throw
+// and abort the whole tournament, so keep the callers aligned with the names.
+export function playersStillInTournament(players, eliminatedPlayerIds = []) {
+  const eliminated = new Set(eliminatedPlayerIds ?? []);
+  return (players ?? []).filter(player => player?.id && !eliminated.has(player.id));
+}
+export function playersWithChips(players) {
+  return (players ?? []).filter(player => player && playerStack(player) > 0);
+}
 export function currentBet(state, seat) { return asNumber(mapGet(state?.currentBets, seat, state?.players?.[seat]?.bet ?? 0)); }
 export function totalPot(state) {
   const pots = Array.isArray(state?.pots) ? state.pots : [];
@@ -697,8 +717,12 @@ export function assertDecisionState(state) {
       aggressiveByAmount.set(Number(action.amount), action.type);
     }
   }
+  // The tournament field must describe non-eliminated players only. It has to
+  // match the masked opponent list exactly (`playersStillInTournament`), so it
+  // must never be derived from stacks: an all-in player has stack 0 mid-hand but
+  // is not eliminated until the hand settles.
   const expectedRemaining = 1 + state.opponents.length;
-  if (Number(state.tournament?.playersRemaining) !== expectedRemaining) throw new Error(`playersRemaining mismatch: expected ${expectedRemaining}, got ${state.tournament?.playersRemaining}`);
+  if (Number(state.tournament?.playersRemaining) !== expectedRemaining) throw new Error(`playersRemaining mismatch: expected ${expectedRemaining} (hero plus ${state.opponents.length} non-eliminated opponents), got ${state.tournament?.playersRemaining}`);
   return state;
 }
 

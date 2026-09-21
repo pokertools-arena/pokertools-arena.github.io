@@ -21,7 +21,7 @@ for (const file of files) {
   if (/\p{Script=Cyrillic}/u.test(text)) throw new Error(`Cyrillic text found in ${file.slice(root.length + 1)}`);
 }
 
-for (const file of ['src/app.js','src/config/arena-config.js','src/lib/decision-core.js','src/benchmark/scenarios.js','build.mjs','bin/pokertools-arena.mjs','tests/integration/pokertools-integration.mjs','tests/integration/launcher-port-retry.mjs','tests/unit/decision-scenarios.mjs','tests/unit/decision-diagnostics.mjs','tests/unit/hierarchical-decision-tests.mjs','tests/unit/methodology-tests.mjs','tests/unit/paired-architecture-tests.mjs','tests/unit/size-bucket-tests.mjs','tests/unit/model-capabilities-tests.mjs','tests/unit/streaming-reasoning-tests.mjs','tests/unit/archive-content.mjs','tests/unit/report-consistency.mjs','tests/real/real-decision-diagnostics.mjs','tests/analysis/diagnostics-analyze.mjs','tools/diagnostics/scenarios.js','tools/diagnostics/representations.js','tools/diagnostics/harness.js','tools/diagnostics/corpus.js','tools/diagnostics/stats.js','tools/diagnostics/counters.js','tools/diagnostics/paired.js','tools/diagnostics/report.js','tools/diagnostics/size-buckets.js','tools/release/archive.mjs']) {
+for (const file of ['src/app.js','src/config/arena-config.js','src/lib/decision-core.js','src/benchmark/scenarios.js','build.mjs','bin/pokertools-arena.mjs','tests/integration/pokertools-integration.mjs','tests/integration/launcher-port-retry.mjs','tests/unit/decision-scenarios.mjs','tests/unit/decision-diagnostics.mjs','tests/unit/hierarchical-decision-tests.mjs','tests/unit/tournament-safety-tests.mjs','tests/unit/methodology-tests.mjs','tests/unit/paired-architecture-tests.mjs','tests/unit/size-bucket-tests.mjs','tests/unit/model-capabilities-tests.mjs','tests/unit/streaming-reasoning-tests.mjs','tests/unit/archive-content.mjs','tests/unit/report-consistency.mjs','tests/real/real-decision-diagnostics.mjs','tests/analysis/diagnostics-analyze.mjs','tools/diagnostics/scenarios.js','tools/diagnostics/representations.js','tools/diagnostics/harness.js','tools/diagnostics/corpus.js','tools/diagnostics/stats.js','tools/diagnostics/counters.js','tools/diagnostics/paired.js','tools/diagnostics/report.js','tools/diagnostics/size-buckets.js','tools/release/archive.mjs']) {
   const result = spawnSync(process.execPath, ['--check', join(root, file)], { encoding:'utf8' });
   if (result.status !== 0) throw new Error(result.stderr || `Syntax check failed: ${file}`);
 }
@@ -66,7 +66,13 @@ if (!has('DECISION_CONTEXT_VERSION = 3')) throw new Error('Canonical decision-co
 if (!app.includes('buildPublicPlayerStats')) throw new Error('Shared public player statistics missing');
 if (!app.includes('buildCurrentHandPublicActions')) throw new Error('Structured current-hand history missing');
 if (!has('function assertDecisionState')) throw new Error('Runtime decision-context invariants missing');
-if (!app.includes('playersRemaining: this.playersRemaining().length')) throw new Error('Engine-stack tournament player count missing');
+if (!app.includes('playersRemaining: this.playersRemaining().length')) throw new Error('Tournament player count missing from decision context');
+// 0.17.1 — an all-in player has 0 chips but is not eliminated, so the tournament
+// count must come from non-eliminated seats while end/place accounting uses chips.
+if (!app.includes('playersStillInTournament(this.engine?.state?.players, this.eliminations.map(e => e.playerId))')) throw new Error('All-in-safe tournament player count missing');
+if (!app.includes('playersWithChips(this.engine?.state?.players)')) throw new Error('Chip-based tournament count missing');
+if (!core.includes('export function playersStillInTournament') || !core.includes('export function playersWithChips')) throw new Error('Separated tournament player counts missing from decision core');
+if (!app.includes('async recoverHand(') || !app.includes('forceSafeAction(') || !has("errorCategory: 'context'")) throw new Error('Mid-hand decision-context recovery missing');
 if (!has('const aggressiveType = highestBet > 0 ? ACTION.RAISE : ACTION.BET')) throw new Error('BET/RAISE semantic de-duplication missing');
 if (!has('type === ACTION.FOLD && toCall === 0')) throw new Error('FOLD-when-CHECK dominance guard missing');
 if (!has('n <= maxTotal')) throw new Error('Aggressive action stack cap missing');
@@ -94,7 +100,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.17.0') throw new Error('Expected release version 0.17.0');
+if (pkg.version !== '0.17.1') throw new Error('Expected release version 0.17.1');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -278,7 +284,7 @@ if (!has('function renderDecisionState') || !has('REPRESENTATION_MODES')) throw 
 if (!has("type: 'choice'") || !has('action_family') || !has('bet_size')) throw new Error('Jev hierarchical question format missing');
 if (!app.includes('decideHierarchical(')) throw new Error('Production does not use hierarchical decisions');
 if (!app.includes('benchmarkMode') || !app.includes('decisionArchitecture') || !app.includes('spectatorExplanations')) throw new Error('Benchmark/architecture settings missing from production config');
-if (!app.includes('applyBenchmarkMode(baseState')) throw new Error('Production state does not apply the benchmark mode');
+if (!app.includes('assertDecisionState(applyBenchmarkMode(')) throw new Error('Production state does not apply the benchmark mode');
 if (!app.includes('enqueueSpectatorExplanation')) throw new Error('Isolated spectator-explanation queue missing');
 if (!app.includes('primaryDecisionLatencyMs')) throw new Error('Primary decision latency telemetry missing');
 if (!index.includes('name="benchmarkMode"') || !index.includes('name="decisionArchitecture"')) throw new Error('Benchmark-mode UI missing');

@@ -24,7 +24,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createBrowserEngine } from '@pokertools/engine/browser';
 import {
-  ACTION, legalActionCandidates, serializeForAgent, assertDecisionState, fallbackAction,
+  ACTION, legalActionCandidates, serializeForAgent, assertDecisionState, fallbackAction, playersStillInTournament,
   applyBenchmarkMode, decide, decideHierarchical, legalAggressiveSizes,
   aggregateActionProbabilitiesByFamily, probabilityStats, isAggressiveType,
   BENCHMARK_MODES, DECISION_ARCHITECTURES, DEFAULT_REPRESENTATION_MODE,
@@ -124,10 +124,11 @@ async function runTournament({ architect, models, config, opts, onDecision }) {
       const legalActions = legalActionCandidates(engine, seat);
       if (!legalActions.length) break;
       const model = models.find(m => m.id === player.id);
-      // Match production: playersRemaining counts every still-seated player
-      // (busted players are stood up at the next hand boundary), which is
-      // exactly 1 + the number of non-eliminated opponents in the masked view.
-      const playersRemaining = (engine.state.players ?? []).filter(Boolean).length;
+      // Match production: playersRemaining counts non-eliminated players, which
+      // is exactly 1 + the number of non-eliminated opponents in the masked view.
+      // Busted players are stood at the next hand boundary, so a mid-hand all-in
+      // (stack 0, not eliminated) must still be counted.
+      const playersRemaining = playersStillInTournament(engine.state.players, []).length;
       const base = serializeForAgent(engine, seat, { handNumber, playersRemaining, startingPlayers: models.length }, legalActions, [], [], []);
       const stateForAgent = assertDecisionState(applyBenchmarkMode(base, BENCHMARK_MODES.STRATEGY));
       const started = Date.now();

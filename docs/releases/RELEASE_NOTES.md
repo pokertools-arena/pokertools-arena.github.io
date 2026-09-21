@@ -1,5 +1,30 @@
 # Release notes
 
+## 0.17.1 — mid-hand all-in no longer aborts the tournament
+
+- Fixed a regression where a single all-in mid-hand ended the whole tournament
+  with `TOURNAMENT_ERROR: playersRemaining mismatch: expected 3, got 2`. The
+  decision context counted "players remaining" by chips, so a player who shoved
+  all-in (stack 0, `ALL_IN`, but not eliminated) dropped out of the count while
+  the masked opponent list still included them. The two counts now use distinct,
+  named helpers: `playersStillInTournament` (non-eliminated, used by the decision
+  context and table HUD) and `playersWithChips` (used only for tournament-end
+  detection and hand-end survivor/place accounting).
+- Decision-context failures can no longer cut a game short. If a context cannot
+  be built for any reason, the seat takes a deterministic legal safe action
+  (check/fold/call), a normal `DECISION` event is recorded with
+  `errorCategory: "context"`, and the hand continues. The failed context is never
+  sent anywhere, so masking still fails closed.
+- Added `Arena.recoverHand()` as a last-resort safety net: an unexpected error
+  that escapes the hand loop finishes that hand with safe actions instead of
+  aborting the tournament. It is bounded, so a genuinely broken engine still
+  surfaces as a tournament error rather than looping forever.
+- Added `tests/unit/tournament-safety-tests.mjs`: 2–6 handed simulations that
+  replay every decision context through all-ins, eliminations, heads-up and four
+  stack/policy combinations, plus chip-conservation and forced-recovery
+  assertions. Runs as part of `npm test`.
+- Reliability telemetry now reports a `context` error count per seat.
+
 ## 0.17.0 — per-seat reasoning effort
 
 - The seat editor now exposes **Reasoning effort** for OpenRouter models whose
