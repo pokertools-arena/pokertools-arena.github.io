@@ -2314,7 +2314,7 @@ function paintTableRecordingFrame(recording, source, sourceWidth, sourceHeight) 
 function createCaptureVideo(stream) {
   const video = document.createElement('video');
   // Mute only the hidden preview element to prevent echo. The original shared
-  // audio track remains live and is recorded through the audio pipeline below.
+  // audio track remains live and is muxed directly into the recording.
   video.muted = true;
   video.playsInline = true;
   video.autoplay = true;
@@ -2328,9 +2328,23 @@ function createCaptureVideo(stream) {
     pointerEvents: 'none',
     zIndex: '-1',
   });
-  video.srcObject = stream;
+  // Keep the captured audio off this muted preview element entirely.
+  video.srcObject = new MediaStream(stream.getVideoTracks());
   document.body.append(video);
   return video;
+}
+
+function createCaptureAudioMonitor(track) {
+  if (!track || track.getSettings?.().suppressLocalAudioPlayback !== true) return null;
+  const audio = document.createElement('audio');
+  audio.autoplay = true;
+  audio.controls = false;
+  audio.setAttribute('aria-hidden', 'true');
+  Object.assign(audio.style, { position: 'fixed', width: '1px', height: '1px', opacity: '0', pointerEvents: 'none' });
+  audio.srcObject = new MediaStream([track]);
+  document.body.append(audio);
+  void audio.play().catch(() => {});
+  return audio;
 }
 
 function waitForCaptureVideo(video, track) {
@@ -2476,6 +2490,8 @@ function disposeTableRecording(recording) {
     recording.captureVideo.srcObject = null;
     recording.captureVideo.remove();
   }
+  try { recording.audioMonitor?.pause?.(); } catch {}
+  if (recording.audioMonitor) { recording.audioMonitor.srcObject = null; recording.audioMonitor.remove(); }
   recording.canvasStream?.getTracks?.().forEach(track => track.stop());
   try { recording.outputVideoTrack?.stop?.(); } catch {}
   recording.captureStream?.getTracks?.().forEach(track => track.stop());
@@ -2503,6 +2519,7 @@ async function startTableRecording() {
 
   let captureStream = null;
   let captureVideo = null;
+  let audioMonitor = null;
   let recording = null;
 
   try {
@@ -2536,8 +2553,11 @@ async function startTableRecording() {
 
     const sourceAudioTrack = captureStream.getAudioTracks()[0] || null;
     if (sourceAudioTrack?.applyConstraints) {
-      try { await sourceAudioTrack.applyConstraints({ suppressLocalAudioPlayback: false }); } catch {}
+      try { await sourceAudioTrack.applyConstraints({ suppressLocalAudioPlayback: { exact: false } }); }
+      catch { try { await sourceAudioTrack.applyConstraints({ suppressLocalAudioPlayback: false }); } catch {} }
     }
+    if (soundEnabled) { try { await getAudioContext()?.resume(); } catch {} }
+    audioMonitor = createCaptureAudioMonitor(sourceAudioTrack);
     // Mux the original shared-audio track directly so its capture timestamps
     // stay aligned with the timestamp-preserving video pipeline.
     const audioTrack = sourceAudioTrack;
@@ -2569,6 +2589,7 @@ async function startTableRecording() {
       sourceHeight,
       audioTrack,
       sourceAudioTrack,
+      audioMonitor,
       chunks: [],
       stopping: false,
       pipelineError: null,
@@ -2631,6 +2652,8 @@ async function startTableRecording() {
   } catch (err) {
     if (recording) disposeTableRecording(recording);
     else {
+      try { audioMonitor?.pause?.(); } catch {}
+      if (audioMonitor) { audioMonitor.srcObject = null; audioMonitor.remove(); }
       captureStream?.getTracks?.().forEach(track => track.stop());
       if (captureVideo) {
         captureVideo.srcObject = null;

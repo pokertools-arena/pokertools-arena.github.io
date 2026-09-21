@@ -17,7 +17,7 @@
 | **Package** | `npx pokertools-arena` |
 | **Runtime** | Node.js ≥ 24 for tooling; any modern browser for the app |
 
-> **Current release: 0.13.0.** Recordings now keep table event audio and the winner pot payout visible, with a two-second winner-review hold between hands.
+> **Current release: 0.13.1.** Recording now keeps local game audio audible by isolating the muted preview to video, explicitly disabling playback suppression, and recovering the table audio context while preserving timestamp-aligned captured audio.
 
 ---
 

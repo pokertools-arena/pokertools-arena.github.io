@@ -81,7 +81,7 @@ if (!existsSync(join(root,'src','shims','crypto.cjs'))) throw new Error('Browser
 
 const pkg = JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
 if (pkg.name !== 'pokertools-arena') throw new Error('npm package name mismatch');
-if (pkg.version !== '0.13.0') throw new Error('Expected release version 0.13.0');
+if (pkg.version !== '0.13.1') throw new Error('Expected release version 0.13.1');
 if (pkg.dependencies?.['@pokertools/engine'] !== '1.0.20') throw new Error('@pokertools/engine 1.0.20 must be an explicit dependency');
 if (pkg.dependencies?.['@pokertools/evaluator'] !== '1.0.20') throw new Error('@pokertools/evaluator 1.0.20 must be an explicit dependency for deterministic hand evaluation');
 if (!pkg.devDependencies?.esbuild) throw new Error('esbuild devDependency missing');
@@ -347,6 +347,9 @@ if (!app.includes('function effectsAllowed()') || !app.includes('animationsAllow
 if (!app.includes("// Sound is an event effect, not an animation. Keep it active while recording.")) throw new Error('Chip sound not decoupled from recording animation gate');
 // 0.13.0 — recording keeps event audio while winner review stays visible.
 if (!css.includes('0.13.0 — recording audio and winner review')) throw new Error('0.13.0 CSS marker missing');
+// 0.13.1 — muted preview isolation and local audio recovery.
+if (!app.includes('new MediaStream(stream.getVideoTracks())') || !app.includes('suppressLocalAudioPlayback: { exact: false }')) throw new Error('Muted recording preview is not isolated from audio');
+if (!app.includes('function createCaptureAudioMonitor') || !app.includes('getAudioContext()?.resume()')) throw new Error('Local recording audio recovery missing');
 
 for (const workflow of ['ci.yml','pages.yml','publish.yml','real-diagnostics.yml']) {
   if (!statSync(join(root,'.github','workflows',workflow)).isFile()) throw new Error(`Missing workflow ${workflow}`);

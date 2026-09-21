@@ -1,5 +1,17 @@
 # Release notes
 
+## 0.13.1 — local recording audio recovery
+
+- Restricted the hidden muted capture preview to the video track so it cannot
+  become an audio sink for the shared stream.
+- Explicitly requests local playback during capture and resumes the table audio
+  context after the browser sharing prompt.
+- Added a narrowly scoped monitor fallback only when the captured track reports
+  that local playback is still being suppressed; it is removed when recording
+  stops.
+- Continues muxing the original captured audio track directly, preserving A/V
+  timestamps and avoiding unnecessary processing or feedback.
+
 ## 0.13.0 — recording audio and winner review
 
 - Decoupled table sound from the recording animation gate: chip, deal, board,
